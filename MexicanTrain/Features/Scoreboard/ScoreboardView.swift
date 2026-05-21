@@ -34,7 +34,7 @@ struct ScoreboardView: View {
         }
         .alert("Delete this game?", isPresented: $confirmDelete) {
             Button("Delete", role: .destructive) {
-                try? GamePersistence.delete(game: game, in: context)
+                try? GamePersistence.delete(game: game, in: context, photoStore: coordinator.photoStore)
                 coordinator.goHome()
             }
             Button("Cancel", role: .cancel) {}
@@ -184,8 +184,13 @@ struct ScoreboardView: View {
 
     private var tableArea: some View {
         ScrollView {
-            ScoreCardTable(game: game) { player, stop in
-                coordinator.openAudit(game: game, player: player, stop: stop)
+            VStack(spacing: 8) {
+                ScoreCardTable(game: game) { player, stop in
+                    coordinator.openAudit(game: game, player: player, stop: stop)
+                }
+                if game.currentStopIndex > 1 {
+                    PhotoGalleryStrip(game: game, stop: game.currentStopIndex - 1)
+                }
             }
             .padding(8)
         }
@@ -202,7 +207,7 @@ struct ScoreboardView: View {
                     toast = (game.currentStopIndex > stop) ? "Stop \(stop) closed" : "Game complete"
                     scheduleToastClear()
                 } else if let p = nextPlayer {
-                    coordinator.openManualEntry(game: game, player: p, stop: stop)
+                    coordinator.openCamera(game: game, player: p, stop: stop)
                 }
             } label: {
                 HStack(spacing: 10) {

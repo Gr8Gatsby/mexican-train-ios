@@ -28,6 +28,7 @@ struct AuditView: View {
                 hero
                 pipEditor
                 infoBlock
+                referenceArea
                 Spacer(minLength: 0)
                 footer
             }
@@ -180,6 +181,62 @@ struct AuditView: View {
                 .foregroundStyle(theme.muted)
         }
         .padding(.horizontal, 14)
+    }
+
+    private var matchingCapture: Capture? {
+        if let cid = existing?.captureID {
+            return game.captures.first(where: { $0.id == cid })
+        }
+        return game.captures.first(where: { $0.playerID == player.id && $0.stopIndex == stop })
+    }
+
+    @ViewBuilder
+    private var referenceArea: some View {
+        let capture = matchingCapture
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text(capture == nil ? "NO CAPTURE" : "REFERENCE PHOTO")
+                    .font(theme.monoFont(size: 9))
+                    .tracking(1.8)
+                    .foregroundStyle(theme.muted)
+                Spacer()
+                Button {
+                    coordinator.openCamera(game: game, player: player, stop: stop)
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "camera")
+                        Text(capture == nil ? "SCAN NOW" : "RE-SCAN")
+                    }
+                    .font(theme.monoFont(size: 9))
+                    .tracking(1.2)
+                    .foregroundStyle(theme.ink)
+                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(theme.border, lineWidth: 1)
+                    )
+                }
+            }
+            if let capture, let img = coordinator.photoStore.load(filename: capture.filename, gameID: game.id) {
+                Image(uiImage: img)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(height: 160)
+                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(theme.ink, lineWidth: 2)
+                    )
+                if !capture.tiles.isEmpty {
+                    Text("DETECTED \(capture.tiles.count) TILES · \(capture.pipsDetected ?? 0) PIPS")
+                        .font(theme.monoFont(size: 9))
+                        .tracking(1.2)
+                        .foregroundStyle(theme.muted)
+                }
+            }
+        }
+        .padding(.horizontal, 14).padding(.vertical, 8)
     }
 
     private func stepButton(label: String, action: @escaping () -> Void) -> some View {

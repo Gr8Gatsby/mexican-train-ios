@@ -34,6 +34,14 @@ struct RootView: View {
             NewGameView()
         case .scoreboard(let id):
             GameLookupView(gameID: id) { ScoreboardView(game: $0) }
+        case .camera(let gid, let pid, let stop):
+            GameLookupView(gameID: gid) { game in
+                if let player = game.players.first(where: { $0.id == pid }) {
+                    CameraView(game: game, player: player, stop: stop)
+                } else {
+                    Text("Player not found").onAppear { coordinator.goHome() }
+                }
+            }
         case .manualEntry(let gid, let pid, let stop):
             GameLookupView(gameID: gid) { game in
                 if let player = game.players.first(where: { $0.id == pid }) {

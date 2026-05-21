@@ -29,6 +29,7 @@ targets:
       properties:
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
+        NSCameraUsageDescription: "Photograph tiles to count pips automatically."
         # Custom font files aren't bundled yet. When Rye-Regular.ttf and
         # SpecialElite-Regular.ttf are dropped into MexicanTrain/Resources/Fonts,
         # Fonts.registerBundledFonts() picks them up at launch via CTFontManager.

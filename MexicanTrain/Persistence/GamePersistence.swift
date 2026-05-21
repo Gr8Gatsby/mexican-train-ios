@@ -70,7 +70,8 @@ enum GamePersistence {
         try context.save()
     }
 
-    static func delete(game: Game, in context: ModelContext) throws {
+    static func delete(game: Game, in context: ModelContext, photoStore: PhotoStore? = nil) throws {
+        photoStore?.deleteAll(gameID: game.id)
         context.delete(game)
         try context.save()
     }

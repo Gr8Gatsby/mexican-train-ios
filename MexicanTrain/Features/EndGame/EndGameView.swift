@@ -160,7 +160,7 @@ struct GameHistoryView: View {
         }
         .alert("Delete this game?", isPresented: $confirmDelete) {
             Button("Delete", role: .destructive) {
-                try? GamePersistence.delete(game: game, in: context)
+                try? GamePersistence.delete(game: game, in: context, photoStore: coordinator.photoStore)
                 coordinator.goHome()
             }
             Button("Cancel", role: .cancel) {}
