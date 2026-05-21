@@ -10,9 +10,32 @@ struct CameraView: View {
     @Environment(\.modelContext) private var context
 
     @State private var camera = CameraCapture()
-    @State private var phase: Phase = .aim
+    @State private var phase: Phase = {
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["MEXTRAIN_DEBUG_CAMERA_PHASE"] == "confirm" {
+            return .confirm
+        }
+        #endif
+        return .aim
+    }()
     @State private var captured: UIImage?
-    @State private var result: PipCountResult?
+    @State private var result: PipCountResult? = {
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["MEXTRAIN_DEBUG_CAMERA_PHASE"] == "confirm" {
+            return PipCountResult(
+                tiles: [
+                    TileObservation(a: 5, b: 3),
+                    TileObservation(a: 9, b: 0),
+                    TileObservation(a: 6, b: 4),
+                    TileObservation(a: 11, b: 8)
+                ],
+                total: 46,
+                confidence: .high
+            )
+        }
+        #endif
+        return nil
+    }()
     @State private var error: String?
 
     enum Phase: Equatable { case aim, scanning, confirm }
@@ -219,13 +242,16 @@ struct CameraView: View {
     private var confirmControls: some View {
         HStack(spacing: 8) {
             Button {
-                phase = .aim
-                captured = nil
-                result = nil
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    phase = .aim
+                    captured = nil
+                    result = nil
+                }
             } label: {
                 Text("↻ RETAKE")
                     .font(theme.displayFont(size: 14))
                     .tracking(2)
+                    .lineLimit(1)
                     .frame(maxWidth: .infinity, minHeight: 52)
                     .foregroundStyle(.white)
                     .overlay(
@@ -237,11 +263,11 @@ struct CameraView: View {
                 Text("ALL ABOARD ✓")
                     .font(theme.displayFont(size: 14))
                     .tracking(2)
+                    .lineLimit(1)
                     .frame(maxWidth: .infinity, minHeight: 52)
                     .foregroundStyle(theme.ctaText)
                     .background(theme.cta, in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
             }
-            .frame(maxWidth: .infinity * 2)
         }
     }
 

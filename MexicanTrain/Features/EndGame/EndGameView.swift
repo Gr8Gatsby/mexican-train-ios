@@ -19,7 +19,9 @@ struct EndGameView: View {
                         standingsList(standings)
                     }
                     .padding(16)
+                    .frame(maxWidth: .infinity, alignment: .top)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 actions
             }
         }

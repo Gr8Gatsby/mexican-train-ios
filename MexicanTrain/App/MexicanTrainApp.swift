@@ -8,7 +8,12 @@ struct MexicanTrainApp: App {
     init() {
         Fonts.registerBundledFonts()
         let container = DataStore.makeContainer()
-        _coordinator = State(initialValue: AppCoordinator(container: container))
+        let coord = AppCoordinator(container: container)
+        #if DEBUG
+        DebugSeed.seedIfRequested(container: container, photoStore: coord.photoStore)
+        DebugRoute.applyIfRequested(to: coord, container: container)
+        #endif
+        _coordinator = State(initialValue: coord)
     }
 
     var body: some Scene {
