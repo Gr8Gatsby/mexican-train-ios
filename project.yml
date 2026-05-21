@@ -24,6 +24,8 @@ targets:
         optional: true
       - path: MexicanTrain/Resources/Fonts
         optional: true
+      - path: MexicanTrain/Vision/DominoDetector.mlpackage
+        optional: true
     info:
       path: MexicanTrain/Resources/Info.plist
       properties:
