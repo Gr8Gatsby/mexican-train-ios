@@ -28,50 +28,14 @@ struct MexicanTrainApp: App {
 
 struct RootView: View {
     @Environment(AppCoordinator.self) private var coordinator
+    @Environment(\.theme) private var theme
 
     var body: some View {
         @Bindable var bind = coordinator
         return ZStack {
-            switch coordinator.route {
-            case .home:
-                HomeView()
-            case .newGame:
-                NewGameView()
-            case .scoreboard(let id):
-                GameLookupView(gameID: id) { ScoreboardView(game: $0) }
-            case .camera(let gid, let pid, let stop):
-                GameLookupView(gameID: gid) { game in
-                    if let player = game.players.first(where: { $0.id == pid }) {
-                        CameraView(game: game, player: player, stop: stop)
-                    } else {
-                        Text("Player not found").onAppear { coordinator.goHome() }
-                    }
-                }
-            case .manualEntry(let gid, let pid, let stop):
-                GameLookupView(gameID: gid) { game in
-                    if let player = game.players.first(where: { $0.id == pid }) {
-                        ManualEntryView(game: game, player: player, stop: stop)
-                    } else {
-                        Text("Player not found").onAppear { coordinator.goHome() }
-                    }
-                }
-            case .audit(let gid, let pid, let stop):
-                GameLookupView(gameID: gid) { game in
-                    if let player = game.players.first(where: { $0.id == pid }) {
-                        AuditView(game: game, player: player, stop: stop)
-                    } else {
-                        Text("Player not found").onAppear { coordinator.goHome() }
-                    }
-                }
-            case .endGame(let id):
-                GameLookupView(gameID: id) { EndGameView(game: $0) }
-            case .settings:
-                SettingsView()
-            case .gameHistory(let id):
-                GameLookupView(gameID: id) { GameHistoryView(game: $0) }
-            case .spectator:
-                SpectatorView()
-            }
+            theme.bg.ignoresSafeArea()
+            currentRoute
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .sheet(item: $bind.sheet) { sheet in
             switch sheet {
@@ -80,6 +44,50 @@ struct RootView: View {
             case .join(let code):
                 JoinSheet(initialCode: code)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var currentRoute: some View {
+        switch coordinator.route {
+        case .home:
+            HomeView()
+        case .newGame:
+            NewGameView()
+        case .scoreboard(let id):
+            GameLookupView(gameID: id) { ScoreboardView(game: $0) }
+        case .camera(let gid, let pid, let stop):
+            GameLookupView(gameID: gid) { game in
+                if let player = game.players.first(where: { $0.id == pid }) {
+                    CameraView(game: game, player: player, stop: stop)
+                } else {
+                    Text("Player not found").onAppear { coordinator.goHome() }
+                }
+            }
+        case .manualEntry(let gid, let pid, let stop):
+            GameLookupView(gameID: gid) { game in
+                if let player = game.players.first(where: { $0.id == pid }) {
+                    ManualEntryView(game: game, player: player, stop: stop)
+                } else {
+                    Text("Player not found").onAppear { coordinator.goHome() }
+                }
+            }
+        case .audit(let gid, let pid, let stop):
+            GameLookupView(gameID: gid) { game in
+                if let player = game.players.first(where: { $0.id == pid }) {
+                    AuditView(game: game, player: player, stop: stop)
+                } else {
+                    Text("Player not found").onAppear { coordinator.goHome() }
+                }
+            }
+        case .endGame(let id):
+            GameLookupView(gameID: id) { EndGameView(game: $0) }
+        case .settings:
+            SettingsView()
+        case .gameHistory(let id):
+            GameLookupView(gameID: id) { GameHistoryView(game: $0) }
+        case .spectator:
+            SpectatorView()
         }
     }
 }

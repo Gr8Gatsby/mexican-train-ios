@@ -194,12 +194,28 @@ struct ScoreboardView: View {
                 ScoreCardTable(game: game) { player, stop in
                     coordinator.openAudit(game: game, player: player, stop: stop)
                 }
+                legend
                 if game.currentStopIndex > 1 {
                     PhotoGalleryStrip(game: game, stop: game.currentStopIndex - 1)
                 }
             }
             .padding(8)
         }
+    }
+
+    private var legend: some View {
+        HStack {
+            Text("♔ LEADER  ▸ YOU")
+                .font(theme.monoFont(size: 9))
+                .tracking(1.2)
+                .foregroundStyle(theme.muted)
+            Spacer()
+            Text("TAP ANY SCORE TO AUDIT")
+                .font(theme.monoFont(size: 9))
+                .tracking(1.2)
+                .foregroundStyle(theme.muted)
+        }
+        .padding(.horizontal, 6)
     }
 
     private var cta: some View {

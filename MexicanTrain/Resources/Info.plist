@@ -38,6 +38,11 @@
 	<string>Photograph tiles to count pips automatically.</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Mexican Train uses local networking so friends nearby can join your game live. Nothing leaves your devices.</string>
+	<key>UILaunchScreen</key>
+	<dict>
+		<key>UIColorName</key>
+		<string>AccentColor</string>
+	</dict>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
