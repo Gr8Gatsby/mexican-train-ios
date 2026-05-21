@@ -2,14 +2,14 @@ import Foundation
 import SwiftData
 
 enum DataStore {
-    /// Build the SwiftData model container. M0 registers a single stub schema
-    /// so the container instantiates cleanly; later milestones add the real
-    /// Game / Player / Score / Capture models per dev-design §3.
-    static func makeContainer() -> ModelContainer {
+    static func makeContainer(inMemory: Bool = false) -> ModelContainer {
         let schema = Schema([
-            Game.self
+            Game.self,
+            Player.self,
+            Score.self,
+            Capture.self
         ])
-        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
+        let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: inMemory)
         do {
             return try ModelContainer(for: schema, configurations: [config])
         } catch {
