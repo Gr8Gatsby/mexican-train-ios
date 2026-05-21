@@ -31,7 +31,7 @@ final class AppCoordinator {
         self.container = container
         self.settings = settings ?? AppSettings()
         self.photoStore = photoStore
-        self.pipCounter = pipCounter ?? MockPipCounter()
+        self.pipCounter = pipCounter ?? PipCounterFactory.makeProductionCounter()
     }
 
     func goHome() { route = .home }
