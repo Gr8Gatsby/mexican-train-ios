@@ -1,0 +1,6 @@
+# Drop Rye-Regular.ttf and SpecialElite-Regular.ttf here.
+# Both are SIL Open Font License — Google Fonts:
+#   https://fonts.google.com/specimen/Rye
+#   https://fonts.google.com/specimen/Special+Elite
+# Until they're present, Theme.displayFont / Theme.monoFont fall back to
+# system serif and system monospaced.
