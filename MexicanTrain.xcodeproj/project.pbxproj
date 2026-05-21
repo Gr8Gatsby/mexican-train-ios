@@ -17,6 +17,7 @@
 		25F31180001FAEA8BFFF7DA3 /* ScoringTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B349A99B53A4356034456F37 /* ScoringTests.swift */; };
 		37D1DACF125479E280746A46 /* DominoGlyph.swift in Sources */ = {isa = PBXBuildFile; fileRef = C213CD19D031BEB200E5703D /* DominoGlyph.swift */; };
 		43C3C3354FA8743017C46504 /* PipCounter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3ED41C35BD47CF4FF38E035 /* PipCounter.swift */; };
+		47F2FEC85D7E04A52739D9BC /* DetectionOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6673767DB628D0C366BDDE8C /* DetectionOverlay.swift */; };
 		49DE55F1BD5B0B0B8DB7BC19 /* TileObservation.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAB2D81705B411EFDDAA0C9B /* TileObservation.swift */; };
 		4A8AB2EDA15EC4015CC9DAE8 /* MockPipCounter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CD9E75B2B0471B31643E977 /* MockPipCounter.swift */; };
 		4DB8B93338827A63B799A283 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E8E662B62C184EF266FECD74 /* Assets.xcassets */; };
@@ -94,6 +95,7 @@
 		5921690E22278A61B30EDB6F /* NetworkingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkingTests.swift; sourceTree = "<group>"; };
 		5FE52AC59F45C3D8841AF4A3 /* HostBroadcaster.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HostBroadcaster.swift; sourceTree = "<group>"; };
 		6054B35D609ADA3583F26F61 /* MODEL_CONTRACT.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = MODEL_CONTRACT.md; sourceTree = "<group>"; };
+		6673767DB628D0C366BDDE8C /* DetectionOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DetectionOverlay.swift; sourceTree = "<group>"; };
 		6909D9519FCD9433CDE46344 /* PhotoStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoStore.swift; sourceTree = "<group>"; };
 		6A397F54474BA553D0CCD821 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
 		6CAFA7CA9F436472DD11465E /* ScoreCardTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScoreCardTable.swift; sourceTree = "<group>"; };
@@ -161,6 +163,7 @@
 		171D66FBDEB9FE89D521CF9B /* Components */ = {
 			isa = PBXGroup;
 			children = (
+				6673767DB628D0C366BDDE8C /* DetectionOverlay.swift */,
 				C213CD19D031BEB200E5703D /* DominoGlyph.swift */,
 				35F3A86B6F9673693E57862C /* KeypadView.swift */,
 				15BBA822DEFF1A0EBDD57D43 /* QRCodeView.swift */,
@@ -486,6 +489,7 @@
 				FAFF3CD29022C1E51414A97A /* DataStore.swift in Sources */,
 				A0E2C6D0239E5B9803DBFBAA /* DebugRoute.swift in Sources */,
 				7105FCBA9DBF6C0247C792DE /* DebugSeed.swift in Sources */,
+				47F2FEC85D7E04A52739D9BC /* DetectionOverlay.swift in Sources */,
 				BF43A9A96C11F4C74CC42D5A /* DeviceIdentity.swift in Sources */,
 				50330676C9B0B5F496CDCD56 /* DominoDetector.mlpackage in Sources */,
 				37D1DACF125479E280746A46 /* DominoGlyph.swift in Sources */,

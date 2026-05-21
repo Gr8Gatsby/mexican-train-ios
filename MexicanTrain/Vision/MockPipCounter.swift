@@ -19,10 +19,20 @@ struct MockPipCounter: PipCounter {
 
         let count = Int.random(in: 4...8, using: &rng)
         var tiles: [TileObservation] = []
-        for _ in 0..<count {
+        // Sprinkle plausible bboxes in a rough grid so the confirm-screen
+        // overlay shows highlights instead of nothing.
+        let cols = 3
+        for i in 0..<count {
             let a = Int.random(in: 0...maxValue, using: &rng)
             let b = Int.random(in: 0...maxValue, using: &rng)
-            tiles.append(TileObservation(a: a, b: b))
+            let row = i / cols
+            let col = i % cols
+            let w = 0.20
+            let h = 0.18
+            let x = 0.10 + Double(col) * 0.28 + Double.random(in: -0.02...0.02, using: &rng)
+            let y = 0.25 + Double(row) * 0.22 + Double.random(in: -0.02...0.02, using: &rng)
+            let bbox = NormalizedRect(x: x, y: y, width: w, height: h)
+            tiles.append(TileObservation(a: a, b: b, bbox: bbox))
         }
         let total = tiles.map(\.pips).reduce(0, +)
         let confidence: Confidence = (count >= 5 ? .high : .medium)

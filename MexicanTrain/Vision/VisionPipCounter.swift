@@ -77,7 +77,9 @@ struct VisionPipCounter: PipCounter {
         let detections = decodeYOLO(output: raw,
                                     confidenceThreshold: confidenceThreshold)
         let kept = nms(detections: detections, iouThreshold: iouThreshold)
-        let halves = kept.map { TileObservation(a: $0.classIndex, b: 0) }
+        let halves = kept.map { d in
+            TileObservation(a: d.classIndex, b: 0, bbox: d.normalizedBox)
+        }
         let total = halves.reduce(0) { $0 + $1.pips }
         let confidence = bucket(for: kept.map(\.confidence), tileCount: kept.count)
         return PipCountResult(tiles: halves, total: total, confidence: confidence)
@@ -94,6 +96,20 @@ struct VisionPipCounter: PipCounter {
         var x2: Float { cx + w/2 }
         var y2: Float { cy + h/2 }
         var area: Float { max(0, x2 - x1) * max(0, y2 - y1) }
+
+        /// Bounding box normalized to [0,1] against the model's 640²
+        /// input. Because Vision uses `.scaleFill`, these coordinates map
+        /// directly onto the source photo's [0,1] coordinate system —
+        /// the photo is non-uniformly stretched to fill 640², but the
+        /// stretch preserves normalized positions.
+        var normalizedBox: NormalizedRect {
+            NormalizedRect(
+                x: Double(max(0, x1) / 640.0),
+                y: Double(max(0, y1) / 640.0),
+                width: Double(min(640, w) / 640.0),
+                height: Double(min(640, h) / 640.0)
+            )
+        }
     }
 
     /// Decode the [1, 17, 8400] raw output into per-anchor detections.

@@ -18,18 +18,29 @@ struct CameraView: View {
         #endif
         return .aim
     }()
-    @State private var captured: UIImage?
+    @State private var captured: UIImage? = {
+        #if DEBUG
+        if ProcessInfo.processInfo.environment["MEXTRAIN_DEBUG_CAMERA_PHASE"] == "confirm" {
+            return CameraView.simulatedCapture()
+        }
+        #endif
+        return nil
+    }()
     @State private var result: PipCountResult? = {
         #if DEBUG
         if ProcessInfo.processInfo.environment["MEXTRAIN_DEBUG_CAMERA_PHASE"] == "confirm" {
+            let tiles: [TileObservation] = [
+                TileObservation(a: 5, b: 0, bbox: NormalizedRect(x: 0.10, y: 0.20, width: 0.18, height: 0.20)),
+                TileObservation(a: 3, b: 0, bbox: NormalizedRect(x: 0.32, y: 0.22, width: 0.18, height: 0.20)),
+                TileObservation(a: 9, b: 0, bbox: NormalizedRect(x: 0.55, y: 0.22, width: 0.18, height: 0.20)),
+                TileObservation(a: 6, b: 0, bbox: NormalizedRect(x: 0.10, y: 0.50, width: 0.18, height: 0.20)),
+                TileObservation(a: 11, b: 0, bbox: NormalizedRect(x: 0.32, y: 0.50, width: 0.18, height: 0.20)),
+                TileObservation(a: 4, b: 0, bbox: NormalizedRect(x: 0.55, y: 0.50, width: 0.18, height: 0.20)),
+                TileObservation(a: 2, b: 0, bbox: NormalizedRect(x: 0.77, y: 0.50, width: 0.18, height: 0.20))
+            ]
             return PipCountResult(
-                tiles: [
-                    TileObservation(a: 5, b: 3),
-                    TileObservation(a: 9, b: 0),
-                    TileObservation(a: 6, b: 4),
-                    TileObservation(a: 11, b: 8)
-                ],
-                total: 46,
+                tiles: tiles,
+                total: tiles.map(\.pips).reduce(0, +),
                 confidence: .high
             )
         }
@@ -97,7 +108,11 @@ struct CameraView: View {
     @ViewBuilder
     private var viewfinder: some View {
         ZStack {
-            if let session = camera.session, camera.hasCamera {
+            // Background layer: confirm mode shows the captured photo with
+            // detection boxes; aim/scanning show the live preview or fallback.
+            if phase == .confirm, let img = captured, let result {
+                DetectionOverlay(image: img, tiles: result.tiles, color: theme.accent)
+            } else if let session = camera.session, camera.hasCamera {
                 CameraPreview(session: session)
                     .clipped()
             } else if let img = captured {
@@ -157,17 +172,15 @@ struct CameraView: View {
 
     private var confirmOverlay: some View {
         ZStack {
-            LinearGradient(colors: [.black.opacity(0.9), .black.opacity(0.4), .clear],
+            LinearGradient(colors: [.black.opacity(0.85), .black.opacity(0.3), .clear],
                            startPoint: .bottom, endPoint: .top)
                 .allowsHitTesting(false)
             if let result {
                 VStack {
                     Spacer()
-                    DetectedTilesRow(tiles: result.tiles)
-                        .padding(.bottom, 6)
                     HStack(alignment: .bottom) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("✓ \(result.tiles.count) TILES · YOUR PIP COUNT")
+                            Text("✓ \(result.tiles.count) HALVES DETECTED")
                                 .font(theme.monoFont(size: 10))
                                 .tracking(1.8)
                                 .foregroundStyle(theme.accent)
@@ -177,7 +190,7 @@ struct CameraView: View {
                                 .foregroundStyle(.white)
                                 .shadow(color: .black.opacity(0.6), radius: 8, y: 4)
                                 .contentTransition(.numericText())
-                            Text("EDIT IN AUDIT AFTER SUBMIT")
+                            Text("PIP COUNT · EDIT IN AUDIT AFTER SUBMIT")
                                 .font(theme.monoFont(size: 9))
                                 .tracking(1.4)
                                 .foregroundStyle(.white.opacity(0.55))
@@ -313,7 +326,7 @@ struct CameraView: View {
     /// Solid color image used when running on the simulator with no camera.
     /// The mock pip counter doesn't care about pixel content; it uses image
     /// size to vary results, so a 1024-square frame is fine.
-    private static func simulatedCapture() -> UIImage {
+    static func simulatedCapture() -> UIImage {
         let size = CGSize(width: 1024, height: 1024)
         let renderer = UIGraphicsImageRenderer(size: size)
         return renderer.image { ctx in

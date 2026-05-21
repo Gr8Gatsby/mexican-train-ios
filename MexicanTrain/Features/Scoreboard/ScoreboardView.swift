@@ -82,6 +82,8 @@ struct ScoreboardView: View {
                 .foregroundStyle(theme.brand)
             Spacer()
 
+            broadcastPill
+
             HStack(spacing: 4) {
                 Text("STOP")
                     .font(theme.monoFont(size: 9))
@@ -119,6 +121,50 @@ struct ScoreboardView: View {
         .padding(.horizontal, 8).padding(.vertical, 4)
         .background(theme.headerBg)
         .overlay(alignment: .bottom) { Rectangle().fill(theme.border).frame(height: 1) }
+    }
+
+    /// Compact farkle-style broadcast indicator: room code when nobody's
+    /// joined, viewer count when someone has. Tap opens the share sheet.
+    private var broadcastPill: some View {
+        let session = coordinator.netSession
+        let isHosting = session.role == .host
+        let peers = session.connectedPeerCount
+        return Button {
+            coordinator.openShareSheet(for: game)
+        } label: {
+            HStack(spacing: 4) {
+                if peers > 0 {
+                    Image(systemName: "person.fill")
+                        .font(.system(size: 10, weight: .semibold))
+                        .accessibilityHidden(true)
+                    Text("\(peers)")
+                        .font(theme.monoFont(size: 11))
+                        .fontWeight(.bold)
+                } else {
+                    Image(systemName: "dot.radiowaves.left.and.right")
+                        .font(.system(size: 11, weight: .semibold))
+                        .accessibilityHidden(true)
+                    Text(isHosting ? session.roomCode : "SHARE")
+                        .font(theme.monoFont(size: 11))
+                        .fontWeight(.bold)
+                        .tracking(0.6)
+                }
+            }
+            .lineLimit(1)
+            .fixedSize(horizontal: true, vertical: false)
+            .padding(.horizontal, 8)
+            .frame(height: 28)
+            .foregroundStyle(peers > 0 ? theme.ctaText : theme.ink)
+            .background(peers > 0 ? theme.brand : theme.subBg,
+                        in: RoundedRectangle(cornerRadius: 8))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(theme.border, lineWidth: 1)
+            )
+        }
+        .accessibilityLabel(isHosting
+                            ? "Room code \(session.roomCode). \(peers) joined."
+                            : "Share game")
     }
 
     private var engineStrip: some View {
