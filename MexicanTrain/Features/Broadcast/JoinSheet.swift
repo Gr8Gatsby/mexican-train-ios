@@ -1,0 +1,294 @@
+import SwiftUI
+
+struct JoinSheet: View {
+    @Environment(\.theme) private var theme
+    @Environment(AppCoordinator.self) private var coordinator
+    @Environment(\.dismiss) private var dismiss
+
+    var initialCode: String?
+
+    @State private var code: String = ""
+    @State private var prefill: ContactPrefill?
+    @State private var editedName: String = ""
+    @State private var roleChoice: RoleChoice = .player
+    @State private var selectedSlot: UUID?
+    enum RoleChoice: String, CaseIterable, Identifiable {
+        case player, spectator
+        var id: String { rawValue }
+    }
+
+    var body: some View {
+        ZStack {
+            theme.bg.ignoresSafeArea()
+            VStack(spacing: 14) {
+                header
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        if coordinator.netSession.joinState != .connected {
+                            codeEntry
+                            hostList
+                        } else {
+                            identityBlock
+                            slotPicker
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                }
+                joinButton
+            }
+            .padding(.vertical, 12)
+        }
+        .onAppear {
+            if coordinator.netSession.role != .joiner {
+                coordinator.netSession.startBrowsing()
+            }
+            if let initialCode { code = initialCode }
+        }
+        .onChange(of: coordinator.netSession.joinState) { _, newValue in
+            if newValue == .connected {
+                Task { await loadPrefill() }
+            }
+        }
+    }
+
+    private var header: some View {
+        HStack {
+            Text("JOIN GAME")
+                .font(theme.monoFont(size: 11))
+                .tracking(2)
+                .foregroundStyle(theme.muted)
+            Spacer()
+            Button("Cancel") {
+                coordinator.netSession.leave()
+                dismiss()
+            }
+            .font(theme.monoFont(size: 12))
+            .foregroundStyle(theme.brand)
+        }
+        .padding(.horizontal, 16)
+    }
+
+    private var codeEntry: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("ROOM CODE")
+                .font(theme.monoFont(size: 10))
+                .tracking(2)
+                .foregroundStyle(theme.muted)
+            TextField("0000", text: $code)
+                .keyboardType(.numberPad)
+                .font(theme.displayFont(size: 36, relativeTo: .title))
+                .tracking(6)
+                .multilineTextAlignment(.center)
+                .padding(.vertical, 10)
+                .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(theme.border, lineWidth: 1)
+                )
+                .onChange(of: code) { _, new in
+                    code = String(new.filter(\.isNumber).prefix(4))
+                }
+        }
+    }
+
+    @ViewBuilder
+    private var hostList: some View {
+        if !coordinator.netSession.availableHosts.isEmpty {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("NEARBY")
+                    .font(theme.monoFont(size: 10))
+                    .tracking(2)
+                    .foregroundStyle(theme.muted)
+                ForEach(coordinator.netSession.availableHosts) { host in
+                    Button {
+                        code = host.roomCode
+                        coordinator.netSession.connect(to: host)
+                    } label: {
+                        HStack {
+                            VStack(alignment: .leading) {
+                                Text(host.hostName)
+                                    .font(theme.displayFont(size: 14))
+                                    .foregroundStyle(theme.ink)
+                                Text("\(host.gameName) · \(host.playerCount) players · code \(host.roomCode)")
+                                    .font(theme.monoFont(size: 10))
+                                    .foregroundStyle(theme.muted)
+                            }
+                            Spacer()
+                            Image(systemName: "chevron.right")
+                                .foregroundStyle(theme.muted)
+                        }
+                        .padding(10)
+                        .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 8))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        } else {
+            Text("Searching for nearby hosts…")
+                .font(theme.monoFont(size: 11))
+                .foregroundStyle(theme.muted)
+        }
+    }
+
+    @ViewBuilder
+    private var identityBlock: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("YOUR IDENTITY")
+                .font(theme.monoFont(size: 10))
+                .tracking(2)
+                .foregroundStyle(theme.muted)
+
+            TextField("Name", text: $editedName)
+                .padding(10)
+                .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 8))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8)
+                        .stroke(theme.borderLight, lineWidth: 1)
+                )
+
+            Text("Prefilled from this device's name. Edit before joining if you like.")
+                .font(theme.monoFont(size: 10))
+                .foregroundStyle(theme.muted)
+        }
+    }
+
+    @ViewBuilder
+    private var slotPicker: some View {
+        if let snap = coordinator.netSession.latestSnapshot {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("ROLE")
+                    .font(theme.monoFont(size: 10))
+                    .tracking(2)
+                    .foregroundStyle(theme.muted)
+                HStack {
+                    rolePill(.player, label: "JOIN AS PLAYER")
+                    rolePill(.spectator, label: "SPECTATE")
+                }
+                if roleChoice == .player {
+                    let unclaimed = snap.players.filter { p in
+                        !snap.claims.contains(where: { $0.playerID == p.id })
+                    }
+                    Text("PICK A SLOT")
+                        .font(theme.monoFont(size: 10))
+                        .tracking(2)
+                        .foregroundStyle(theme.muted)
+                        .padding(.top, 4)
+                    ForEach(unclaimed) { p in
+                        Button {
+                            selectedSlot = p.id
+                        } label: {
+                            HStack {
+                                Image(systemName: selectedSlot == p.id ? "largecircle.fill.circle" : "circle")
+                                    .foregroundStyle(selectedSlot == p.id ? theme.brand : theme.muted)
+                                Text(p.name)
+                                    .font(theme.displayFont(size: 16))
+                                    .foregroundStyle(theme.ink)
+                                Spacer()
+                            }
+                            .padding(10)
+                            .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 8))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(selectedSlot == p.id ? theme.brand : theme.borderLight,
+                                            lineWidth: selectedSlot == p.id ? 1.5 : 1)
+                            )
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    if unclaimed.isEmpty {
+                        Text("All slots claimed. Spectate instead?")
+                            .font(theme.monoFont(size: 11))
+                            .foregroundStyle(theme.muted)
+                    }
+                }
+            }
+        }
+    }
+
+    private func rolePill(_ value: RoleChoice, label: String) -> some View {
+        Button { roleChoice = value } label: {
+            Text(label)
+                .font(theme.monoFont(size: 11))
+                .tracking(1.4)
+                .foregroundStyle(roleChoice == value ? theme.ctaText : theme.ink)
+                .frame(maxWidth: .infinity, minHeight: 40)
+                .background(roleChoice == value ? theme.cta : theme.cardBg,
+                            in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
+                .overlay(
+                    RoundedRectangle(cornerRadius: theme.buttonCornerRadius)
+                        .stroke(theme.border, lineWidth: 1)
+                )
+        }
+    }
+
+    private var joinButton: some View {
+        let state = coordinator.netSession.joinState
+        return Group {
+            switch state {
+            case .browsing, .disconnected:
+                Button {
+                    if let host = coordinator.netSession.availableHosts.first(where: { $0.roomCode == code }) {
+                        coordinator.netSession.connect(to: host)
+                    }
+                } label: {
+                    joinButtonLabel(text: "CONNECT", enabled: connectEnabled)
+                }
+                .disabled(!connectEnabled)
+            case .connecting:
+                joinButtonLabel(text: "CONNECTING…", enabled: false)
+            case .connected:
+                Button(action: confirm) {
+                    joinButtonLabel(text: "JOIN", enabled: canConfirm)
+                }
+                .disabled(!canConfirm)
+            case .hostEnded:
+                joinButtonLabel(text: "HOST LEFT", enabled: false)
+            }
+        }
+        .padding(.horizontal, 16)
+    }
+
+    private func joinButtonLabel(text: String, enabled: Bool) -> some View {
+        Text(text)
+            .font(theme.displayFont(size: 14))
+            .tracking(2.5)
+            .frame(maxWidth: .infinity, minHeight: 56)
+            .foregroundStyle(theme.ctaText)
+            .background(enabled ? theme.cta : theme.muted,
+                        in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
+            .opacity(enabled ? 1 : 0.55)
+    }
+
+    private var connectEnabled: Bool {
+        RoomCode.isValid(code) &&
+        coordinator.netSession.availableHosts.contains(where: { $0.roomCode == code })
+    }
+
+    private var canConfirm: Bool {
+        let nameOK = !editedName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        if roleChoice == .player {
+            return nameOK && selectedSlot != nil
+        }
+        return true
+    }
+
+    private func loadPrefill() async {
+        let p = await DeviceIdentity.loadCurrentIdentity()
+        prefill = p
+        if editedName.isEmpty, let n = p.displayName { editedName = n }
+    }
+
+    private func confirm() {
+        switch roleChoice {
+        case .player:
+            guard let slot = selectedSlot else { return }
+            let photo = DeviceIdentity.compressPhoto(prefill?.imageData)
+            let claim = PlayerClaim(playerID: slot, displayName: editedName, photoJPEG: photo)
+            coordinator.netSession.sendClaim(claim)
+        case .spectator:
+            break
+        }
+        coordinator.openSpectator()
+        dismiss()
+    }
+}

@@ -16,10 +16,28 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>1.0</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.kevin.mexicantrain.join</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>mextrain</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>NSBonjourServices</key>
+	<array>
+		<string>_mextrain-game._tcp</string>
+		<string>_mextrain-game._udp</string>
+	</array>
 	<key>NSCameraUsageDescription</key>
 	<string>Photograph tiles to count pips automatically.</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>Mexican Train uses local networking so friends nearby can join your game live. Nothing leaves your devices.</string>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>

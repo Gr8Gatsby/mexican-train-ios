@@ -62,6 +62,7 @@ struct ScoreboardView: View {
                 coordinator.openEndGame(game)
             }
         }
+        .hostBroadcaster(game: game)
     }
 
     private var header: some View {
@@ -95,6 +96,9 @@ struct ScoreboardView: View {
             }
 
             Menu {
+                Button("Share with table") {
+                    coordinator.openShareSheet(for: game)
+                }
                 Button("Rename game") {
                     renamingTo = game.displayName
                     renaming = true

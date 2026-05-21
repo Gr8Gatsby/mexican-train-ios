@@ -173,12 +173,12 @@ Multiple joiners can connect to a single host concurrently, in any combination o
 - Discovery is local-only (same Wi-Fi network or short-range wireless). The app makes no internet calls for any part of join or broadcast.
 
 ### 7.3 Identity prefill for player joiners
-When joining as a player, the join sheet pre-populates the slot's name and photo from the joiner's device-owner information (the user's own name and photo as known to iOS).
+When joining as a player, the join sheet pre-populates the slot's display name from the joiner's device-owner information — on iOS, `UIDevice.current.name` with the trailing "'s iPhone" / "'s iPad" suffix stripped. (iOS does not expose a macOS-style "Me card" API; the device name is the closest stable signal available without prompting.)
 
-- The first time the app uses this information, the user is asked for permission with a clear purpose string ("Use your name and photo so other players can see who joined"). If permission is declined, the joiner enters a name manually and may skip the photo.
-- Both the name and the photo are editable on the join sheet before tapping "Join." The joiner is never forced to share either.
-- When the joiner taps "Join," the chosen name and photo become the visible identity for that slot across the host and every other joiner.
-- A joined player's name overrides any host-set name for that slot. The photo is added to that slot on the broadcast scoreboard. If the joiner provides no photo, the slot continues to show only initials.
+- The prefilled name is always editable before joining; the joiner is never forced to send what we prefilled.
+- A photo is optional: v1 ships without an automatic photo source. The wire format and host-side persistence reserve a `photoJPEG` field so a future Photo Picker / contact-pick flow can attach an image without protocol changes (resized to ~256² and ≤ 32 KB).
+- When the joiner taps "Join," the chosen name (and any photo) becomes the visible identity for that slot across the host and every other joiner.
+- A joined player's name overrides any host-set name for that slot. If the joiner provides no photo, the slot continues to show only initials.
 
 ### 7.4 What the host broadcasts
 On every meaningful change, the host pushes the current game state to all connected joiners. "Meaningful change" includes (non-exhaustive): a score added or audited, a stop advanced, a player added/renamed, the game ended, a new capture taken, a claim received from another joiner.
@@ -220,3 +220,4 @@ The broadcast carries enough state for joiners to render the full scoreboard, th
 - 2026-05-21 — v0.1 — Initial draft. Scope: standalone single-device, on-device vision, Caboose theme. Authored from design canvas (`docs/design/Mexican Train/`) and the web app README (`/Users/kevin/Documents/code/platform/apps/mextrain`).
 - 2026-05-21 — v0.2 — Resolved open questions: default game length confirmed at 13; photos retained with game history and deleted only when the user deletes a game (no time-based purge); starting engine made a per-game house rule (§2.4) with "Traditional" as the default.
 - 2026-05-21 — v0.3 — Added broadcast (§7): host advertises a game via QR code + room code; other phones join as player (with iOS-prefilled name and photo) or spectator. Scoring inputs remain host-only. Adjusted §1 product summary and §8 non-goals to match.
+- 2026-05-21 — v0.4 — Tightened §7.3 to reflect the iOS reality: identity prefill comes from `UIDevice.current.name` (with the device-suffix stripped) rather than a Contacts "Me card," which iOS doesn't expose. The wire format still carries an optional photo for a future Photo Picker flow.

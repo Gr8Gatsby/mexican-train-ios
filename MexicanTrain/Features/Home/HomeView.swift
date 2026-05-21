@@ -104,6 +104,7 @@ struct HomeView: View {
                 HStack(spacing: 10) {
                     Image(systemName: "plus.circle.fill")
                         .font(.system(size: 18, weight: .bold))
+                        .accessibilityHidden(true)
                     Text("NEW GAME")
                         .font(theme.displayFont(size: 14))
                         .tracking(2.5)
@@ -112,6 +113,15 @@ struct HomeView: View {
                 .foregroundStyle(theme.ctaText)
                 .background(theme.cta, in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
             }
+            Button {
+                coordinator.openJoinSheet()
+            } label: {
+                Text("JOIN NEARBY GAME")
+                    .font(theme.monoFont(size: 11))
+                    .tracking(1.6)
+                    .foregroundStyle(theme.brand)
+            }
+            .accessibilityLabel("Join a nearby game")
         }
         .padding(.horizontal, 20)
         .padding(.bottom, 16)

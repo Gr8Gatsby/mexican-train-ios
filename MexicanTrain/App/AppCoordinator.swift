@@ -14,24 +14,40 @@ final class AppCoordinator {
         case endGame(gameID: UUID)
         case settings
         case gameHistory(gameID: UUID)
+        case spectator
+    }
+
+    enum SheetRoute: Equatable, Identifiable {
+        case share(gameID: UUID)
+        case join(prefilledCode: String?)
+        var id: String {
+            switch self {
+            case .share(let id): "share-\(id)"
+            case .join(let c): "join-\(c ?? "")"
+            }
+        }
     }
 
     var route: Route = .home
+    var sheet: SheetRoute?
     let container: ModelContainer
     let settings: AppSettings
     let photoStore: PhotoStore
     let pipCounter: any PipCounter
+    let netSession: MexTrainNetSession
 
     init(
         container: ModelContainer,
         settings: AppSettings? = nil,
         photoStore: PhotoStore = PhotoStore(),
-        pipCounter: (any PipCounter)? = nil
+        pipCounter: (any PipCounter)? = nil,
+        netSession: MexTrainNetSession? = nil
     ) {
         self.container = container
         self.settings = settings ?? AppSettings()
         self.photoStore = photoStore
         self.pipCounter = pipCounter ?? PipCounterFactory.makeProductionCounter()
+        self.netSession = netSession ?? MexTrainNetSession()
     }
 
     func goHome() { route = .home }
@@ -49,4 +65,17 @@ final class AppCoordinator {
     func openEndGame(_ game: Game) { route = .endGame(gameID: game.id) }
     func openSettings() { route = .settings }
     func openGameHistory(_ game: Game) { route = .gameHistory(gameID: game.id) }
+    func openSpectator() { route = .spectator }
+
+    func openShareSheet(for game: Game) { sheet = .share(gameID: game.id) }
+    func openJoinSheet(code: String? = nil) { sheet = .join(prefilledCode: code) }
+    func dismissSheet() { sheet = nil }
+
+    /// Handle `mextrain://join?code=NNNN` URLs from the iOS Camera scanner or
+    /// any other source.
+    func handle(url: URL) {
+        if let code = JoinURL.decode(url) {
+            openJoinSheet(code: code)
+        }
+    }
 }
