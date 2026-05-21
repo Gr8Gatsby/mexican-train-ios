@@ -1,0 +1,59 @@
+[
+  {
+    "id": "cap_moopls2g_7v9p4k",
+    "selector": "body.min-h-screen",
+    "label": "MEX TRAIN Climb aboard 13 stops // what'…",
+    "tag": "body",
+    "url": "https://mextrain.0x17.com/j/c7bcd757-a887-4e60-b657-16c85be2a5dd",
+    "title": "JOIN · MEX TRAIN",
+    "timestamp": "2026-05-02T19:03:00.952Z",
+    "innerText": "MEX TRAIN\nClimb aboard\n\n13 stops  //  what's your name?\n\n3 passengers aboard\nlive\nAaron\n★\nComputer\nKevin\nStop 1 in progress\nYou'll start scoring from stop 1; you can't join after the conductor moves to stop 2.\nYour name\nJOIN\nbuild 00056d0b\nClaude Design capture\n✕\nClick elements on the page to capture them. Press Esc to stop picking.\nNo elements captured yet\nCopy\nPaste into the Claude Design composer\nStop picking\nbody.min-h-screen",
+    "outerHTML": "<body class=\"min-h-screen\">\n  <div class=\"scenery\" aria-hidden=\"true\"></div>\n\n  <header class=\"px-4 py-3 frontier-header relative z-10\">\n    <a href=\"/\" class=\"inline-flex items-center gap-2 text-base font-display text-brown\">\n      <svg width=\"20\" height=\"14\" viewBox=\"0 0 200 100\" fill=\"currentColor\" aria-hidden=\"true\">\n        <ellipse cx=\"40\" cy=\"28\" rx=\"10\" ry=\"7\"></ellipse>\n        <ellipse cx=\"28\" cy=\"18\" rx=\"8\" ry=\"6\"></ellipse>\n        <ellipse cx=\"52\" cy=\"14\" rx=\"9\" ry=\"6\"></ellipse>\n        <rect x=\"40\" y=\"40\" width=\"90\" height=\"28\" rx=\"3\"></rect>\n        <rect x=\"130\" y=\"32\" width=\"40\" height=\"36\" rx=\"2\"></rect>\n        <rect x=\"52\" y=\"28\" width=\"12\" height=\"14\"></rect>\n        <polygon points=\"30,68 40,68 40,80 30,80\"></polygon>\n        <rect x=\"30\" y=\"68\" width=\"145\" height=\"8\"></rect>\n        <circle cx=\"55\" cy=\"80\" r=\"10\"></circle>\n        <circle cx=\"90\" cy=\"80\" r=\"10\"></circle>\n        <circle cx=\"125\" cy=\"80\" r=\"10\"></circle>\n        <circle cx=\"160\" cy=\"80\" r=\"8\"></circle>\n      </svg>\n      <span>MEX&nbsp;TRAIN</span>\n    </a>\n  </header>\n  <main class=\"px-4 py-6 max-w-md mx-auto relative z-10\">\n    \n<h1 class=\"text-2xl font-display text-brown mb-2 leading-tight\">Climb&nbsp;aboard</h1>\n<p class=\"text-ink/70 text-sm mb-4 font-ticket text-base\">13 stops &nbsp;//&nbsp; what's your name?</p>\n\n\n<div class=\"frontier-card rounded-xl px-3 py-3 mb-4\">\n  <div class=\"flex items-center justify-between mb-2\">\n    <span class=\"text-xs font-display text-brown tracking-wide\">\n      3 passengers aboard\n    </span>\n    <span class=\"text-xs text-sky font-ticket\">live</span>\n  </div>\n  <ul class=\"flex flex-wrap gap-1.5\">\n    \n    <li class=\"inline-flex items-center gap-1 rounded-full bg-bone border border-[color:var(--brown)]/30 px-2 py-0.5 text-xs text-ink font-ticket\">\n      Aaron <span class=\"text-rust\" title=\"conductor\">★</span>\n    </li>\n    \n    <li class=\"inline-flex items-center gap-1 rounded-full bg-bone border border-[color:var(--brown)]/30 px-2 py-0.5 text-xs text-ink font-ticket\">\n      Computer\n    </li>\n    \n    <li class=\"inline-flex items-center gap-1 rounded-full bg-bone border border-[color:var(--brown)]/30 px-2 py-0.5 text-xs text-ink font-ticket\">\n      Kevin\n    </li>\n    \n  </ul>\n</div>\n\n\n\n<div class=\"frontier-card-accent rounded-lg px-3 py-3 text-sm mb-5\">\n  <div class=\"font-display text-xs text-ochre tracking-wide mb-1\">Stop&nbsp;1&nbsp;in&nbsp;progress</div>\n  <div class=\"text-ink text-xs\">You'll start scoring from stop 1; you can't join after the conductor moves to stop 2.</div>\n</div>\n\n\n<form method=\"post\" action=\"/j/c7bcd757-a887-4e60-b657-16c85be2a5dd\" class=\"space-y-4\">\n  <label class=\"block\">\n    <span class=\"block text-xs font-display text-brown mb-2 tracking-wide\">Your name</span>\n    <input type=\"text\" name=\"name\" required=\"\" autofocus=\"\" class=\"frontier-input w-full rounded-lg px-3 py-3 text-base font-ticket text-xl\" autocomplete=\"given-name\">\n  </label>\n  <button type=\"submit\" class=\"frontier-btn-primary w-full rounded-lg py-4 text-sm min-h-[44px]\">\n    JOIN\n  </button>\n</form>\n\n  </main>\n  <footer class=\"px-4 py-3 text-center text-xs font-ticket relative z-10\" style=\"color: var(--ochre);\">\n    build <span class=\"font-ticket text-sm align-middle\">00056d0b</span>\n  </footer>\n\n\n<div style=\"position: fixed; bottom: 20px; right: 20px; width: 340px; z-index: 2147483647; background: rgb(255, 255, 255); border: 1px solid rgba(15, 12, 8, 0.14); border-radius: 12px; box-shadow: rgba(20, 20, 19, 0.08) 0px 10px 15px, rgba(20, 20, 19, 0.04) 0px 4px 6px; font: 12px / 1.4 Inter, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif; color: rgba(15, 12, 8, 0.92); overflow: hidden;\"><div style=\"padding: 12px 14px; border-bottom: 1px solid rgba(15, 12, 8, 0.08); display: flex; align-items: center; gap: 10px;\"><div style=\"width: 8px; height: 8px; border-radius: 50%; background: rgb(217, 119, 87); flex-shrink: 0; animation: 1.2s ease-in-out 0s infinite normal none running omcap-pulse;\"></div><div style=\"font-weight: 600; font-size: 13px; flex: 1 1 0%;\">Claude Design capture</div><button style=\"width: 22px; height: 22px; border: 0px; border-radius: 5px; background: transparent; color: rgba(15, 12, 8, 0.6); cursor: pointer; font: 14px / 1 Inter, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif; padding: 0px;\">✕</button></div><div style=\"padding: 14px; display: flex; flex-direction: column; gap: 12px;\"><div style=\"font-size: 11px; color: rgba(15, 12, 8, 0.64); line-height: 1.5;\">Click elements on the page to capture them. Press Esc to stop picking.</div><div style=\"display: flex; flex-direction: column; gap: 5px; max-height: 180px; overflow-y: auto;\"><div style=\"padding: 18px; text-align: center; font-size: 11px; color: rgba(15, 12, 8, 0.6); background: rgb(240, 238, 230); border-radius: 8px; border: 1px dashed rgba(15, 12, 8, 0.14);\">No elements captured yet</div></div><div style=\"display: flex; gap: 6px; align-items: stretch;\"><input readonly=\"\" placeholder=\"Capture output will appear here\" style=\"flex: 1 1 0%; min-width: 0px; padding: 7px 10px; border: 1px solid rgba(15, 12, 8, 0.14); border-radius: 8px; background: rgb(245, 244, 237); color: rgba(15, 12, 8, 0.6); font: 11px ui-monospace, Menlo, monospace; outline: none;\"><button style=\"padding: 7px 14px; border-radius: 8px; font: 500 12px / 1 Inter, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif; cursor: pointer; transition: 0.12s; border: 1px solid rgba(0, 0, 0, 0.15); background: rgb(217, 119, 87); color: rgb(250, 249, 245); box-shadow: rgba(180, 90, 30, 0.35) 0px 1px 3px, rgba(255, 255, 255, 0.15) 0px 1px 0px inset; flex-shrink: 0;\">Copy</button></div><div style=\"font-size: 11px; color: rgba(15, 12, 8, 0.6); display: flex; align-items: center; gap: 5px;\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 16 16\" fill=\"currentColor\"><path d=\"M8 1L3 6h3v6h4V6h3L8 1z\" transform=\"rotate(180 8 8)\"></path></svg>Paste into the Claude Design composer</div><button style=\"padding: 7px 14px; border-radius: 8px; font: 500 12px / 1 Inter, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif; cursor: pointer; transition: 0.12s; border: 1px solid rgba(15, 12, 8, 0.14); background: rgb(255, 255, 255); color: rgba(15, 12, 8, 0.92); width: 100%;\">Stop picking</button></div></div><div style=\"position: fixed; pointer-events: none; z-index: 2147483646; border: 2px solid rgb(217, 119, 87); background: rgba(217, 119, 87, 0.12); border-radius: 3px; box-sizing: border-box; display: block; transition: 40ms linear; top: 0px; left: 0px; width: 1307px; height: 952px;\"><div style=\"position: absolute; top: -22px; left: 0px; padding: 2px 7px; background: rgb(217, 119, 87); color: rgb(255, 255, 255); font: 500 11px / 1.4 Inter, -apple-system, BlinkMacSystemFont, &quot;Segoe UI&quot;, sans-serif; border-radius: 4px; white-space: nowrap;\">body.min-h-screen</div></div></body>",
+    "rect": {
+      "x": 0,
+      "y": 0,
+      "width": 1307,
+      "height": 952
+    },
+    "computedStyles": {
+      "display": "block",
+      "width": "1307px",
+      "height": "952px",
+      "border": "0px solid rgb(229, 231, 235)",
+      "box-sizing": "border-box",
+      "background": "rgba(0, 0, 0, 0) linear-gradient(rgb(207, 231, 236) 0%, rgb(232, 214, 168) 55%, rgb(253, 230, 138) 100%) repeat fixed 0% 0% / auto padding-box border-box",
+      "color": "rgb(28, 25, 23)",
+      "font-family": "system-ui, -apple-system, sans-serif",
+      "font-size": "16px",
+      "line-height": "24px",
+      "text-decoration": "none",
+      "transition": "all"
+    },
+    "cssRules": [
+      {
+        "selector": "html, body",
+        "css": "font-family: system-ui, -apple-system, sans-serif; color: var(--ink); background: var(--sand);"
+      },
+      {
+        "selector": "body",
+        "css": "min-height: 100vh; background-image: ; background-position-x: ; background-position-y: ; background-size: ; background-repeat: ; background-origin: ; background-clip: ; background-color: ; background-attachment: fixed;"
+      },
+      {
+        "selector": "*, ::before, ::after",
+        "css": "--tw-border-spacing-x: 0; --tw-border-spacing-y: 0; --tw-translate-x: 0; --tw-translate-y: 0; --tw-rotate: 0; --tw-skew-x: 0; --tw-skew-y: 0; --tw-scale-x: 1; --tw-scale-y: 1; --tw-pan-x: ; --tw-pan-y: ; --tw-pinch-zoom: ; --tw-scroll-snap-strictness: proximity; --tw-gradient-from-position: ; --tw-gradient-via-position: ; --tw-gradient-to-position: ; --tw-ordinal: ; --tw-slashed-zero: ; --tw-numeric-figure: ; --tw-numeric-spacing: ; --tw-numeric-fraction: ; --tw-ring-inset: ; --tw-ring-offset-width: 0px; --tw-ring-offset-color: #fff; --tw-ring-color: rgb(59 130 246 / 0.5); --tw-ring-offset-shadow: 0 0 #0000; --tw-ring-shadow: 0 0 #0000; --tw-shadow: 0 0 #0000; --tw-shadow-colored: 0 0 #0000; --tw-blur: ; --tw-brightness: ; --tw-contrast: ; --tw-grayscale: ; --tw-hue-rotate: ; --tw-invert: ; --tw-saturate: ; --tw-sepia: ; --tw-drop-shadow: ; --tw-backdrop-blur: ; --tw-backdrop-brightness: ; --tw-backdrop-contrast: ; --tw-backdrop-grayscale: ; --tw-backdrop-hue-rotate: ; --tw-backdrop-invert: ; --tw-backdrop-opacity: ; --tw-backdrop-saturate: ; --tw-backdrop-sepia: ; --tw-contain-size: ; --tw-contain-layout: ; --tw-contain-paint: ; --tw-contain-style: ;"
+      },
+      {
+        "selector": "*, ::after, ::before",
+        "css": "box-sizing: border-box; border-width: 0px; border-style: solid; border-color: rgb(229, 231, 235);"
+      },
+      {
+        "selector": "body",
+        "css": "margin: 0px; line-height: inherit;"
+      },
+      {
+        "selector": ".min-h-screen",
+        "css": "min-height: 100vh;"
+      }
+    ]
+  }
+]

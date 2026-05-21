@@ -1,0 +1,284 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Mexican Train — Mobile redesign</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<link href="https://fonts.googleapis.com/css2?family=Rye&family=Smokum&family=Special+Elite&family=DM+Mono:wght@400;500&family=Bricolage+Grotesque:wght@500;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+<style>
+  html, body { margin: 0; padding: 0; background: #1a1612; min-height: 100vh; font-family: system-ui, sans-serif; }
+  * { box-sizing: border-box; }
+  button { font-family: inherit; -webkit-tap-highlight-color: transparent; }
+  input { font-family: inherit; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="ios-frame.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="screens.jsx"></script>
+
+<script type="text/babel">
+const { useState, useEffect } = React;
+
+// ─────────────────────────────────────────────────────────────
+// Two visual themes — both keep cowboy DNA
+// ─────────────────────────────────────────────────────────────
+const THEME_CABOOSE = {
+  // Saloon ledger — warm parchment, deep oxblood, brass accents
+  bg: '#f4ead5',
+  headerBg: '#ead5a8',
+  subBg: '#ede0bd',
+  cardBg: '#fbf4e2',
+  ink: '#2a1d10',
+  muted: '#8a6d44',
+  border: '#c2a778',
+  borderLight: '#d9c294',
+  brand: '#8c2a1a',         // oxblood
+  accent: '#c8541d',         // rust orange
+  youBg: 'rgba(140, 42, 26, 0.07)',
+  currentCol: 'rgba(200, 84, 29, 0.10)',
+  cta: '#2a1d10',
+  ctaText: '#f4ead5',
+  ctaShadow: '0 4px 0 #1a0d04, 0 6px 14px rgba(42,29,16,0.3)',
+  display: '"Rye", Georgia, serif',
+  mono: '"Special Elite", "Courier New", monospace',
+};
+
+const THEME_PACIFIC = {
+  // Modern cowboy — bone white, dust blue, tan, single warm accent
+  bg: '#f7f3ec',
+  headerBg: '#ece4d4',
+  subBg: '#f1ead9',
+  cardBg: '#ffffff',
+  ink: '#241c14',
+  muted: '#7a6d5a',
+  border: '#d8c9ad',
+  borderLight: '#e8ddc6',
+  brand: '#3a4d5c',          // dusty steel blue
+  accent: '#d97a3b',          // warm sunset
+  youBg: 'rgba(58, 77, 92, 0.06)',
+  currentCol: 'rgba(217, 122, 59, 0.08)',
+  cta: '#3a4d5c',
+  ctaText: '#fffaf0',
+  ctaShadow: '0 2px 0 #283745, 0 6px 16px rgba(58,77,92,0.25)',
+  display: '"Bricolage Grotesque", system-ui, sans-serif',
+  mono: '"JetBrains Mono", ui-monospace, monospace',
+};
+
+// ─────────────────────────────────────────────────────────────
+// One device prototype — manages screen state for one direction
+// ─────────────────────────────────────────────────────────────
+function MexTrainProto({ theme: baseTheme, density, showHistory, playerCount, allowManual, showGallery, btnRadius, tilesOrientation, label }) {
+  const theme = { ...baseTheme, btnRadius: btnRadius ?? 12, tilesOrientation: tilesOrientation ?? 'horizontal' };
+  const [screen, setScreen] = useState('scoreboard'); // scoreboard | camera | audit
+  const [audit, setAudit] = useState(null);
+  const [toast, setToast] = useState(null);
+  const state = { currentStop: 4 };
+
+  const handleSubmit = (n) => {
+    setScreen('scoreboard');
+    setToast(`Aaron's stop 4: ${n} pips`);
+    setTimeout(() => setToast(null), 2200);
+  };
+
+  return (
+    <IOSDevice width={390} height={844} dark={false}>
+      <div style={{
+        height: '100%', display: 'flex', flexDirection: 'column',
+        paddingTop: 50, // status bar reserve
+      }}>
+        {screen === 'scoreboard' && (
+          <Scoreboard
+            theme={theme}
+            state={state}
+            density={density}
+            showHistory={showHistory}
+            playerCount={playerCount}
+            showGallery={showGallery}
+            onAddScore={() => setScreen('camera')}
+            onAuditScore={(p, idx) => { setAudit({ playerId: p.id, stopIdx: idx }); setScreen('audit'); }}
+          />
+        )}
+        {screen === 'camera' && (
+          <CameraScreen
+            theme={theme}
+            state={state}
+            allowManual={allowManual}
+            onCancel={() => setScreen('scoreboard')}
+            onSubmit={handleSubmit}
+          />
+        )}
+        {screen === 'audit' && audit && (
+          <AuditScreen
+            theme={theme}
+            state={state}
+            audit={audit}
+            onCancel={() => setScreen('scoreboard')}
+            onSave={() => { setScreen('scoreboard'); setToast('Audit saved'); setTimeout(() => setToast(null), 1800); }}
+          />
+        )}
+
+        {/* toast */}
+        {toast && (
+          <div style={{
+            position: 'absolute', bottom: 50, left: '50%', transform: 'translateX(-50%)',
+            background: theme.ink, color: theme.bg, padding: '8px 14px', borderRadius: 999,
+            fontFamily: theme.mono, fontSize: 11, letterSpacing: '0.12em',
+            zIndex: 100, boxShadow: '0 6px 18px rgba(0,0,0,0.25)',
+          }}>✓ {toast}</div>
+        )}
+
+      </div>
+    </IOSDevice>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────
+// App — design canvas with two directions × three screens
+// ─────────────────────────────────────────────────────────────
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "density": "cozy",
+  "showHistory": true,
+  "playerCount": 4,
+  "showGallery": true,
+  "cameraProminence": "fullbleed",
+  "layout": "golf",
+  "allowManual": true,
+  "btnRadius": 28,
+  "tilesOrientation": "horizontal"
+}/*EDITMODE-END*/;
+
+function App() {
+  const [tweaks, setTweak] = useTweaks(TWEAK_DEFAULTS);
+
+  const board = (theme) => (
+    <Scoreboard
+      theme={theme}
+      state={{ currentStop: 4 }}
+      density={tweaks.density}
+      showHistory={tweaks.showHistory}
+      playerCount={tweaks.playerCount}
+      onAddScore={() => {}}
+      onAuditScore={() => {}}
+    />
+  );
+
+  return (
+    <>
+      <DesignCanvas storageKey="mextrain-canvas-v1" background="#1a1612">
+        <DCSection id="primary" title="Mexican Train · Mobile redesign"
+          subtitle="Caboose direction · scoreboard primary · camera-first add flow · single unified board">
+
+          <DCArtboard id="caboose-sb" label="Scoreboard" width={420} height={880}>
+            <FrameWrap>
+              <MexTrainProto theme={THEME_CABOOSE} density={tweaks.density}
+                showHistory={tweaks.showHistory} playerCount={tweaks.playerCount}
+                showGallery={tweaks.showGallery}
+                btnRadius={tweaks.btnRadius} tilesOrientation={tweaks.tilesOrientation}
+                allowManual={tweaks.allowManual} label="caboose"/>
+            </FrameWrap>
+          </DCArtboard>
+
+          <DCArtboard id="caboose-cam" label="Camera · scan & confirm" width={420} height={880}>
+            <FrameWrap>
+              <CabooseCameraOnly tweaks={tweaks}/>
+            </FrameWrap>
+          </DCArtboard>
+
+          <DCArtboard id="caboose-audit" label="Audit · full screen edit" width={420} height={880}>
+            <FrameWrap>
+              <CabooseAuditOnly tweaks={tweaks}/>
+            </FrameWrap>
+          </DCArtboard>
+
+        </DCSection>
+      </DesignCanvas>
+
+      {/* Tweaks panel */}
+      <TweaksPanel title="Tweaks">
+        <TweakSection title="Scoreboard">
+          <TweakSelect label="Density" value={tweaks.density}
+            options={[{value:'cozy',label:'Cozy'},{value:'compact',label:'Compact'}]}
+            onChange={v => setTweak('density', v)}/>
+          <TweakToggle label="Show score history numbers" value={tweaks.showHistory}
+            onChange={v => setTweak('showHistory', v)}/>
+          <TweakToggle label="Show camera roll gallery" value={tweaks.showGallery}
+            onChange={v => setTweak('showGallery', v)}/>
+          <TweakSlider label="Player count" min={3} max={8} step={1} value={tweaks.playerCount}
+            onChange={v => setTweak('playerCount', v)}/>
+        </TweakSection>
+        <TweakSection title="Buttons & Tiles">
+          <TweakSlider label="Button corner radius" min={0} max={28} step={2} value={tweaks.btnRadius}
+            onChange={v => setTweak('btnRadius', v)}/>
+          <TweakRadio label="Audit tiles orientation" value={tweaks.tilesOrientation}
+            options={[{value:'horizontal',label:'Horizontal'},{value:'vertical',label:'Vertical'}]}
+            onChange={v => setTweak('tilesOrientation', v)}/>
+        </TweakSection>
+        <TweakSection title="Camera">
+          <TweakToggle label="Allow manual entry fallback" value={tweaks.allowManual}
+            onChange={v => setTweak('allowManual', v)}/>
+        </TweakSection>
+      </TweaksPanel>
+    </>
+  );
+}
+
+// FrameWrap — small outer wrapper so iPhone bezel breathes inside artboard
+function FrameWrap({ children }) {
+  return (
+    <div style={{
+      width: '100%', height: '100%', display: 'flex',
+      alignItems: 'center', justifyContent: 'center',
+      padding: 12, background: 'transparent',
+    }}>
+      {children}
+    </div>
+  );
+}
+
+// Helper artboards that open straight into a specific screen
+function CabooseCameraOnly({ tweaks }) {
+  return <DirectScreen theme={THEME_CABOOSE} initial="camera" tweaks={tweaks}/>;
+}
+function CabooseAuditOnly({ tweaks }) { return <DirectScreen theme={THEME_CABOOSE} initial="audit" tweaks={tweaks}/>; }
+
+function DirectScreen({ theme: baseTheme, initial, tweaks = {} }) {
+  const theme = { ...baseTheme,
+    btnRadius: tweaks.btnRadius ?? 12,
+    tilesOrientation: tweaks.tilesOrientation ?? 'horizontal',
+  };
+  const [screen, setScreen] = useState(initial);
+  const [audit, setAudit] = useState({ playerId: 'a', stopIdx: 0 });
+  const state = { currentStop: 4 };
+  return (
+    <IOSDevice width={390} height={844}>
+      <div style={{ height: '100%', display: 'flex', flexDirection: 'column', paddingTop: 50 }}>
+        {screen === 'camera' && (
+          <CameraScreen theme={theme} state={state} allowManual={true}
+            onCancel={() => setScreen('scoreboard')} onSubmit={() => setScreen('scoreboard')}/>
+        )}
+        {screen === 'audit' && (
+          <AuditScreen theme={theme} state={state} audit={audit}
+            onCancel={() => setScreen('scoreboard')} onSave={() => setScreen('scoreboard')}/>
+        )}
+        {screen === 'scoreboard' && (
+          <Scoreboard theme={theme} state={state} density="cozy" showHistory={true} playerCount={4} showGallery={true}
+            onAddScore={() => setScreen('camera')}
+            onAuditScore={(p, idx) => { setAudit({ playerId: p.id, stopIdx: idx }); setScreen('audit'); }}/>
+        )}
+      </div>
+    </IOSDevice>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
