@@ -7,10 +7,16 @@ final class Score {
     var game: Game?
     var playerID: UUID
     var stopIndex: Int                 // 1-indexed
-    var pips: Int
-    var sourceRaw: String
+    var pips: Int                      // current effective value
+    var originalPips: Int              // value at first submission; never mutated
+    var excluded: Bool                 // when true, total skips this score (still counts as "entered")
+    var sourceRaw: String              // .scanned or .manual (origin of first submission)
+    var submittedByRaw: String         // .player or .conductor (who submitted originally)
     var captureID: UUID?
     var updatedAt: Date
+
+    @Relationship(deleteRule: .cascade, inverse: \ScoreEdit.score)
+    var edits: [ScoreEdit] = []
 
     init(
         id: UUID = UUID(),
@@ -18,6 +24,7 @@ final class Score {
         stopIndex: Int,
         pips: Int,
         source: ScoreSource = .manual,
+        submittedBy: ScoreActor = .conductor,
         captureID: UUID? = nil,
         updatedAt: Date = .now
     ) {
@@ -25,7 +32,10 @@ final class Score {
         self.playerID = playerID
         self.stopIndex = stopIndex
         self.pips = pips
+        self.originalPips = pips
+        self.excluded = false
         self.sourceRaw = source.rawValue
+        self.submittedByRaw = submittedBy.rawValue
         self.captureID = captureID
         self.updatedAt = updatedAt
     }
@@ -33,4 +43,53 @@ final class Score {
     var source: ScoreSource {
         ScoreSource(rawValue: sourceRaw) ?? .manual
     }
+
+    var submittedBy: ScoreActor {
+        ScoreActor(rawValue: submittedByRaw) ?? .conductor
+    }
+
+    /// Value this score contributes to the running total. Zero when excluded.
+    var effectivePips: Int { excluded ? 0 : pips }
+}
+
+@Model
+final class ScoreEdit {
+    @Attribute(.unique) var id: UUID
+    var score: Score?
+    var fromPips: Int
+    var toPips: Int
+    var fromExcluded: Bool
+    var toExcluded: Bool
+    var editedAt: Date
+    var editedByRaw: String           // ScoreActor.rawValue
+    var note: String?
+
+    init(
+        id: UUID = UUID(),
+        fromPips: Int,
+        toPips: Int,
+        fromExcluded: Bool,
+        toExcluded: Bool,
+        editedAt: Date = .now,
+        editedBy: ScoreActor = .conductor,
+        note: String? = nil
+    ) {
+        self.id = id
+        self.fromPips = fromPips
+        self.toPips = toPips
+        self.fromExcluded = fromExcluded
+        self.toExcluded = toExcluded
+        self.editedAt = editedAt
+        self.editedByRaw = editedBy.rawValue
+        self.note = note
+    }
+
+    var editedBy: ScoreActor {
+        ScoreActor(rawValue: editedByRaw) ?? .conductor
+    }
+}
+
+enum ScoreActor: String, Codable {
+    case player
+    case conductor
 }

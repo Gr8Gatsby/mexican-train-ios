@@ -11,6 +11,7 @@ struct AuditView: View {
     @Environment(\.modelContext) private var context
 
     @State private var value: String
+    @State private var excludedDraft: Bool
 
     init(game: Game, player: Player, stop: Int) {
         self.game = game
@@ -18,6 +19,7 @@ struct AuditView: View {
         self.stop = stop
         let existing = Scoring.score(for: player.id, stop: stop, in: game)
         _value = State(initialValue: existing.map { String($0.pips) } ?? "0")
+        _excludedDraft = State(initialValue: existing?.excluded ?? false)
     }
 
     var body: some View {
@@ -25,11 +27,18 @@ struct AuditView: View {
             theme.bg.ignoresSafeArea()
             VStack(spacing: 0) {
                 header
-                hero
-                pipEditor
-                infoBlock
-                referenceArea
-                Spacer(minLength: 0)
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 0) {
+                        hero
+                        pipEditor
+                        excludeToggle
+                        infoBlock
+                        referenceArea
+                        auditHistorySection
+                    }
+                    .frame(maxWidth: .infinity, alignment: .top)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 footer
             }
         }
@@ -239,6 +248,93 @@ struct AuditView: View {
         .padding(.horizontal, 14).padding(.vertical, 8)
     }
 
+    @ViewBuilder
+    private var excludeToggle: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack {
+                Text("EXCLUDE FROM TOTAL")
+                    .font(theme.monoFont(size: 9))
+                    .tracking(1.8)
+                    .foregroundStyle(theme.muted)
+                Spacer()
+                Toggle("", isOn: $excludedDraft)
+                    .labelsHidden()
+                    .tint(theme.brand)
+            }
+            Text(excludedDraft
+                 ? "Counts as 0 toward this player's total. Original value kept in audit history."
+                 : "Counts toward the total normally.")
+                .font(theme.monoFont(size: 10))
+                .foregroundStyle(theme.muted)
+        }
+        .padding(.horizontal, 14).padding(.vertical, 10)
+    }
+
+    @ViewBuilder
+    private var auditHistorySection: some View {
+        if let s = existing, !s.edits.isEmpty || s.originalPips != s.pips {
+            VStack(alignment: .leading, spacing: 6) {
+                Text("AUDIT HISTORY")
+                    .font(theme.monoFont(size: 9))
+                    .tracking(1.8)
+                    .foregroundStyle(theme.muted)
+                VStack(spacing: 0) {
+                    historyRow(label: "Submitted",
+                               value: "\(s.originalPips) pips",
+                               by: s.submittedBy,
+                               at: s.edits.min(by: { $0.editedAt < $1.editedAt })?.editedAt ?? s.updatedAt)
+                    ForEach(s.edits.sorted(by: { $0.editedAt < $1.editedAt })) { e in
+                        Divider().overlay(theme.borderLight)
+                        historyRow(label: editLabel(for: e),
+                                   value: editValue(for: e),
+                                   by: e.editedBy,
+                                   at: e.editedAt)
+                    }
+                }
+                .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(theme.borderLight, lineWidth: 1)
+                )
+            }
+            .padding(.horizontal, 14).padding(.vertical, 8)
+        }
+    }
+
+    private func historyRow(label: String, value: String, by: ScoreActor, at: Date) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 1) {
+                Text(label)
+                    .font(theme.monoFont(size: 11))
+                    .fontWeight(.semibold)
+                    .foregroundStyle(theme.ink)
+                Text("by \(by == .player ? "player" : "conductor") · \(at.formatted(date: .omitted, time: .shortened))")
+                    .font(theme.monoFont(size: 9))
+                    .foregroundStyle(theme.muted)
+            }
+            Spacer()
+            Text(value)
+                .font(theme.monoFont(size: 11))
+                .fontWeight(.semibold)
+                .foregroundStyle(theme.ink)
+        }
+        .padding(.horizontal, 10).padding(.vertical, 8)
+    }
+
+    private func editLabel(for e: ScoreEdit) -> String {
+        if e.fromExcluded != e.toExcluded {
+            return e.toExcluded ? "Excluded" : "Re-included"
+        }
+        return "Adjusted"
+    }
+
+    private func editValue(for e: ScoreEdit) -> String {
+        if e.fromExcluded != e.toExcluded {
+            return e.toExcluded ? "→ 0 pips (was \(e.fromPips))" : "→ \(e.toPips) pips"
+        }
+        return "\(e.fromPips) → \(e.toPips) pips"
+    }
+
     private func stepButton(label: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(label)
@@ -295,7 +391,15 @@ struct AuditView: View {
             try GamePersistence.recordScore(in: context, game: game, player: player,
                                             stop: stop, pips: n,
                                             source: existing?.source ?? .manual,
+                                            submittedBy: existing?.submittedBy ?? .conductor,
+                                            editedBy: .conductor,
                                             captureID: existing?.captureID)
+            if let s = Scoring.score(for: player.id, stop: stop, in: game),
+               s.excluded != excludedDraft {
+                try GamePersistence.setScoreExcluded(in: context, score: s,
+                                                    excluded: excludedDraft,
+                                                    editedBy: .conductor)
+            }
             coordinator.openScoreboard(game)
         } catch {
             coordinator.goHome()

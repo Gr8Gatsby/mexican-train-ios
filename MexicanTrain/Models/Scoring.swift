@@ -10,11 +10,12 @@ struct Standing: Equatable {
 
 enum Scoring {
 
-    /// Sum of pips for a single player across every recorded stop.
+    /// Sum of effective pips for a single player across every recorded stop.
+    /// Excluded scores contribute 0 (per spec §3.5: exclude = 0 pips + audit note).
     static func total(for playerID: UUID, in game: Game) -> Int {
         game.scores
             .filter { $0.playerID == playerID }
-            .reduce(0) { $0 + $1.pips }
+            .reduce(0) { $0 + $1.effectivePips }
     }
 
     /// Sorted ascending by total. Ties share a place (1, 1, 3, …).
@@ -85,6 +86,7 @@ enum Scoring {
     }
 
     /// Per-player score grid: `[playerID: [stop1, stop2, …]]`, with nil for unset.
+    /// `effectivePips` is used so excluded scores show as 0.
     static func grid(for game: Game) -> [UUID: [Int?]] {
         var result: [UUID: [Int?]] = [:]
         for p in game.sortedPlayers {
@@ -92,7 +94,7 @@ enum Scoring {
             for s in game.scores where s.playerID == p.id {
                 let idx = s.stopIndex - 1
                 if (0..<row.count).contains(idx) {
-                    row[idx] = s.pips
+                    row[idx] = s.effectivePips
                 }
             }
             result[p.id] = row

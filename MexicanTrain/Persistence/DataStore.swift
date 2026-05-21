@@ -7,6 +7,7 @@ enum DataStore {
             Game.self,
             Player.self,
             Score.self,
+            ScoreEdit.self,
             Capture.self
         ])
         let config = ModelConfiguration(schema: schema, isStoredInMemoryOnly: inMemory)

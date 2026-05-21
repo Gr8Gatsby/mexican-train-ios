@@ -36,23 +36,56 @@ enum GamePersistence {
         stop: Int,
         pips: Int,
         source: ScoreSource,
+        submittedBy: ScoreActor = .conductor,
+        editedBy: ScoreActor = .conductor,
         captureID: UUID? = nil
     ) throws -> Score {
         if let existing = game.scores.first(where: {
             $0.playerID == player.id && $0.stopIndex == stop
         }) {
+            // Preserve the original. Each subsequent change is logged as a
+            // ScoreEdit so the audit trail is reconstructable.
+            let edit = ScoreEdit(
+                fromPips: existing.pips, toPips: pips,
+                fromExcluded: existing.excluded, toExcluded: existing.excluded,
+                editedBy: editedBy
+            )
+            edit.score = existing
+            context.insert(edit)
             existing.pips = pips
-            existing.sourceRaw = source.rawValue
-            existing.captureID = captureID
+            existing.captureID = captureID ?? existing.captureID
             existing.updatedAt = .now
             try context.save()
             return existing
         }
-        let s = Score(playerID: player.id, stopIndex: stop, pips: pips, source: source, captureID: captureID)
+        let s = Score(playerID: player.id, stopIndex: stop, pips: pips,
+                      source: source, submittedBy: submittedBy, captureID: captureID)
         s.game = game
         context.insert(s)
         try context.save()
         return s
+    }
+
+    /// Toggle a score's excluded flag. Excluded scores contribute 0 to the
+    /// total but remain on the board for audit visibility.
+    static func setScoreExcluded(
+        in context: ModelContext,
+        score: Score,
+        excluded: Bool,
+        editedBy: ScoreActor = .conductor,
+        note: String? = nil
+    ) throws {
+        guard score.excluded != excluded else { return }
+        let edit = ScoreEdit(
+            fromPips: score.pips, toPips: score.pips,
+            fromExcluded: score.excluded, toExcluded: excluded,
+            editedBy: editedBy, note: note
+        )
+        edit.score = score
+        context.insert(edit)
+        score.excluded = excluded
+        score.updatedAt = .now
+        try context.save()
     }
 
     /// Advance the current stop forward if the present one is complete. If
