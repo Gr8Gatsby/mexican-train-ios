@@ -33,6 +33,11 @@ final class MexTrainNetSession: NSObject {
     /// Host-side accumulator of claims by player ID.
     private(set) var playerClaims: [UUID: PlayerClaim] = [:]
 
+    /// Optional callback invoked on the main actor when the host receives a
+    /// claim. NewGameView uses this to add the joiner as a new Player slot
+    /// in the lobby.
+    var onClaimReceived: ((PlayerClaim) -> Void)?
+
     private let myPeerID: MCPeerID
     private var session: MCSession?
     private var advertiser: MCNearbyServiceAdvertiser?
@@ -182,6 +187,7 @@ extension MexTrainNetSession: @preconcurrency MCSessionDelegate {
             case .claim(let claim):
                 if role == .host {
                     playerClaims[claim.playerID] = claim
+                    onClaimReceived?(claim)
                     if let s = latestSnapshot { broadcast(snapshot: s) }
                 }
             }

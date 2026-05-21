@@ -11,7 +11,6 @@ struct JoinSheet: View {
     @State private var prefill: ContactPrefill?
     @State private var editedName: String = ""
     @State private var roleChoice: RoleChoice = .player
-    @State private var selectedSlot: UUID?
     enum RoleChoice: String, CaseIterable, Identifiable {
         case player, spectator
         var id: String { rawValue }
@@ -154,7 +153,7 @@ struct JoinSheet: View {
 
     @ViewBuilder
     private var slotPicker: some View {
-        if let snap = coordinator.netSession.latestSnapshot {
+        if coordinator.netSession.latestSnapshot != nil {
             VStack(alignment: .leading, spacing: 6) {
                 Text("ROLE")
                     .font(theme.monoFont(size: 10))
@@ -165,41 +164,10 @@ struct JoinSheet: View {
                     rolePill(.spectator, label: "SPECTATE")
                 }
                 if roleChoice == .player {
-                    let unclaimed = snap.players.filter { p in
-                        !snap.claims.contains(where: { $0.playerID == p.id })
-                    }
-                    Text("PICK A SLOT")
+                    Text("You'll be added to the conductor's player list with the name above.")
                         .font(theme.monoFont(size: 10))
-                        .tracking(2)
                         .foregroundStyle(theme.muted)
                         .padding(.top, 4)
-                    ForEach(unclaimed) { p in
-                        Button {
-                            selectedSlot = p.id
-                        } label: {
-                            HStack {
-                                Image(systemName: selectedSlot == p.id ? "largecircle.fill.circle" : "circle")
-                                    .foregroundStyle(selectedSlot == p.id ? theme.brand : theme.muted)
-                                Text(p.name)
-                                    .font(theme.displayFont(size: 16))
-                                    .foregroundStyle(theme.ink)
-                                Spacer()
-                            }
-                            .padding(10)
-                            .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 8))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(selectedSlot == p.id ? theme.brand : theme.borderLight,
-                                            lineWidth: selectedSlot == p.id ? 1.5 : 1)
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    }
-                    if unclaimed.isEmpty {
-                        Text("All slots claimed. Spectate instead?")
-                            .font(theme.monoFont(size: 11))
-                            .foregroundStyle(theme.muted)
-                    }
                 }
             }
         }
@@ -267,7 +235,7 @@ struct JoinSheet: View {
     private var canConfirm: Bool {
         let nameOK = !editedName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         if roleChoice == .player {
-            return nameOK && selectedSlot != nil
+            return nameOK
         }
         return true
     }
@@ -281,9 +249,13 @@ struct JoinSheet: View {
     private func confirm() {
         switch roleChoice {
         case .player:
-            guard let slot = selectedSlot else { return }
             let photo = DeviceIdentity.compressPhoto(prefill?.imageData)
-            let claim = PlayerClaim(playerID: slot, displayName: editedName, photoJPEG: photo)
+            // Fresh UUID — the host treats unknown IDs as "add me as a new
+            // player slot" (lobby) or as a claim against an existing slot
+            // matching this id (in-progress games).
+            let claim = PlayerClaim(playerID: UUID(),
+                                    displayName: editedName.trimmingCharacters(in: .whitespacesAndNewlines),
+                                    photoJPEG: photo)
             coordinator.netSession.sendClaim(claim)
         case .spectator:
             break

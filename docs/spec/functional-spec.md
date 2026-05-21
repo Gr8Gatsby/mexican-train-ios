@@ -54,14 +54,15 @@ Additional house-rule toggles may be added in later versions (e.g. satisfying th
   - A list of past games (most recent first), each with: date, player count, winner, final total spread. Tapping opens the game in read-only view.
   - An in-progress game pinned at the top (at most one in-progress game can exist; resuming it is the primary path back into play).
 
-### 3.2 New-game setup
-- The user enters:
-  - Game length (7 / 10 / 13 stops). Default: 13.
-  - House rules (see §2.4). v1: starting-engine choice, defaulting to last-used (initially "Traditional").
-  - Player list (add, remove, rename, reorder).
-  - Optional: mark one player as "you."
-- A "Start game" button is enabled when there are at least 1 player and all names are valid (non-empty, unique).
-- Starting a game advances the app to the scoreboard for that game, with current stop = 1 and all scores unset.
+### 3.2 New-game setup (lobby)
+The new-game screen is a live lobby. As soon as the conductor (the person who taps "New game") enters this screen:
+
+- The conductor is added as the first player automatically, with their name pre-populated from the device (see §7.3 for the iOS specifics). They are marked as "you."
+- The app begins broadcasting on the local network with a fresh room code, so other phones at the table can scan the visible QR code (or type the room code) to join as additional players. Each joiner who confirms appears in the player list with their name and, when provided, photo.
+- The conductor can also manually add players for anyone without a phone (typed-name only; no photo). Manually added players have no associated device.
+- The conductor can edit: game length (7 / 10 / 13 stops, default 13), starting engine house rule (default "Traditional"), and can remove any non-conductor player from the list.
+- "Start game" is enabled when there is at least 1 player and all names are non-empty and unique (case-insensitive). Tapping it locks the lobby — no further joiners are accepted as new players — and routes the conductor to the scoreboard (current stop = 1). Joiners already in the lobby remain connected and follow the host to live scoreboard view.
+- Backing out of the lobby tears down the broadcast and discards the draft game.
 
 ### 3.3 Scoreboard (primary screen during a game)
 The scoreboard is the home of the in-progress game. It must show, at a glance:
@@ -221,3 +222,4 @@ The broadcast carries enough state for joiners to render the full scoreboard, th
 - 2026-05-21 — v0.2 — Resolved open questions: default game length confirmed at 13; photos retained with game history and deleted only when the user deletes a game (no time-based purge); starting engine made a per-game house rule (§2.4) with "Traditional" as the default.
 - 2026-05-21 — v0.3 — Added broadcast (§7): host advertises a game via QR code + room code; other phones join as player (with iOS-prefilled name and photo) or spectator. Scoring inputs remain host-only. Adjusted §1 product summary and §8 non-goals to match.
 - 2026-05-21 — v0.4 — Tightened §7.3 to reflect the iOS reality: identity prefill comes from `UIDevice.current.name` (with the device-suffix stripped) rather than a Contacts "Me card," which iOS doesn't expose. The wire format still carries an optional photo for a future Photo Picker flow.
+- 2026-05-21 — v0.5 — Reframed §3.2 New-game setup as a live lobby: the conductor is auto-added with their device-derived identity, broadcast (QR + room code) starts immediately so other phones can join as players from the new-game screen, and a "Add player manually" path remains for phone-less players. Replaces the previous "type every name" flow.
