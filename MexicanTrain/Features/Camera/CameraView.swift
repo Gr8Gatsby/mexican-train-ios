@@ -133,35 +133,39 @@ struct CameraView: View {
     }
 
     private var confirmOverlay: some View {
-        VStack {
-            Spacer()
-            if let result {
-                HStack(alignment: .bottom) {
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("✓ \(result.tiles.count) TILES · YOUR PIP COUNT")
-                            .font(theme.monoFont(size: 10))
-                            .tracking(1.8)
-                            .foregroundStyle(theme.accent)
-                            .fontWeight(.semibold)
-                        Text("\(result.total)")
-                            .font(theme.displayFont(size: 96))
-                            .foregroundStyle(.white)
-                            .shadow(color: .black.opacity(0.6), radius: 8, y: 4)
-                        Text("EDIT IN AUDIT AFTER SUBMIT")
-                            .font(theme.monoFont(size: 9))
-                            .tracking(1.4)
-                            .foregroundStyle(.white.opacity(0.55))
-                    }
-                    Spacer()
-                }
-                .padding(16)
-            }
-        }
-        .background(
+        ZStack {
             LinearGradient(colors: [.black.opacity(0.9), .black.opacity(0.4), .clear],
                            startPoint: .bottom, endPoint: .top)
                 .allowsHitTesting(false)
-        )
+            if let result {
+                VStack {
+                    Spacer()
+                    DetectedTilesRow(tiles: result.tiles)
+                        .padding(.bottom, 6)
+                    HStack(alignment: .bottom) {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("✓ \(result.tiles.count) TILES · YOUR PIP COUNT")
+                                .font(theme.monoFont(size: 10))
+                                .tracking(1.8)
+                                .foregroundStyle(theme.accent)
+                                .fontWeight(.semibold)
+                            Text("\(result.total)")
+                                .font(theme.displayFont(size: 96, relativeTo: .largeTitle))
+                                .foregroundStyle(.white)
+                                .shadow(color: .black.opacity(0.6), radius: 8, y: 4)
+                                .contentTransition(.numericText())
+                            Text("EDIT IN AUDIT AFTER SUBMIT")
+                                .font(theme.monoFont(size: 9))
+                                .tracking(1.4)
+                                .foregroundStyle(.white.opacity(0.55))
+                        }
+                        Spacer()
+                    }
+                    .padding(16)
+                }
+                .transition(.opacity)
+            }
+        }
     }
 
     @ViewBuilder
@@ -243,7 +247,7 @@ struct CameraView: View {
 
     private func shoot() {
         Task {
-            phase = .scanning
+            withAnimation(.easeInOut(duration: 0.2)) { phase = .scanning }
             do {
                 let image: UIImage
                 if camera.hasCamera {
@@ -254,7 +258,7 @@ struct CameraView: View {
                 captured = image
                 let result = try await coordinator.pipCounter.count(in: image)
                 self.result = result
-                phase = .confirm
+                withAnimation(.easeInOut(duration: 0.3)) { phase = .confirm }
             } catch {
                 self.error = "Couldn't read tiles. Tap retake or use 123 for manual entry."
                 phase = .aim
@@ -327,6 +331,26 @@ private struct AimBrackets: View {
                 .tracking(2)
                 .foregroundStyle(.white.opacity(0.8))
         }
+    }
+}
+
+private struct DetectedTilesRow: View {
+    let tiles: [TileObservation]
+    @State private var appeared = false
+    var body: some View {
+        HStack(spacing: 8) {
+            ForEach(Array(tiles.prefix(6).enumerated()), id: \.offset) { i, t in
+                DominoGlyph(a: t.a, b: t.b, width: 48, color: .white)
+                    .padding(4)
+                    .background(.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 6))
+                    .scaleEffect(appeared ? 1.0 : 0.6)
+                    .opacity(appeared ? 1.0 : 0.0)
+                    .animation(.spring(response: 0.32, dampingFraction: 0.7).delay(Double(i) * 0.07),
+                               value: appeared)
+                    .accessibilityLabel("Tile \(t.a) and \(t.b)")
+            }
+        }
+        .onAppear { appeared = true }
     }
 }
 

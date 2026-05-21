@@ -51,7 +51,9 @@ struct ScoreboardView: View {
                     .padding(.vertical, 8)
                     .background(theme.ink, in: Capsule())
                     .padding(.bottom, 80)
-                    .transition(.opacity)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .accessibilityElement(children: .combine)
+                    .accessibilityAddTraits(.isStaticText)
             }
         }
         .onChange(of: game.currentStopIndex) { _, _ in
@@ -204,7 +206,9 @@ struct ScoreboardView: View {
             Button {
                 if allDone {
                     try? GamePersistence.maybeAdvanceStop(in: context, game: game)
-                    toast = (game.currentStopIndex > stop) ? "Stop \(stop) closed" : "Game complete"
+                    withAnimation(.easeOut(duration: 0.25)) {
+                        toast = (game.currentStopIndex > stop) ? "Stop \(stop) closed" : "Game complete"
+                    }
                     scheduleToastClear()
                 } else if let p = nextPlayer {
                     coordinator.openCamera(game: game, player: p, stop: stop)
@@ -213,6 +217,7 @@ struct ScoreboardView: View {
                 HStack(spacing: 10) {
                     Image(systemName: allDone ? "arrow.right.circle.fill" : "plus.circle.fill")
                         .font(.system(size: 18, weight: .bold))
+                        .accessibilityHidden(true)
                     Text(allDone
                          ? (stop >= game.lengthStops ? "FINISH GAME" : "ADVANCE TO STOP \(stop+1)")
                          : "ADD SCORE")
@@ -231,6 +236,11 @@ struct ScoreboardView: View {
                 .foregroundStyle(theme.ctaText)
                 .background(theme.cta, in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
             }
+            .accessibilityLabel(
+                allDone
+                ? (stop >= game.lengthStops ? "Finish game" : "Advance to stop \(stop + 1)")
+                : "Add score for \(nextPlayer?.name ?? "next player"), stop \(stop)"
+            )
             if let p = nextPlayer {
                 Text("Next: \(p.name)")
                     .font(theme.monoFont(size: 9))

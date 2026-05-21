@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		02616DC4D1CA26ADA22F8BB2 /* PhotoGalleryStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E99B05150FB74E0702C8EE1 /* PhotoGalleryStrip.swift */; };
+		138963B8F8DB38E68E3A1CD6 /* EndToEndFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA5BA2BB5E726C1BE0DCC335 /* EndToEndFlowTests.swift */; };
 		1562F289BDEDB82BD8CE508E /* VisionPipCounter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43064972E98269C5B1F51EB3 /* VisionPipCounter.swift */; };
 		1CD7A00F57BC374BE795E4A7 /* Capture.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1909638E586E63EAC40D29CB /* Capture.swift */; };
 		1F1CEA5BEDE598CEFC652482 /* VisionPipCounterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E19211EF81A035ABCC855A2 /* VisionPipCounterTests.swift */; };
@@ -91,6 +92,7 @@
 		B6A39CF4E85F2D8F538120B4 /* NewGameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewGameView.swift; sourceTree = "<group>"; };
 		B84B0DDE80AB3C299FAF24F5 /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
 		B8DBCD40962C2D7D38EF7B7E /* CapturePersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapturePersistence.swift; sourceTree = "<group>"; };
+		BA5BA2BB5E726C1BE0DCC335 /* EndToEndFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EndToEndFlowTests.swift; sourceTree = "<group>"; };
 		BFD9B51499AFAD35490FC4F4 /* Scoring.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Scoring.swift; sourceTree = "<group>"; };
 		C213CD19D031BEB200E5703D /* DominoGlyph.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DominoGlyph.swift; sourceTree = "<group>"; };
 		C3ED41C35BD47CF4FF38E035 /* PipCounter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipCounter.swift; sourceTree = "<group>"; };
@@ -240,6 +242,7 @@
 		A80E9CECF0AD47E7666F63AE /* MexicanTrainTests */ = {
 			isa = PBXGroup;
 			children = (
+				BA5BA2BB5E726C1BE0DCC335 /* EndToEndFlowTests.swift */,
 				1313CE27C42B3D4C9091ECD7 /* PhotoStoreTests.swift */,
 				B349A99B53A4356034456F37 /* ScoringTests.swift */,
 				177FA83BBBF9C017F000FDB6 /* SmokeTests.swift */,
@@ -445,6 +448,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				138963B8F8DB38E68E3A1CD6 /* EndToEndFlowTests.swift in Sources */,
 				D9311021C8B41BB552A569CE /* PhotoStoreTests.swift in Sources */,
 				25F31180001FAEA8BFFF7DA3 /* ScoringTests.swift in Sources */,
 				80E832EBA55FB67158F54611 /* SmokeTests.swift in Sources */,

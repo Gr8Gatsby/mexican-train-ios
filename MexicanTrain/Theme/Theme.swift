@@ -46,18 +46,18 @@ extension Theme {
 
 extension Theme {
     /// Display font with a graceful fallback to a bold serif when the bundled
-    /// TTF is missing. Lets the app render branded text without crashing during
-    /// the period between M0 (no font files) and the milestone that ships them.
-    func displayFont(size: CGFloat) -> Font {
+    /// TTF is missing. Custom path is anchored via `relativeTo:` so it scales
+    /// with Dynamic Type; system fallback scales natively.
+    func displayFont(size: CGFloat, relativeTo style: Font.TextStyle = .body) -> Font {
         if UIFont(name: displayFontName, size: size) != nil {
-            return .custom(displayFontName, size: size)
+            return .custom(displayFontName, size: size, relativeTo: style)
         }
         return .system(size: size, weight: .bold, design: .serif)
     }
 
-    func monoFont(size: CGFloat) -> Font {
+    func monoFont(size: CGFloat, relativeTo style: Font.TextStyle = .footnote) -> Font {
         if UIFont(name: monoFontName, size: size) != nil {
-            return .custom(monoFontName, size: size)
+            return .custom(monoFontName, size: size, relativeTo: style)
         }
         return .system(size: size, weight: .regular, design: .monospaced)
     }

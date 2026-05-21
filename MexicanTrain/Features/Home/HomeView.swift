@@ -82,16 +82,18 @@ struct HomeView: View {
         VStack(spacing: 10) {
             Spacer()
             Text("No games yet")
-                .font(theme.displayFont(size: 28))
+                .font(theme.displayFont(size: 28, relativeTo: .title))
                 .foregroundStyle(theme.ink)
             Text("All aboard. Tap below to start your first game.")
-                .font(theme.monoFont(size: 12))
+                .font(theme.monoFont(size: 12, relativeTo: .footnote))
                 .tracking(1.4)
                 .foregroundStyle(theme.muted)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
             Spacer()
         }
+        .transition(.opacity.combined(with: .move(edge: .bottom)))
+        .accessibilityElement(children: .combine)
     }
 
     private var cta: some View {
