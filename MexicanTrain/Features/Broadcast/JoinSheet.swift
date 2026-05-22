@@ -11,6 +11,8 @@ struct JoinSheet: View {
     @State private var prefill: ContactPrefill?
     @State private var editedName: String = ""
     @State private var roleChoice: RoleChoice = .player
+    @State private var showScanner: Bool = false
+    @State private var scannerHint: String?
     enum RoleChoice: String, CaseIterable, Identifiable {
         case player, spectator
         var id: String { rawValue }
@@ -48,6 +50,46 @@ struct JoinSheet: View {
                 Task { await loadPrefill() }
             }
         }
+        .sheet(isPresented: $showScanner) {
+            qrScannerSheet
+        }
+    }
+
+    private var qrScannerSheet: some View {
+        ZStack(alignment: .topTrailing) {
+            QRScannerView(
+                onCode: { raw in
+                    if let url = URL(string: raw), let parsed = JoinURL.decode(url) {
+                        code = parsed
+                        scannerHint = "Scanned code \(parsed). Connecting…"
+                        showScanner = false
+                        if let host = coordinator.netSession.availableHosts.first(where: { $0.roomCode == parsed }) {
+                            coordinator.netSession.connect(to: host)
+                        }
+                    } else if RoomCode.isValid(raw) {
+                        code = raw
+                        scannerHint = "Scanned code \(raw). Connecting…"
+                        showScanner = false
+                        if let host = coordinator.netSession.availableHosts.first(where: { $0.roomCode == raw }) {
+                            coordinator.netSession.connect(to: host)
+                        }
+                    } else {
+                        scannerHint = "QR didn't contain a Mexican Train invite."
+                    }
+                },
+                onError: { msg in
+                    scannerHint = msg
+                    showScanner = false
+                }
+            )
+            .ignoresSafeArea()
+            Button("Close") { showScanner = false }
+                .font(theme.monoFont(size: 12))
+                .foregroundStyle(.white)
+                .padding(.horizontal, 12).padding(.vertical, 8)
+                .background(.black.opacity(0.6), in: Capsule())
+                .padding(16)
+        }
     }
 
     private var header: some View {
@@ -69,10 +111,32 @@ struct JoinSheet: View {
 
     private var codeEntry: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text("ROOM CODE")
-                .font(theme.monoFont(size: 10))
-                .tracking(2)
-                .foregroundStyle(theme.muted)
+            HStack {
+                Text("ROOM CODE")
+                    .font(theme.monoFont(size: 10))
+                    .tracking(2)
+                    .foregroundStyle(theme.muted)
+                Spacer()
+                Button {
+                    showScanner = true
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: "qrcode.viewfinder")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text("SCAN QR")
+                            .font(theme.monoFont(size: 10))
+                            .tracking(1.4)
+                    }
+                    .foregroundStyle(theme.brand)
+                    .padding(.horizontal, 8).padding(.vertical, 4)
+                    .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 8))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(theme.border, lineWidth: 1)
+                    )
+                }
+                .accessibilityLabel("Scan host QR code")
+            }
             TextField("0000", text: $code)
                 .keyboardType(.numberPad)
                 .font(theme.displayFont(size: 36, relativeTo: .title))
@@ -87,6 +151,11 @@ struct JoinSheet: View {
                 .onChange(of: code) { _, new in
                     code = String(new.filter(\.isNumber).prefix(4))
                 }
+            if let hint = scannerHint {
+                Text(hint)
+                    .font(theme.monoFont(size: 10))
+                    .foregroundStyle(theme.brand)
+            }
         }
     }
 

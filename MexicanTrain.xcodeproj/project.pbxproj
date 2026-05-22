@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		01A2C76A4003DCC5A108D31A /* RYE_OFL.txt in Resources */ = {isa = PBXBuildFile; fileRef = D1684BD9259826B81E131C16 /* RYE_OFL.txt */; };
 		02616DC4D1CA26ADA22F8BB2 /* PhotoGalleryStrip.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6E99B05150FB74E0702C8EE1 /* PhotoGalleryStrip.swift */; };
 		138963B8F8DB38E68E3A1CD6 /* EndToEndFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = BA5BA2BB5E726C1BE0DCC335 /* EndToEndFlowTests.swift */; };
 		1562F289BDEDB82BD8CE508E /* VisionPipCounter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43064972E98269C5B1F51EB3 /* VisionPipCounter.swift */; };
@@ -17,11 +18,13 @@
 		25F31180001FAEA8BFFF7DA3 /* ScoringTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B349A99B53A4356034456F37 /* ScoringTests.swift */; };
 		37D1DACF125479E280746A46 /* DominoGlyph.swift in Sources */ = {isa = PBXBuildFile; fileRef = C213CD19D031BEB200E5703D /* DominoGlyph.swift */; };
 		43C3C3354FA8743017C46504 /* PipCounter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3ED41C35BD47CF4FF38E035 /* PipCounter.swift */; };
+		4476B342A1AB87C30153C9B3 /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91B36C4A7287D64656A09745 /* QRScannerView.swift */; };
 		47F2FEC85D7E04A52739D9BC /* DetectionOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6673767DB628D0C366BDDE8C /* DetectionOverlay.swift */; };
 		49DE55F1BD5B0B0B8DB7BC19 /* TileObservation.swift in Sources */ = {isa = PBXBuildFile; fileRef = DAB2D81705B411EFDDAA0C9B /* TileObservation.swift */; };
 		4A8AB2EDA15EC4015CC9DAE8 /* MockPipCounter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CD9E75B2B0471B31643E977 /* MockPipCounter.swift */; };
 		4DB8B93338827A63B799A283 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = E8E662B62C184EF266FECD74 /* Assets.xcassets */; };
 		50330676C9B0B5F496CDCD56 /* DominoDetector.mlpackage in Sources */ = {isa = PBXBuildFile; fileRef = DD448005F7BE93B07B0B2814 /* DominoDetector.mlpackage */; };
+		51AAC8CC3FEC9BE77671B2C4 /* Rye-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 8E6C3D83FDA6BFD33FD4E789 /* Rye-Regular.ttf */; };
 		5B141FDEE89FEAA83D6EE339 /* JoinerCameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2C292F231F8E709D3099A557 /* JoinerCameraView.swift */; };
 		62CE0725798999A1C54CA29E /* AppCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1B9A4193B21C06D661BF2CA9 /* AppCoordinator.swift */; };
 		64FC89F80BC9B592416F17A0 /* MexicanTrainApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7314EF58B8DDAA5F01B25695 /* MexicanTrainApp.swift */; };
@@ -32,6 +35,7 @@
 		7D04E8EA23AAAA38E4C958C7 /* Fonts.swift in Sources */ = {isa = PBXBuildFile; fileRef = CD56E9F2413E34227D224E51 /* Fonts.swift */; };
 		804A137BBE22AF85AAE82CF8 /* KeypadView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 35F3A86B6F9673693E57862C /* KeypadView.swift */; };
 		80E832EBA55FB67158F54611 /* SmokeTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 177FA83BBBF9C017F000FDB6 /* SmokeTests.swift */; };
+		876B067F7E25B5A626903C10 /* LICENSE.fonts.txt in Resources */ = {isa = PBXBuildFile; fileRef = DCBDBEDA3A3696980758CA16 /* LICENSE.fonts.txt */; };
 		8ABB5112AE4EC5325FB167DD /* HostBroadcaster.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5FE52AC59F45C3D8841AF4A3 /* HostBroadcaster.swift */; };
 		8C9E3764630E45E8FC11D42D /* JoinSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 725441B21444BDA5EFF7B758 /* JoinSheet.swift */; };
 		939AEFD2B65AF8FF8F5EF299 /* Score.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79C6904F8700EFE698F3A7F5 /* Score.swift */; };
@@ -41,6 +45,7 @@
 		A51F0BE4B7FD13F48F1F0E5D /* EndGameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4F4F713E996CB0B193C43B5 /* EndGameView.swift */; };
 		A82E05A0B3870259E211B861 /* JoinURL.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8969B81A3C44EC44ED0EF361 /* JoinURL.swift */; };
 		AB260EB96112C9DBDEC1E1DE /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8E6C8061340973B8B5829D26 /* SettingsView.swift */; };
+		AC684C06A4D0EB5318C50470 /* SpecialElite-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 852F707BAAB6ED4AAAEC835C /* SpecialElite-Regular.ttf */; };
 		AFB924047FD1B565C8B3C8BD /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = D488EEA6C81BAFECD3BD734F /* Theme.swift */; };
 		B1AD4AF6ED26046ACED287AF /* MODEL_CONTRACT.md in Resources */ = {isa = PBXBuildFile; fileRef = 6054B35D609ADA3583F26F61 /* MODEL_CONTRACT.md */; };
 		BA2CB26C3F2CDAAE7F6436A8 /* ManualEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3417DB8F4D21EDCC0E21D55A /* ManualEntryView.swift */; };
@@ -52,6 +57,7 @@
 		C263C813437C3C707A98E065 /* GameReport.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1D699D15E7EF75F449B6AC5 /* GameReport.swift */; };
 		CA9C11D6D188E8BDF88D5FB5 /* NewGameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6A39CF4E85F2D8F538120B4 /* NewGameView.swift */; };
 		D17A765FF42F1FBD05F46B86 /* QRCodeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 15BBA822DEFF1A0EBDD57D43 /* QRCodeView.swift */; };
+		D4D3EDABF92C926841001AE8 /* SPECIALELITE_LICENSE.txt in Resources */ = {isa = PBXBuildFile; fileRef = 0F414C277FBA017569BC6BD3 /* SPECIALELITE_LICENSE.txt */; };
 		D9311021C8B41BB552A569CE /* PhotoStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1313CE27C42B3D4C9091ECD7 /* PhotoStoreTests.swift */; };
 		DC1AB8366C4ED227B9A83B6C /* AuditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AD50C405815876BBCE06F57A /* AuditView.swift */; };
 		DF7F93FCBB67AB327D1108F3 /* RoomCode.swift in Sources */ = {isa = PBXBuildFile; fileRef = B6A747FC868B6580A9F01237 /* RoomCode.swift */; };
@@ -81,6 +87,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		0F414C277FBA017569BC6BD3 /* SPECIALELITE_LICENSE.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = SPECIALELITE_LICENSE.txt; sourceTree = "<group>"; };
 		0F64B0C76528878FE0A2C6A7 /* GameReportTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameReportTests.swift; sourceTree = "<group>"; };
 		1313CE27C42B3D4C9091ECD7 /* PhotoStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoStoreTests.swift; sourceTree = "<group>"; };
 		15BBA822DEFF1A0EBDD57D43 /* QRCodeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeView.swift; sourceTree = "<group>"; };
@@ -111,10 +118,13 @@
 		775F7791CC46A315600EC49F /* MexicanTrain.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = MexicanTrain.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		79C6904F8700EFE698F3A7F5 /* Score.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Score.swift; sourceTree = "<group>"; };
 		7E747CB2D4D49CBE4BE654AC /* ScoreboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScoreboardView.swift; sourceTree = "<group>"; };
+		852F707BAAB6ED4AAAEC835C /* SpecialElite-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "SpecialElite-Regular.ttf"; sourceTree = "<group>"; };
 		8969B81A3C44EC44ED0EF361 /* JoinURL.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinURL.swift; sourceTree = "<group>"; };
 		8E19211EF81A035ABCC855A2 /* VisionPipCounterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VisionPipCounterTests.swift; sourceTree = "<group>"; };
+		8E6C3D83FDA6BFD33FD4E789 /* Rye-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Rye-Regular.ttf"; sourceTree = "<group>"; };
 		8E6C8061340973B8B5829D26 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		8F4425A4CF888AC6E5A117D5 /* ShareGameSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShareGameSheet.swift; sourceTree = "<group>"; };
+		91B36C4A7287D64656A09745 /* QRScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRScannerView.swift; sourceTree = "<group>"; };
 		9336EE4460AF5E95EB005566 /* SpectatorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpectatorView.swift; sourceTree = "<group>"; };
 		94C780E442BA7C160205C25C /* HouseRules.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HouseRules.swift; sourceTree = "<group>"; };
 		9CD9E75B2B0471B31643E977 /* MockPipCounter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockPipCounter.swift; sourceTree = "<group>"; };
@@ -134,9 +144,11 @@
 		C3ED41C35BD47CF4FF38E035 /* PipCounter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipCounter.swift; sourceTree = "<group>"; };
 		CD56E9F2413E34227D224E51 /* Fonts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Fonts.swift; sourceTree = "<group>"; };
 		CEF7A1974A3F7463A44E9D13 /* DebugSeed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugSeed.swift; sourceTree = "<group>"; };
+		D1684BD9259826B81E131C16 /* RYE_OFL.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = RYE_OFL.txt; sourceTree = "<group>"; };
 		D488EEA6C81BAFECD3BD734F /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		D934B1AD918B56456D2121F6 /* MexicanTrainTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MexicanTrainTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		DAB2D81705B411EFDDAA0C9B /* TileObservation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TileObservation.swift; sourceTree = "<group>"; };
+		DCBDBEDA3A3696980758CA16 /* LICENSE.fonts.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE.fonts.txt; sourceTree = "<group>"; };
 		DD448005F7BE93B07B0B2814 /* DominoDetector.mlpackage */ = {isa = PBXFileReference; path = DominoDetector.mlpackage; sourceTree = "<group>"; };
 		E10604A76B6860DFE12B0213 /* MexTrainNetSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MexTrainNetSession.swift; sourceTree = "<group>"; };
 		E8E662B62C184EF266FECD74 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -380,6 +392,11 @@
 			isa = PBXGroup;
 			children = (
 				B84B0DDE80AB3C299FAF24F5 /* .gitkeep */,
+				DCBDBEDA3A3696980758CA16 /* LICENSE.fonts.txt */,
+				D1684BD9259826B81E131C16 /* RYE_OFL.txt */,
+				8E6C3D83FDA6BFD33FD4E789 /* Rye-Regular.ttf */,
+				0F414C277FBA017569BC6BD3 /* SPECIALELITE_LICENSE.txt */,
+				852F707BAAB6ED4AAAEC835C /* SpecialElite-Regular.ttf */,
 			);
 			path = Fonts;
 			sourceTree = "<group>";
@@ -390,6 +407,7 @@
 				2C292F231F8E709D3099A557 /* JoinerCameraView.swift */,
 				AA7E4CACAB54D6C67E5A0513 /* JoinerManualEntryView.swift */,
 				725441B21444BDA5EFF7B758 /* JoinSheet.swift */,
+				91B36C4A7287D64656A09745 /* QRScannerView.swift */,
 				8F4425A4CF888AC6E5A117D5 /* ShareGameSheet.swift */,
 				9336EE4460AF5E95EB005566 /* SpectatorView.swift */,
 			);
@@ -480,7 +498,12 @@
 			buildActionMask = 2147483647;
 			files = (
 				4DB8B93338827A63B799A283 /* Assets.xcassets in Resources */,
+				876B067F7E25B5A626903C10 /* LICENSE.fonts.txt in Resources */,
 				B1AD4AF6ED26046ACED287AF /* MODEL_CONTRACT.md in Resources */,
+				01A2C76A4003DCC5A108D31A /* RYE_OFL.txt in Resources */,
+				51AAC8CC3FEC9BE77671B2C4 /* Rye-Regular.ttf in Resources */,
+				D4D3EDABF92C926841001AE8 /* SPECIALELITE_LICENSE.txt in Resources */,
+				AC684C06A4D0EB5318C50470 /* SpecialElite-Regular.ttf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -530,6 +553,7 @@
 				BE2726C4E02715AE9858528A /* PipCounterFactory.swift in Sources */,
 				F08DE00481B2E72D787B4817 /* Player.swift in Sources */,
 				D17A765FF42F1FBD05F46B86 /* QRCodeView.swift in Sources */,
+				4476B342A1AB87C30153C9B3 /* QRScannerView.swift in Sources */,
 				DF7F93FCBB67AB327D1108F3 /* RoomCode.swift in Sources */,
 				939AEFD2B65AF8FF8F5EF299 /* Score.swift in Sources */,
 				F6B19377B6F1FA7D7EC5F67A /* ScoreCardTable.swift in Sources */,

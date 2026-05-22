@@ -1,0 +1,19 @@
+Mexican Train iOS bundles two third-party fonts. Both are redistributable.
+
+— Rye-Regular.ttf
+  Copyright (c) 2011 by Sorkin Type Co (www.sorkintype.com), with Reserved
+  Font Name "Rye". Licensed under the SIL Open Font License, Version 1.1.
+  Source: https://github.com/google/fonts/tree/main/ofl/rye
+  Full license: ./RYE_OFL.txt
+
+— SpecialElite-Regular.ttf
+  Copyright (c) 2010 by Brian J. Bonislawsky (AOETI).
+  Licensed under the Apache License, Version 2.0.
+  Source: https://github.com/google/fonts/tree/main/apache/specialelite
+  Full license: ./SPECIALELITE_LICENSE.txt
+
+PostScript names ("Rye-Regular", "SpecialElite-Regular") match the entries
+in Theme.swift so `UIFont(name:size:)` resolves them directly. Fonts are
+registered at launch via `Fonts.registerBundledFonts()`; we do not list
+them in the Info.plist's UIAppFonts because the runtime registration path
+also works for Dynamic Type.
