@@ -1,4 +1,6 @@
 import SwiftUI
+import PhotosUI
+import UIKit
 
 struct JoinSheet: View {
     @Environment(\.theme) private var theme
@@ -13,6 +15,10 @@ struct JoinSheet: View {
     @State private var roleChoice: RoleChoice = .player
     @State private var showScanner: Bool = false
     @State private var scannerHint: String?
+    @State private var pickerItem: PhotosPickerItem?
+    /// User-picked photo (compressed, ≤ 32 KB). When set, takes precedence
+    /// over the silent Contacts Me-card photo for the outgoing claim.
+    @State private var pickedPhotoData: Data?
     enum RoleChoice: String, CaseIterable, Identifiable {
         case player, spectator
         var id: String { rawValue }
@@ -206,6 +212,47 @@ struct JoinSheet: View {
                 .tracking(2)
                 .foregroundStyle(theme.muted)
 
+            HStack(spacing: 12) {
+                photoAvatar
+                VStack(alignment: .leading, spacing: 6) {
+                    PhotosPicker(
+                        selection: $pickerItem,
+                        matching: .images,
+                        photoLibrary: .shared()
+                    ) {
+                        Text(currentPhotoData == nil ? "PICK PHOTO" : "CHANGE PHOTO")
+                            .font(theme.monoFont(size: 11))
+                            .tracking(1.4)
+                            .foregroundStyle(theme.ink)
+                            .padding(.horizontal, 10).padding(.vertical, 6)
+                            .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 8))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(theme.border, lineWidth: 1)
+                            )
+                    }
+                    .accessibilityLabel(currentPhotoData == nil ? "Pick a photo" : "Change photo")
+                    if currentPhotoData != nil {
+                        Button {
+                            pickedPhotoData = nil
+                            pickerItem = nil
+                            // Also blank out the auto-prefill so Remove
+                            // really removes the photo, instead of
+                            // silently reverting to the Contacts photo.
+                            if let p = prefill {
+                                prefill = ContactPrefill(displayName: p.displayName, imageData: nil)
+                            }
+                        } label: {
+                            Text("REMOVE")
+                                .font(theme.monoFont(size: 10))
+                                .tracking(1.2)
+                                .foregroundStyle(theme.brand)
+                        }
+                    }
+                }
+                Spacer()
+            }
+
             TextField("Name", text: $editedName)
                 .padding(10)
                 .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 8))
@@ -214,9 +261,55 @@ struct JoinSheet: View {
                         .stroke(theme.borderLight, lineWidth: 1)
                 )
 
-            Text("Prefilled from this device's name. Edit before joining if you like.")
+            Text("Name is prefilled from this device — edit before joining if you like. Photo is optional; tap PICK PHOTO to choose one (iCloud Photo Library is surfaced automatically).")
                 .font(theme.monoFont(size: 10))
                 .foregroundStyle(theme.muted)
+        }
+        .onChange(of: pickerItem) { _, newItem in
+            Task { await loadPickedPhoto(newItem) }
+        }
+    }
+
+    /// Source-of-truth for the photo we'll send: prefer user-picked, then
+    /// silent Contacts, then nil (slot shows initials only).
+    private var currentPhotoData: Data? {
+        pickedPhotoData ?? prefill?.imageData
+    }
+
+    @ViewBuilder
+    private var photoAvatar: some View {
+        ZStack {
+            Circle()
+                .fill(theme.cardBg)
+                .overlay(Circle().stroke(theme.border, lineWidth: 1))
+            if let data = currentPhotoData, let img = UIImage(data: data) {
+                Image(uiImage: img)
+                    .resizable()
+                    .scaledToFill()
+                    .clipShape(Circle())
+            } else {
+                Text(initialsFallback)
+                    .font(theme.displayFont(size: 18))
+                    .foregroundStyle(theme.muted)
+            }
+        }
+        .frame(width: 56, height: 56)
+    }
+
+    private var initialsFallback: String {
+        let parts = editedName.split(separator: " ")
+        let first = parts.first.flatMap { $0.first.map(String.init) } ?? ""
+        let last = parts.dropFirst().first.flatMap { $0.first.map(String.init) } ?? ""
+        let joined = (first + last).uppercased()
+        return joined.isEmpty ? "?" : joined
+    }
+
+    private func loadPickedPhoto(_ item: PhotosPickerItem?) async {
+        guard let item else { return }
+        guard let raw = try? await item.loadTransferable(type: Data.self) else { return }
+        let compressed = DeviceIdentity.compressPhoto(raw)
+        await MainActor.run {
+            pickedPhotoData = compressed
         }
     }
 
@@ -318,7 +411,11 @@ struct JoinSheet: View {
     private func confirm() {
         switch roleChoice {
         case .player:
-            let photo = DeviceIdentity.compressPhoto(prefill?.imageData)
+            // Prefer the user-picked photo (already compressed by
+            // loadPickedPhoto). Fall back to the silent Contacts photo,
+            // which still goes through compressPhoto so the wire-size
+            // contract holds. Nil → slot shows initials only.
+            let photo = pickedPhotoData ?? DeviceIdentity.compressPhoto(prefill?.imageData)
             // Fresh UUID — the host treats unknown IDs as "add me as a new
             // player slot" (lobby) or as a claim against an existing slot
             // matching this id (in-progress games).
