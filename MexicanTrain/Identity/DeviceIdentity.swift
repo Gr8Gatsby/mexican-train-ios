@@ -5,14 +5,12 @@ struct ContactPrefill: Equatable {
     let imageData: Data?
 }
 
-/// iOS-side identity prefill. The macOS "Me card" API isn't available on
-/// iOS, so we prefill from `UIDevice.current.name`, stripping the
-/// "'s iPhone" / "'s iPad" suffix when present. The user can edit before
-/// they tap Join.
-///
-/// (When Apple ships a richer identity API or we want to lean on the
-/// AccessoryPicker flow, swap the body of `loadCurrentIdentity` — the
-/// `ContactPrefill` shape stays stable.)
+/// iOS-side identity prefill. iOS does not expose either the Apple ID
+/// profile photo or a Contacts "Me card" to third-party apps — both APIs
+/// are macOS-only or behind privacy walls. So `loadCurrentIdentity`
+/// returns the cleaned device name and no photo; the photo is collected
+/// in `JoinSheet` via the SwiftUI `PhotosPicker` (which runs out of
+/// process and needs no Photos permission prompt).
 enum DeviceIdentity {
     enum Access { case granted }
 
