@@ -59,8 +59,9 @@ struct HomeView: View {
                     if !finished.isEmpty {
                         sectionLabel("HISTORY")
                         ForEach(finished) { g in
-                            HistoryRow(game: g)
-                                .onTapGesture { coordinator.openGameHistory(g) }
+                            HistoryRow(game: g) {
+                                coordinator.openGameHistory(g)
+                            }
                         }
                     }
                 }
@@ -183,33 +184,48 @@ private struct InProgressCard: View {
 
 private struct HistoryRow: View {
     let game: Game
+    let onOpen: () -> Void
     @Environment(\.theme) private var theme
 
     var body: some View {
         let standings = Scoring.standings(for: game)
         let winner = standings.first
-        HStack {
-            VStack(alignment: .leading, spacing: 3) {
-                Text(game.displayName)
-                    .font(theme.displayFont(size: 16))
-                    .foregroundStyle(theme.ink)
-                HStack(spacing: 4) {
-                    Text("\(game.players.count) players")
-                    Text("·")
-                    if let w = winner {
-                        Text("Winner: \(w.name) (\(w.total))")
+        HStack(spacing: 0) {
+            Button(action: onOpen) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(game.displayName)
+                            .font(theme.displayFont(size: 16))
+                            .foregroundStyle(theme.ink)
+                        HStack(spacing: 4) {
+                            Text("\(game.players.count) players")
+                            Text("·")
+                            if let w = winner {
+                                Text("Winner: \(w.name) (\(w.total))")
+                            }
+                        }
+                        .font(theme.monoFont(size: 10))
+                        .tracking(1)
+                        .foregroundStyle(theme.muted)
                     }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(theme.muted)
                 }
-                .font(theme.monoFont(size: 10))
-                .tracking(1)
-                .foregroundStyle(theme.muted)
+                .padding(12)
+                .contentShape(Rectangle())
             }
-            Spacer()
-            Image(systemName: "chevron.right")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(theme.muted)
+            .buttonStyle(.plain)
+            ShareLink(item: GameReport.text(for: game)) {
+                Image(systemName: "square.and.arrow.up")
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(theme.brand)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
+            }
+            .accessibilityLabel("Share \(game.displayName) report")
         }
-        .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 10))
         .overlay(

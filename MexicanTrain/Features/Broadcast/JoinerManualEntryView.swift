@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// Joiner-side analogue of `ManualEntryView`. Same keypad UX, but on submit
 /// it sends a `ScoreSubmission` to the host instead of writing locally.
@@ -11,6 +12,7 @@ struct JoinerManualEntryView: View {
     @Environment(\.theme) private var theme
     @Environment(AppCoordinator.self) private var coordinator
     @State private var value: String = ""
+    @State private var referencePhoto: UIImage?
 
     var body: some View {
         ZStack {
@@ -18,12 +20,38 @@ struct JoinerManualEntryView: View {
             VStack(spacing: 0) {
                 header
                 readout
+                if let referencePhoto {
+                    referenceCard(referencePhoto)
+                }
                 Spacer(minLength: 0)
                 KeypadView(value: $value)
                     .padding(.horizontal, 16)
                 footer
             }
         }
+        .onAppear {
+            referencePhoto = coordinator.pendingManualReference
+            coordinator.pendingManualReference = nil
+        }
+    }
+
+    private func referenceCard(_ image: UIImage) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("REFERENCE PHOTO")
+                .font(theme.monoFont(size: 9))
+                .tracking(1.4)
+                .foregroundStyle(theme.muted)
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+                .frame(maxWidth: .infinity, maxHeight: 120)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(theme.border, lineWidth: 1)
+                )
+        }
+        .padding(.horizontal, 16).padding(.bottom, 6)
     }
 
     private var header: some View {

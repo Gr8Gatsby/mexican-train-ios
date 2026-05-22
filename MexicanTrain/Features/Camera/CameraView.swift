@@ -274,17 +274,31 @@ struct CameraView: View {
     }
 
     private var aimControls: some View {
-        HStack {
-            Spacer()
-            Button(action: shoot) {
-                Circle()
-                    .fill(.white)
-                    .frame(width: 72, height: 72)
-                    .overlay(Circle().fill(theme.accent).frame(width: 56, height: 56))
-                    .overlay(Circle().stroke(.black, lineWidth: 4).padding(-4))
+        VStack(spacing: 10) {
+            HStack {
+                Spacer()
+                Button(action: shoot) {
+                    Circle()
+                        .fill(.white)
+                        .frame(width: 72, height: 72)
+                        .overlay(Circle().fill(theme.accent).frame(width: 56, height: 56))
+                        .overlay(Circle().stroke(.black, lineWidth: 4).padding(-4))
+                }
+                .accessibilityLabel("Scan tiles")
+                Spacer()
             }
-            .accessibilityLabel("Scan tiles")
-            Spacer()
+            if error != nil, captured != nil, shouldShowManualButton {
+                Button(action: bounceToManual) {
+                    Text("USE MANUAL ENTRY")
+                        .font(theme.monoFont(size: 11))
+                        .tracking(1.6)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14).padding(.vertical, 8)
+                        .background(.white.opacity(0.12), in: Capsule())
+                        .overlay(Capsule().stroke(.white.opacity(0.4), lineWidth: 1))
+                }
+                .accessibilityHint("Opens a number pad with the photo you just took for reference.")
+            }
         }
     }
 
@@ -300,33 +314,48 @@ struct CameraView: View {
     }
 
     private var confirmControls: some View {
-        HStack(spacing: 8) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    phase = .aim
-                    captured = nil
-                    result = nil
+        VStack(spacing: 8) {
+            if let r = result, r.tiles.isEmpty, shouldShowManualButton {
+                Button(action: bounceToManual) {
+                    Text("COULDN'T READ TILES · ENTER MANUALLY")
+                        .font(theme.monoFont(size: 11))
+                        .tracking(1.4)
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                        .padding(.horizontal, 14).padding(.vertical, 8)
+                        .background(.white.opacity(0.12), in: Capsule())
+                        .overlay(Capsule().stroke(.white.opacity(0.4), lineWidth: 1))
                 }
-            } label: {
-                Text("↻ RETAKE")
-                    .font(theme.displayFont(size: 14))
-                    .tracking(2)
-                    .lineLimit(1)
-                    .frame(maxWidth: .infinity, minHeight: 52)
-                    .foregroundStyle(.white)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: theme.buttonCornerRadius)
-                            .stroke(.white.opacity(0.25), lineWidth: 1)
-                    )
             }
-            Button(action: submit) {
-                Text("ALL ABOARD ✓")
-                    .font(theme.displayFont(size: 14))
-                    .tracking(2)
-                    .lineLimit(1)
-                    .frame(maxWidth: .infinity, minHeight: 52)
-                    .foregroundStyle(theme.ctaText)
-                    .background(theme.cta, in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
+            HStack(spacing: 8) {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        phase = .aim
+                        captured = nil
+                        result = nil
+                    }
+                } label: {
+                    Text("↻ RETAKE")
+                        .font(theme.displayFont(size: 14))
+                        .tracking(2)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, minHeight: 52)
+                        .foregroundStyle(.white)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: theme.buttonCornerRadius)
+                                .stroke(.white.opacity(0.25), lineWidth: 1)
+                        )
+                }
+                Button(action: submit) {
+                    Text("ALL ABOARD ✓")
+                        .font(theme.displayFont(size: 14))
+                        .tracking(2)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, minHeight: 52)
+                        .foregroundStyle(theme.ctaText)
+                        .background(theme.cta, in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
+                }
             }
         }
     }
@@ -346,10 +375,21 @@ struct CameraView: View {
                 self.result = result
                 withAnimation(.easeInOut(duration: 0.3)) { phase = .confirm }
             } catch {
-                self.error = "Couldn't read tiles. Tap retake or use 123 for manual entry."
+                self.error = "Couldn't read tiles. Tap RETAKE or USE MANUAL ENTRY to type them in."
                 phase = .aim
             }
         }
+    }
+
+    /// Hand the captured image to the manual-entry view as a reference
+    /// photo, then route to manual entry. Triggered either by the
+    /// explicit fallback button when vision fails, or by the no-tiles
+    /// banner in the confirm step.
+    private func bounceToManual() {
+        if let image = captured {
+            coordinator.pendingManualReference = image
+        }
+        manual()
     }
 
     private func submit() {
