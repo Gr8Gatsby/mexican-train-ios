@@ -47,10 +47,90 @@ enum GameReport {
         return lines.joined(separator: "\n")
     }
 
+    /// Joiner-side report, generated from a cached `GameSnapshot`.
+    /// Snapshots don't carry the audit chain, so this version is
+    /// summary-only — current pip value, original submitter — with a
+    /// footer noting that the host has the full audit log.
+    static func text(snapshot snap: GameSnapshot, now: Date = .now) -> String {
+        var lines: [String] = []
+        lines.append("MEXICAN TRAIN — \"\(snap.gameName)\" (joined)")
+        lines.append(dateLine(snapshot: snap, fallback: now))
+        let engine0 = Scoring.engineTile(stop: 1, rules: snap.startingEngine, length: snap.length)
+        lines.append("\(snap.players.count) players · \(snap.length)-stop game · engine \(engine0) → 0")
+        lines.append("Hosted by \(snap.hostName)")
+        lines.append("")
+
+        let players = snap.players.sorted(by: { $0.seat < $1.seat })
+        let nameFor: (UUID) -> String = { pid in
+            if let claim = snap.claims.first(where: { $0.playerID == pid }) {
+                return claim.displayName
+            }
+            return players.first(where: { $0.id == pid })?.name ?? "Player"
+        }
+
+        let totals: [(UUID, String, Int)] = players.map { p in
+            let total = snap.scores
+                .filter { $0.playerID == p.id && !$0.excluded }
+                .reduce(0) { $0 + $1.pips }
+            return (p.id, nameFor(p.id), total)
+        }
+        let standings = totals.sorted { $0.2 < $1.2 }
+
+        lines.append(snap.isFinished ? "FINAL STANDINGS" : "STANDINGS (game in progress)")
+        var lastTotal: Int? = nil
+        var lastPlace = 0
+        for (i, (_, name, total)) in standings.enumerated() {
+            let place: Int
+            if let lt = lastTotal, lt == total {
+                place = lastPlace
+            } else {
+                place = i + 1
+                lastPlace = place
+                lastTotal = total
+            }
+            let dots = String(repeating: ".", count: max(1, 20 - name.count))
+            lines.append("  \(place). \(name) \(dots) \(total)")
+        }
+
+        let lastStop = (1...snap.length).reversed().first { stop in
+            snap.scores.contains(where: { $0.stop == stop })
+        }
+        if let lastStop {
+            lines.append("")
+            for stop in 1...lastStop {
+                let engine = Scoring.engineTile(stop: stop, rules: snap.startingEngine, length: snap.length)
+                lines.append("STOP \(stop) (engine \(engine))")
+                for p in players {
+                    let name = nameFor(p.id)
+                    if let s = snap.scores.first(where: { $0.playerID == p.id && $0.stop == stop }) {
+                        let value = s.excluded ? 0 : s.pips
+                        let submitter = s.submittedBy == .player ? name : "conductor"
+                        var line = "  \(pad(name)) \(String(format: "%3d", value))  submitted by \(submitter)"
+                        if s.excluded { line += " (excluded — counted as 0)" }
+                        lines.append(line)
+                    } else {
+                        lines.append("  \(pad(name)) — — — not entered")
+                    }
+                }
+            }
+        }
+        lines.append("")
+        lines.append("— Joiner-side summary. The host has the full audit log.")
+        return lines.joined(separator: "\n")
+    }
+
     // MARK: - Formatting helpers
 
     private static func dateLine(game: Game, fallback: Date) -> String {
         let date = game.finishedAt ?? fallback
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        f.timeStyle = .short
+        return f.string(from: date)
+    }
+
+    private static func dateLine(snapshot: GameSnapshot, fallback: Date) -> String {
+        let date = snapshot.endedAt ?? fallback
         let f = DateFormatter()
         f.dateStyle = .medium
         f.timeStyle = .short

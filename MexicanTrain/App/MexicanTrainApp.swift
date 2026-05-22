@@ -97,6 +97,8 @@ struct RootView: View {
             JoinerCameraHost(playerID: pid, playerName: pname, stop: stop, lengthStops: len)
         case .joinerManualEntry(let pid, let pname, let stop, let len):
             JoinerManualEntryView(playerID: pid, playerName: pname, stop: stop, lengthStops: len)
+        case .joinedGameDetail(let gid):
+            JoinedGameView(gameID: gid)
         }
     }
 }
