@@ -6,8 +6,8 @@ This spec defines functional requirements only. Implementation details (framewor
 
 ## 1. Product summary
 
-- One phone is the **scorebook** (host) and owns all scoring inputs. The host can pass the phone around the table, or one person can enter scores for everyone.
-- Other phones in the room can **join** to see the live scoreboard — either as a **player** (claiming a slot in the game with their name and photo) or as a **spectator** (read-only). All joiners are read-only with respect to scoring; only the host enters scores. See §7.
+- One phone is the **scorebook** (host, operated by the person we call the **conductor**) and is the device of record. The host can pass the phone around the table, or one person can enter scores for everyone.
+- Other phones in the room can **join** to see the live scoreboard — either as a **player** (claiming a slot in the game with their name and photo) or as a **spectator** (read-only). **Player joiners submit their own scores** from their own phones; the conductor can additionally submit on behalf of any player as an override (useful for players without a phone or who are temporarily away from the table). Spectators are read-only. See §7.
 - No accounts, no server, no internet path. All gameplay data lives on the host device; broadcast to joiners is peer-to-peer on the local network only.
 - The phone is the scorebook. The headline interaction is "tap Add Score → point camera at tiles → confirm number → done."
 - Visual identity: **Caboose** theme — warm parchment background, oxblood brand color, brass borders, saloon-ledger typography. The app should feel like a hand-kept score ledger on a wood table.
@@ -73,10 +73,14 @@ The scoreboard is the home of the in-progress game. It must show, at a glance:
 - **Photo gallery** (when applicable): below the table, a row/grid of thumbnail captures from the previous stop, one per player. Each thumbnail shows the player's name and points. If no previous stop has photos, this area is hidden.
 - **Primary CTA at the bottom**: "Add Score" — large, oxblood/ink button, labelled with the current stop.
 
-Interactions:
+Interactions (conductor on the host device):
 - Tap "Add Score" → camera screen for the next player who has not yet been entered for the current stop. If all players are entered for the current stop, the CTA changes to "Advance to stop N+1" (or "Finish game" on the final stop).
 - Tap any populated score cell → audit screen for that (player, stop).
+- Tap any unset cell from a **past** stop → audit screen for that (player, stop) in **create mode** (manual entry, no camera). Saving creates the score as if originally submitted by the conductor.
+- Unset **current**-stop cells display a small "+" affordance instead of the dot used for unset past-stop cells. Tapping "+" invokes the **conductor override** flow (see §3.6). The "+" is not shown for a slot once that player has submitted their own score.
 - Tap the menu → sheet with: rename game, end game early, delete game.
+
+Interactions (player joiner): see §7.4. The joiner's scoreboard view is read-only for everyone else's cells; their own current-stop cell, when unset, surfaces an "Add my score" CTA that opens the camera on their phone.
 
 ### 3.4 Camera screen (add score flow)
 The camera is the default entry path. The top bar shows which player is being scored ("Aaron · Stop 4") with a back/cancel button.
@@ -100,17 +104,45 @@ Manual entry mode (reachable from the camera's "123" button or from a fallback p
 If the vision model returns no detection or an obviously invalid result (e.g. zero tiles), the camera screen offers a "Couldn't read tiles — enter manually" path that takes the user to manual entry pre-populated with the photo for reference.
 
 ### 3.5 Audit screen
-Opened by tapping any populated score cell. Shows:
+Opened by the conductor by tapping any score cell (populated → edit mode; unset past-stop → create mode). Shows:
 - Header: "Audit · Stop N" with back button.
 - Hero strip: player name (with "you" badge if applicable), engine glyph for that stop, and the player's new running total (with delta vs. recorded if changed).
 - **Pip count editor**: big number readout, − and + step buttons, quick-adjust chips (−10, −5, +5, +10), and a tappable numeric input.
+- **Exclude toggle**: when enabled, the score contributes 0 to that player's total but remains on the board for audit visibility. The cell still satisfies "every player has entered a score for this stop" so the stop can complete. Excluding does not remove the entry — the original and any edits remain in the audit history.
 - **Scanned tiles section** (if the original entry was from a photo): the tiles the model identified, with a "Re-scan" button that returns to the camera screen for this (player, stop). For manual entries, this section shows "Entered manually" and a "Scan now" affordance.
 - **Reference photo** (if any): the captured photo, with timestamp.
+- **Audit history**: an ordered list of the original submission and every subsequent change, each line showing what changed (pip value or exclude state), who made the change (player or conductor), and when. The original submitted value is never overwritten and is always shown first.
 - Footer: "Discard" (cancel changes, return) and "Save correction" (persist the edited value).
 
-### 3.6 End of game
+The audit screen is the conductor's general-purpose adjustment tool. Audits change the score that counts toward the game total but never modify the originally submitted value; the audit history preserves the full chain. This rule is what makes the end-of-game report (§3.8) honest.
+
+### 3.6 Conductor override (submitting on behalf of a player)
+The conductor uses this when a player isn't present, doesn't have a phone, or simply can't submit themselves.
+
+Flow:
+1. On the scoreboard, every unset current-stop cell shows a "+" affordance (see §3.3).
+2. Tapping "+" presents a **confirmation sheet** naming the player: "Submit on behalf of {Player}?" with **Cancel** and a primary action (e.g. "Open Camera as {Player}"). The confirmation is mandatory — there is no one-tap path from "+" directly to the camera, to prevent accidental override.
+3. Confirming opens the camera screen (§3.4) configured for that player. The camera's top bar makes the override visible (e.g. "AS {Player} · Stop N") so the conductor cannot forget mid-scan that they are submitting for someone else.
+4. Submission records the score as **originally submitted by the conductor**, distinguished from a player's own submission in the audit history. Manual entry is available from the same path.
+
+**Race resolution: player submissions take priority.** If the conductor submits on behalf of a player and that player later submits their own score for the same stop, the player's value replaces the conductor's as the current value. The conductor's earlier value is preserved as the original entry in the audit history, with an automatic adjustment entry showing the player's correction. The reverse direction (conductor submitting after a player already has) does not happen by design: the "+" affordance disappears once a player has submitted. If the conductor wants to correct a player-submitted score, they use the audit screen (§3.5) instead.
+
+### 3.7 End of game
 - When the final stop's last score is entered, the app advances to an end-game screen.
-- End-game screen shows: final standings (ascending by total), winner badge, per-player totals, "New game" CTA, and a button to view the completed game in the history list.
+- End-game screen shows: final standings (ascending by total), winner badge, per-player totals, a **Share report** action (see §3.8), a "New game" CTA, and a button to view the completed game in the history list.
+
+### 3.8 Game report
+A report of a completed game can be shared as plain text via the iOS share sheet. The report must include:
+- Game title and final date.
+- Final standings with places and totals.
+- A per-stop breakdown for every player showing the score that counted toward the total, with annotations for any score that was audited or excluded (showing the original value, the actor who changed it, and when).
+- An indication of who submitted each score (player vs conductor override) where that distinction is meaningful.
+
+The share action is reachable from:
+- The end-of-game screen (§3.7), as a "Share report" button.
+- Any finished game's row or detail view in the home screen's history list (§3.1).
+
+The intent is that the report is faithful to what actually happened — including all corrections — so it can be sent to players after the game without anyone wondering how a score got from one value to another.
 
 ## 4. Photo / vision
 
@@ -152,14 +184,14 @@ House-rule defaults (e.g. starting engine) are not duplicated in settings; new-g
 
 Settings are intentionally small. The web app's "tweaks panel" (density, history visibility, button radius, tile orientation) is a design exploration tool and is not exposed to end users; the iOS app picks one set of defaults: cozy density, score history visible, photo gallery visible, manual fallback allowed, horizontal tiles.
 
-## 7. Broadcast (multi-device viewing)
+## 7. Broadcast (multi-device viewing and scoring)
 
-The host phone is authoritative for all scoring inputs (camera capture, audit, manual entry). Other phones in the room may join the host's game to see the live scoreboard. Joiners never enter scores or audit other players; the host remains the only input device.
+The host phone is the device of record for the game's data. Other phones in the room may join to see the live scoreboard, and **player joiners may submit their own scores** for their own slot. The host receives, records, and rebroadcasts; the conductor on the host can override or audit any score (§3.5, §3.6). Spectators never submit anything.
 
 ### 7.1 Roles
-- **Host**: the scorebook. Owns the game; broadcasts state. There is exactly one host per game.
-- **Player joiner**: a person at the table who claims one of the game's player slots. Their phone shows the same live scoreboard as the host, with their claimed slot highlighted as "you." They contribute a name and photo to that slot (see §7.3).
-- **Spectator**: a person watching. Their phone shows the live scoreboard read-only. They do not claim a slot and contribute no name or photo.
+- **Host**: the scorebook, operated by the conductor. Owns the game's data of record; broadcasts state; receives and records score submissions from player joiners. There is exactly one host per game.
+- **Player joiner**: a person at the table who claims one of the game's player slots. Their phone shows the same live scoreboard as the host, with their claimed slot highlighted as "you." They contribute a name and photo to that slot (see §7.3) and may submit their own scores for their own slot only (see §7.4).
+- **Spectator**: a person watching. Their phone shows the live scoreboard read-only. They do not claim a slot and contribute no name, photo, or scores.
 
 Multiple joiners can connect to a single host concurrently, in any combination of player and spectator roles. Each player slot may be claimed by at most one joiner at a time.
 
@@ -181,10 +213,20 @@ When joining as a player, the join sheet pre-populates the slot's display name f
 - When the joiner taps "Join," the chosen name (and any photo) becomes the visible identity for that slot across the host and every other joiner.
 - A joined player's name overrides any host-set name for that slot. If the joiner provides no photo, the slot continues to show only initials.
 
-### 7.4 What the host broadcasts
-On every meaningful change, the host pushes the current game state to all connected joiners. "Meaningful change" includes (non-exhaustive): a score added or audited, a stop advanced, a player added/renamed, the game ended, a new capture taken, a claim received from another joiner.
+### 7.4 Live state sync between host and joiners
+
+**Host → joiners (broadcast).** On every meaningful change, the host pushes the current game state to all connected joiners. "Meaningful change" includes (non-exhaustive): a score added, audited, or excluded; a stop advanced; a player added/renamed; the game ended; a new capture taken; a claim received from another joiner.
 
 The broadcast carries enough state for joiners to render the full scoreboard, the photo gallery from the most recent stop, and identity claims for every player. Joiners do not hold their own copy of the game's history; their view is driven entirely by the most recent broadcast.
+
+**Player joiner → host (score submission).** A player joiner may submit a score for their own slot only, for the current stop only, when that slot has no existing score for that stop. The submission carries the pip count and, optionally, the captured photo and the tile detections used to derive it (so the conductor can audit a submitted score against the same evidence the joiner saw).
+
+Submission outcomes:
+- If the slot has no score for the current stop: the host records the submission as a score originally submitted by that player and rebroadcasts. The joiner's "Add my score" CTA disappears.
+- If the slot has a score that was previously entered by the conductor's override (§3.6): the host accepts the player's submission as the new current value and records the override-vs-correction transition in the audit history. The original conductor-submitted value is preserved; the score's submitter-of-record becomes the player.
+- If the slot has a score the player themselves already submitted: the submission is rejected (idempotent re-submit becomes a no-op; an explicit change requires the conductor's audit screen).
+
+Joiners do not submit on behalf of other players, do not audit, and do not exclude. All such adjustments are the conductor's, via §3.5.
 
 ### 7.5 Connection lifecycle
 - A joiner who briefly loses Wi-Fi reconnects automatically when the network is back.
@@ -199,8 +241,8 @@ The broadcast carries enough state for joiners to render the full scoreboard, th
 ## 8. Non-goals (v1)
 
 - No accounts, no cloud backup, no iCloud sync, no internet-based multiplayer.
-- No score input from joiners — only the host enters or audits scores.
-- No exporting a game to an image or PDF.
+- No audit or exclude actions from joiners — only the conductor (on the host) may adjust scores after submission.
+- No exporting a game as an image or PDF. Plain-text share is supported (§3.8).
 - No undo of game-advance once a stop has been closed (a stop's scores can still be audited individually).
 - No tile-tracking during play (the app counts pips at the end of a round, not which tiles are in which train).
 - No statistics across games (head-to-head records, per-player averages) beyond the home-screen game list.
@@ -223,3 +265,4 @@ The broadcast carries enough state for joiners to render the full scoreboard, th
 - 2026-05-21 — v0.3 — Added broadcast (§7): host advertises a game via QR code + room code; other phones join as player (with iOS-prefilled name and photo) or spectator. Scoring inputs remain host-only. Adjusted §1 product summary and §8 non-goals to match.
 - 2026-05-21 — v0.4 — Tightened §7.3 to reflect the iOS reality: identity prefill comes from `UIDevice.current.name` (with the device-suffix stripped) rather than a Contacts "Me card," which iOS doesn't expose. The wire format still carries an optional photo for a future Photo Picker flow.
 - 2026-05-21 — v0.5 — Reframed §3.2 New-game setup as a live lobby: the conductor is auto-added with their device-derived identity, broadcast (QR + room code) starts immediately so other phones can join as players from the new-game screen, and a "Add player manually" path remains for phone-less players. Replaces the previous "type every name" flow.
+- 2026-05-22 — v0.6 — Shifted scoring authority: player joiners now submit their own scores from their own phones (§1, §7.1, §7.4); the conductor can submit on behalf of any player as a deliberate override (new §3.6) via a "+" affordance on unset current-stop cells (§3.3) plus a mandatory confirmation. Player submissions take priority over conductor overrides for the same slot/stop; conflicts are preserved in the audit history. Documented exclude semantics and the audit history list on the audit screen (§3.5). Audits never overwrite originally submitted values — they update the score that counts toward the total while preserving the original. Added a plain-text shareable end-of-game report (new §3.8), reachable from the end-of-game screen (§3.7) and from finished-game entries in the history list (§3.1). Updated §8 non-goals accordingly.
