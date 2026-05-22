@@ -9,9 +9,18 @@ struct AuditView: View {
     @Environment(\.theme) private var theme
     @Environment(AppCoordinator.self) private var coordinator
     @Environment(\.modelContext) private var context
+    @Environment(AppSettings.self) private var settings
 
     @State private var value: String
     @State private var excludedDraft: Bool
+    /// Mutable working copy of the capture's per-half labels, edited via
+    /// `EditableDetectionOverlay`. Seeded from `correctedTiles` if the
+    /// conductor has labeled before, else the raw model output.
+    @State private var labelDraft: [TileObservation] = []
+    /// True when the user has touched at least one chip since arriving on
+    /// this view; flips on `labelDraft` mutation. Drives whether `save()`
+    /// writes corrected labels, and gates the "labels saved" toast.
+    @State private var labelDraftDirty: Bool = false
 
     init(game: Game, player: Player, stop: Int) {
         self.game = game
@@ -34,6 +43,9 @@ struct AuditView: View {
                         excludeToggle
                         infoBlock
                         referenceArea
+                        if settings.trainingDataExportEnabled, matchingCapture != nil {
+                            labelingEditorSection
+                        }
                         auditHistorySection
                     }
                     .frame(maxWidth: .infinity, alignment: .top)
@@ -42,6 +54,13 @@ struct AuditView: View {
                 footer
             }
         }
+        .onAppear { seedLabelDraft() }
+    }
+
+    private func seedLabelDraft() {
+        guard let capture = matchingCapture else { return }
+        labelDraft = capture.correctedTiles ?? capture.tiles
+        labelDraftDirty = false
     }
 
     private var originalPips: Int {
@@ -271,6 +290,54 @@ struct AuditView: View {
     }
 
     @ViewBuilder
+    private var labelingEditorSection: some View {
+        if let capture = matchingCapture,
+           let img = coordinator.photoStore.load(filename: capture.filename, gameID: game.id) {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack {
+                    Text("LABEL TILES")
+                        .font(theme.monoFont(size: 9))
+                        .tracking(1.8)
+                        .foregroundStyle(theme.muted)
+                    Spacer()
+                    if capture.isLabeled || labelDraftDirty {
+                        Text("LABELED")
+                            .font(theme.monoFont(size: 9))
+                            .tracking(1.4)
+                            .foregroundStyle(theme.accent)
+                    }
+                }
+                Text("Tap a chip to correct its pip value. Tap empty space on the photo to add a missed half. Saved labels are used by Export in Settings.")
+                    .font(theme.monoFont(size: 10))
+                    .foregroundStyle(theme.muted)
+                EditableDetectionOverlay(
+                    image: img,
+                    tiles: Binding(
+                        get: { labelDraft },
+                        set: { new in
+                            labelDraft = new
+                            labelDraftDirty = true
+                        }
+                    ),
+                    color: theme.accent
+                )
+                .frame(height: 220)
+                .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(theme.border, lineWidth: 1)
+                )
+                if labelDraftDirty {
+                    Text("Sum of corrected halves: \(labelDraft.reduce(0) { $0 + $1.pips })")
+                        .font(theme.monoFont(size: 10))
+                        .foregroundStyle(theme.muted)
+                }
+            }
+            .padding(.horizontal, 14).padding(.vertical, 10)
+        }
+    }
+
+    @ViewBuilder
     private var auditHistorySection: some View {
         if let s = existing, !s.edits.isEmpty || s.originalPips != s.pips {
             VStack(alignment: .leading, spacing: 6) {
@@ -399,6 +466,9 @@ struct AuditView: View {
                 try GamePersistence.setScoreExcluded(in: context, score: s,
                                                     excluded: excludedDraft,
                                                     editedBy: .conductor)
+            }
+            if labelDraftDirty, let capture = matchingCapture {
+                try CapturePersistence.saveLabels(in: context, capture: capture, tiles: labelDraft)
             }
             coordinator.openScoreboard(game)
         } catch {

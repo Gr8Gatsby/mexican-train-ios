@@ -32,8 +32,15 @@ struct PhotoStore {
     }
 
     func load(filename: String, gameID: UUID) -> UIImage? {
-        let url = gameDir(gameID: gameID).appendingPathComponent(filename)
+        let url = url(filename: filename, gameID: gameID)
         return UIImage(contentsOfFile: url.path)
+    }
+
+    /// Absolute on-disk URL for a stored capture. Exposed for callers
+    /// (e.g. `TrainingDataExporter`) that need to copy the source file
+    /// rather than decode an image.
+    func url(filename: String, gameID: UUID) -> URL {
+        gameDir(gameID: gameID).appendingPathComponent(filename)
     }
 
     func thumbnail(filename: String, gameID: UUID, maxEdge: CGFloat = 256) -> UIImage? {

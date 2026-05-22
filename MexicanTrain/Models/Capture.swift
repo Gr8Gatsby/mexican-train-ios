@@ -11,7 +11,13 @@ final class Capture {
     var filename: String                // relative to PhotoStore root
     var pipsDetected: Int?
     var confidenceRaw: String
-    var tilesData: Data                 // JSON-encoded [TileObservation]
+    var tilesData: Data                 // JSON-encoded [TileObservation] — model's raw output, immutable
+    /// JSON-encoded [TileObservation] of human-corrected per-half labels.
+    /// Set when the conductor edits the detection overlay inside AuditView
+    /// (gated on `AppSettings.trainingDataExportEnabled`). When non-nil,
+    /// this is the ground truth used by `TrainingDataExporter`.
+    var correctedTilesData: Data?
+    var labeledAt: Date?
 
     init(
         id: UUID = UUID(),
@@ -40,4 +46,15 @@ final class Capture {
     var tiles: [TileObservation] {
         (try? JSONDecoder().decode([TileObservation].self, from: tilesData)) ?? []
     }
+
+    /// Ground-truth labels when the conductor has corrected the model
+    /// output. Nil when no human review has been done — in that case the
+    /// raw `tiles` are still the best estimate but should not be exported
+    /// as training data.
+    var correctedTiles: [TileObservation]? {
+        guard let correctedTilesData else { return nil }
+        return try? JSONDecoder().decode([TileObservation].self, from: correctedTilesData)
+    }
+
+    var isLabeled: Bool { correctedTilesData != nil }
 }

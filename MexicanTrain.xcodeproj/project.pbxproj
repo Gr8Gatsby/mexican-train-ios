@@ -18,7 +18,9 @@
 		23FDC767B6B3944D401F255B /* HouseRules.swift in Sources */ = {isa = PBXBuildFile; fileRef = 94C780E442BA7C160205C25C /* HouseRules.swift */; };
 		25F31180001FAEA8BFFF7DA3 /* ScoringTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B349A99B53A4356034456F37 /* ScoringTests.swift */; };
 		2C47A0FEF3E44AE46CFB12A8 /* JoinedGameRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C60CDE91D787A92EFB1B8C /* JoinedGameRecord.swift */; };
+		36253401299023E5027DEEEA /* TrainingDataExporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F03B3E7756576BB27BC3D3DF /* TrainingDataExporterTests.swift */; };
 		37D1DACF125479E280746A46 /* DominoGlyph.swift in Sources */ = {isa = PBXBuildFile; fileRef = C213CD19D031BEB200E5703D /* DominoGlyph.swift */; };
+		4386340CC293FAD080156988 /* EditableDetectionOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA807E9299164F22763804CF /* EditableDetectionOverlay.swift */; };
 		43C3C3354FA8743017C46504 /* PipCounter.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3ED41C35BD47CF4FF38E035 /* PipCounter.swift */; };
 		4476B342A1AB87C30153C9B3 /* QRScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 91B36C4A7287D64656A09745 /* QRScannerView.swift */; };
 		47F2FEC85D7E04A52739D9BC /* DetectionOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6673767DB628D0C366BDDE8C /* DetectionOverlay.swift */; };
@@ -50,6 +52,7 @@
 		AC684C06A4D0EB5318C50470 /* SpecialElite-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 852F707BAAB6ED4AAAEC835C /* SpecialElite-Regular.ttf */; };
 		AFB924047FD1B565C8B3C8BD /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = D488EEA6C81BAFECD3BD734F /* Theme.swift */; };
 		B1AD4AF6ED26046ACED287AF /* MODEL_CONTRACT.md in Resources */ = {isa = PBXBuildFile; fileRef = 6054B35D609ADA3583F26F61 /* MODEL_CONTRACT.md */; };
+		B6BEB16FED36987C0D074AEB /* TrainingDataExporter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18A5654F25B833FD63F4C810 /* TrainingDataExporter.swift */; };
 		BA2CB26C3F2CDAAE7F6436A8 /* ManualEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3417DB8F4D21EDCC0E21D55A /* ManualEntryView.swift */; };
 		BE2726C4E02715AE9858528A /* PipCounterFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = EE2638269AF10CA0C3EE5C54 /* PipCounterFactory.swift */; };
 		BE893620F8EA076761186E03 /* GameReportTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0F64B0C76528878FE0A2C6A7 /* GameReportTests.swift */; };
@@ -97,6 +100,7 @@
 		1313CE27C42B3D4C9091ECD7 /* PhotoStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoStoreTests.swift; sourceTree = "<group>"; };
 		15BBA822DEFF1A0EBDD57D43 /* QRCodeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QRCodeView.swift; sourceTree = "<group>"; };
 		177FA83BBBF9C017F000FDB6 /* SmokeTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SmokeTests.swift; sourceTree = "<group>"; };
+		18A5654F25B833FD63F4C810 /* TrainingDataExporter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainingDataExporter.swift; sourceTree = "<group>"; };
 		1909638E586E63EAC40D29CB /* Capture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Capture.swift; sourceTree = "<group>"; };
 		1B5E22C6516B777F65955FF3 /* CameraCapture.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraCapture.swift; sourceTree = "<group>"; };
 		1B9A4193B21C06D661BF2CA9 /* AppCoordinator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppCoordinator.swift; sourceTree = "<group>"; };
@@ -138,6 +142,7 @@
 		9CD9E75B2B0471B31643E977 /* MockPipCounter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MockPipCounter.swift; sourceTree = "<group>"; };
 		9FEC9F87CC1BA3D6DC8C1591 /* CameraView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CameraView.swift; sourceTree = "<group>"; };
 		AA7E4CACAB54D6C67E5A0513 /* JoinerManualEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinerManualEntryView.swift; sourceTree = "<group>"; };
+		AA807E9299164F22763804CF /* EditableDetectionOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditableDetectionOverlay.swift; sourceTree = "<group>"; };
 		AD50C405815876BBCE06F57A /* AuditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AuditView.swift; sourceTree = "<group>"; };
 		B1A47AAF55C9B6293CA2D36B /* SnapshotBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotBuilder.swift; sourceTree = "<group>"; };
 		B349A99B53A4356034456F37 /* ScoringTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScoringTests.swift; sourceTree = "<group>"; };
@@ -163,6 +168,7 @@
 		E9AB39A036DB952613ECC34D /* Player.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Player.swift; sourceTree = "<group>"; };
 		ED64A16FE8E809AB51B69608 /* DataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataStore.swift; sourceTree = "<group>"; };
 		EE2638269AF10CA0C3EE5C54 /* PipCounterFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipCounterFactory.swift; sourceTree = "<group>"; };
+		F03B3E7756576BB27BC3D3DF /* TrainingDataExporterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrainingDataExporterTests.swift; sourceTree = "<group>"; };
 		F416DCFCC6FDDF33431E57D8 /* GameSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameSnapshot.swift; sourceTree = "<group>"; };
 		F4F4F713E996CB0B193C43B5 /* EndGameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EndGameView.swift; sourceTree = "<group>"; };
 		FF98A4AAF7AB5423C9330302 /* Game.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Game.swift; sourceTree = "<group>"; };
@@ -193,6 +199,7 @@
 			children = (
 				6673767DB628D0C366BDDE8C /* DetectionOverlay.swift */,
 				C213CD19D031BEB200E5703D /* DominoGlyph.swift */,
+				AA807E9299164F22763804CF /* EditableDetectionOverlay.swift */,
 				35F3A86B6F9673693E57862C /* KeypadView.swift */,
 				15BBA822DEFF1A0EBDD57D43 /* QRCodeView.swift */,
 			);
@@ -339,6 +346,7 @@
 				1313CE27C42B3D4C9091ECD7 /* PhotoStoreTests.swift */,
 				B349A99B53A4356034456F37 /* ScoringTests.swift */,
 				177FA83BBBF9C017F000FDB6 /* SmokeTests.swift */,
+				F03B3E7756576BB27BC3D3DF /* TrainingDataExporterTests.swift */,
 				8E19211EF81A035ABCC855A2 /* VisionPipCounterTests.swift */,
 			);
 			path = MexicanTrainTests;
@@ -396,6 +404,7 @@
 				286051517F5CA4E76255B152 /* GamePersistence.swift */,
 				61D9FF2F419D8FBF5319E556 /* JoinedGamePersistence.swift */,
 				6909D9519FCD9433CDE46344 /* PhotoStore.swift */,
+				18A5654F25B833FD63F4C810 /* TrainingDataExporter.swift */,
 			);
 			path = Persistence;
 			sourceTree = "<group>";
@@ -540,6 +549,7 @@
 				BF43A9A96C11F4C74CC42D5A /* DeviceIdentity.swift in Sources */,
 				50330676C9B0B5F496CDCD56 /* DominoDetector.mlpackage in Sources */,
 				37D1DACF125479E280746A46 /* DominoGlyph.swift in Sources */,
+				4386340CC293FAD080156988 /* EditableDetectionOverlay.swift in Sources */,
 				A51F0BE4B7FD13F48F1F0E5D /* EndGameView.swift in Sources */,
 				7D04E8EA23AAAA38E4C958C7 /* Fonts.swift in Sources */,
 				7B5E2D6665BFD21569D16BDD /* Game.swift in Sources */,
@@ -581,6 +591,7 @@
 				AFB924047FD1B565C8B3C8BD /* Theme.swift in Sources */,
 				A2E8C862C7C3D2EC69B06042 /* ThemeEnvironment.swift in Sources */,
 				49DE55F1BD5B0B0B8DB7BC19 /* TileObservation.swift in Sources */,
+				B6BEB16FED36987C0D074AEB /* TrainingDataExporter.swift in Sources */,
 				1562F289BDEDB82BD8CE508E /* VisionPipCounter.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -596,6 +607,7 @@
 				D9311021C8B41BB552A569CE /* PhotoStoreTests.swift in Sources */,
 				25F31180001FAEA8BFFF7DA3 /* ScoringTests.swift in Sources */,
 				80E832EBA55FB67158F54611 /* SmokeTests.swift in Sources */,
+				36253401299023E5027DEEEA /* TrainingDataExporterTests.swift in Sources */,
 				1F1CEA5BEDE598CEFC652482 /* VisionPipCounterTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
