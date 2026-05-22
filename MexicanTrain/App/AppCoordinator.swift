@@ -18,6 +18,7 @@ final class AppCoordinator {
         case spectator
         case joinerCamera(playerID: UUID, playerName: String, stop: Int, lengthStops: Int)
         case joinerManualEntry(playerID: UUID, playerName: String, stop: Int, lengthStops: Int)
+        case joinedGameDetail(gameID: UUID)
     }
 
     enum SheetRoute: Equatable, Identifiable {
@@ -69,6 +70,9 @@ final class AppCoordinator {
     }
     func openJoinerManualEntry(playerID: UUID, playerName: String, stop: Int, lengthStops: Int) {
         route = .joinerManualEntry(playerID: playerID, playerName: playerName, stop: stop, lengthStops: lengthStops)
+    }
+    func openJoinedGameDetail(_ gameID: UUID) {
+        route = .joinedGameDetail(gameID: gameID)
     }
     func openManualEntry(game: Game, player: Player, stop: Int, topBarSubject: String? = nil) {
         route = .manualEntry(gameID: game.id, playerID: player.id, stop: stop, topBarSubject: topBarSubject)

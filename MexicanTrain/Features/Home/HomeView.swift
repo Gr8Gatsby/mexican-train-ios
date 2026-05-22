@@ -5,6 +5,7 @@ struct HomeView: View {
     @Environment(\.theme) private var theme
     @Environment(AppCoordinator.self) private var coordinator
     @Query(sort: \Game.createdAt, order: .reverse) private var games: [Game]
+    @Query(sort: \JoinedGameRecord.lastUpdatedAt, order: .reverse) private var joinedGames: [JoinedGameRecord]
 
     private var inProgress: Game? { games.first(where: { !$0.isFinished }) }
     private var finished: [Game] { games.filter { $0.isFinished } }
@@ -46,7 +47,7 @@ struct HomeView: View {
 
     @ViewBuilder
     private var content: some View {
-        if games.isEmpty {
+        if games.isEmpty && joinedGames.isEmpty {
             emptyState
         } else {
             ScrollView {
@@ -61,6 +62,14 @@ struct HomeView: View {
                         ForEach(finished) { g in
                             HistoryRow(game: g) {
                                 coordinator.openGameHistory(g)
+                            }
+                        }
+                    }
+                    if !joinedGames.isEmpty {
+                        sectionLabel("JOINED")
+                        ForEach(joinedGames) { record in
+                            JoinedGameRow(record: record) {
+                                coordinator.openJoinedGameDetail(record.gameID)
                             }
                         }
                     }
@@ -178,6 +187,57 @@ private struct InProgressCard: View {
         .overlay(
             RoundedRectangle(cornerRadius: 12)
                 .stroke(theme.border, lineWidth: 1)
+        )
+    }
+}
+
+private struct JoinedGameRow: View {
+    let record: JoinedGameRecord
+    let onOpen: () -> Void
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Button(action: onOpen) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(record.gameName)
+                            .font(theme.displayFont(size: 16))
+                            .foregroundStyle(theme.ink)
+                        HStack(spacing: 4) {
+                            Text("Hosted by \(record.hostName)")
+                            Text("·")
+                            Text(record.isFinished ? "final" : "in progress")
+                        }
+                        .font(theme.monoFont(size: 10))
+                        .tracking(1)
+                        .foregroundStyle(theme.muted)
+                    }
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(theme.muted)
+                }
+                .padding(12)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            if let snap = record.snapshot {
+                ShareLink(item: GameReport.text(snapshot: snap)) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundStyle(theme.brand)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("Share \(record.gameName) report")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 10))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(theme.borderLight, lineWidth: 1)
         )
     }
 }

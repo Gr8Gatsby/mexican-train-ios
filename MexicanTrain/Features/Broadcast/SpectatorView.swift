@@ -1,10 +1,14 @@
 import SwiftUI
+import SwiftData
 
-/// Joiner-side scoreboard. Drives entirely from the most recent broadcast
-/// snapshot — no SwiftData on this device.
+/// Joiner-side scoreboard. Drives the live UI from
+/// `MexTrainNetSession.latestSnapshot` and also writes each snapshot
+/// to local SwiftData via `JoinedGamePersistence` so the joiner gets
+/// a persisted memory of the game after they leave.
 struct SpectatorView: View {
     @Environment(\.theme) private var theme
     @Environment(AppCoordinator.self) private var coordinator
+    @Environment(\.modelContext) private var modelContext
 
     var body: some View {
         let session = coordinator.netSession
@@ -34,6 +38,19 @@ struct SpectatorView: View {
                 hostEndedOverlay
             }
         }
+        .onChange(of: session.latestSnapshot?.seq) { _, _ in
+            persistLatestSnapshot()
+        }
+        .onAppear { persistLatestSnapshot() }
+    }
+
+    private func persistLatestSnapshot() {
+        guard let snap = coordinator.netSession.latestSnapshot else { return }
+        try? JoinedGamePersistence.upsert(
+            in: modelContext,
+            snapshot: snap,
+            myPlayerID: coordinator.netSession.myPlayerID
+        )
     }
 
     /// CTA that appears when the joiner's claimed slot has no player-
