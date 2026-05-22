@@ -29,7 +29,8 @@ enum DebugRoute {
             if let g = liveGame { coord.route = .scoreboard(gameID: g.id) }
         case "manualEntry":
             if let g = liveGame, let p = firstPlayer {
-                coord.route = .manualEntry(gameID: g.id, playerID: p.id, stop: g.currentStopIndex)
+                coord.route = .manualEntry(gameID: g.id, playerID: p.id, stop: g.currentStopIndex,
+                                           topBarSubject: nil)
             }
         case "camera":
             if let g = liveGame, let p = firstPlayer {

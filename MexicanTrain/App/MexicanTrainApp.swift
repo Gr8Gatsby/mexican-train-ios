@@ -69,10 +69,10 @@ struct RootView: View {
                     Text("Player not found").onAppear { coordinator.goHome() }
                 }
             }
-        case .manualEntry(let gid, let pid, let stop):
+        case .manualEntry(let gid, let pid, let stop, let subject):
             GameLookupView(gameID: gid) { game in
                 if let player = game.players.first(where: { $0.id == pid }) {
-                    ManualEntryView(game: game, player: player, stop: stop)
+                    ManualEntryView(game: game, player: player, stop: stop, topBarSubject: subject)
                 } else {
                     Text("Player not found").onAppear { coordinator.goHome() }
                 }

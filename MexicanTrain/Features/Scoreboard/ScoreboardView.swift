@@ -88,7 +88,10 @@ struct ScoreboardView: View {
                 overrideConfirm = nil
             }
             Button("Enter Manually") {
-                coordinator.openManualEntry(game: game, player: target.player, stop: target.stop)
+                coordinator.openManualEntry(
+                    game: game, player: target.player, stop: target.stop,
+                    topBarSubject: "AS \(target.player.name.uppercased()) · STOP \(target.stop)/\(game.lengthStops)"
+                )
                 overrideConfirm = nil
             }
             Button("Cancel", role: .cancel) { overrideConfirm = nil }

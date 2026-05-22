@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import UIKit
 
 @MainActor
 @Observable
@@ -9,7 +10,7 @@ final class AppCoordinator {
         case newGame
         case scoreboard(gameID: UUID)
         case camera(gameID: UUID, playerID: UUID, stop: Int, topBarSubject: String?)
-        case manualEntry(gameID: UUID, playerID: UUID, stop: Int)
+        case manualEntry(gameID: UUID, playerID: UUID, stop: Int, topBarSubject: String?)
         case audit(gameID: UUID, playerID: UUID, stop: Int)
         case endGame(gameID: UUID)
         case settings
@@ -32,6 +33,11 @@ final class AppCoordinator {
 
     var route: Route = .home
     var sheet: SheetRoute?
+    /// Transient handoff slot. Set when the camera bounces a captured image
+    /// into manual entry after vision failure, read once by the manual-entry
+    /// view, then cleared. Keeps photo bytes out of the Equatable `Route`
+    /// enum (which would otherwise re-compare megabytes on every render).
+    var pendingManualReference: UIImage?
     let container: ModelContainer
     let settings: AppSettings
     let photoStore: PhotoStore
@@ -64,8 +70,8 @@ final class AppCoordinator {
     func openJoinerManualEntry(playerID: UUID, playerName: String, stop: Int, lengthStops: Int) {
         route = .joinerManualEntry(playerID: playerID, playerName: playerName, stop: stop, lengthStops: lengthStops)
     }
-    func openManualEntry(game: Game, player: Player, stop: Int) {
-        route = .manualEntry(gameID: game.id, playerID: player.id, stop: stop)
+    func openManualEntry(game: Game, player: Player, stop: Int, topBarSubject: String? = nil) {
+        route = .manualEntry(gameID: game.id, playerID: player.id, stop: stop, topBarSubject: topBarSubject)
     }
     func openAudit(game: Game, player: Player, stop: Int) {
         route = .audit(gameID: game.id, playerID: player.id, stop: stop)

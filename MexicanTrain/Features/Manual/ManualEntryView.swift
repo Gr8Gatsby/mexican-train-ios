@@ -1,15 +1,20 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct ManualEntryView: View {
     let game: Game
     let player: Player
     let stop: Int
+    /// Override for the top-bar pill — used by the conductor override flow
+    /// to read "AS ALICE · STOP 4/13", matching the camera-side badge.
+    var topBarSubject: String?
 
     @Environment(\.theme) private var theme
     @Environment(AppCoordinator.self) private var coordinator
     @Environment(\.modelContext) private var context
     @State private var value: String = ""
+    @State private var referencePhoto: UIImage?
 
     var body: some View {
         ZStack {
@@ -17,12 +22,38 @@ struct ManualEntryView: View {
             VStack(spacing: 0) {
                 header
                 readout
+                if let referencePhoto {
+                    referenceCard(referencePhoto)
+                }
                 Spacer(minLength: 0)
                 KeypadView(value: $value)
                     .padding(.horizontal, 16)
                 footer
             }
         }
+        .onAppear {
+            referencePhoto = coordinator.pendingManualReference
+            coordinator.pendingManualReference = nil
+        }
+    }
+
+    private func referenceCard(_ image: UIImage) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("REFERENCE PHOTO")
+                .font(theme.monoFont(size: 9))
+                .tracking(1.4)
+                .foregroundStyle(theme.muted)
+            Image(uiImage: image)
+                .resizable()
+                .scaledToFill()
+                .frame(maxWidth: .infinity, maxHeight: 120)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(theme.border, lineWidth: 1)
+                )
+        }
+        .padding(.horizontal, 16).padding(.bottom, 6)
     }
 
     private var header: some View {
@@ -38,10 +69,12 @@ struct ManualEntryView: View {
                     .background(theme.subBg, in: RoundedRectangle(cornerRadius: 14))
             }
             Spacer()
-            Text("\(player.name.uppercased()) · STOP \(stop)/\(game.lengthStops)")
+            Text(topBarSubject ?? "\(player.name.uppercased()) · STOP \(stop)/\(game.lengthStops)")
                 .font(theme.monoFont(size: 10))
                 .tracking(1.6)
                 .foregroundStyle(theme.muted)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
             Spacer()
             Color.clear.frame(width: 80, height: 1)
         }
