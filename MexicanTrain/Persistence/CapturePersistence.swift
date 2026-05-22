@@ -29,4 +29,18 @@ enum CapturePersistence {
         try context.save()
         return capture
     }
+
+    /// Persist the conductor's per-half corrections as ground-truth labels
+    /// for training-data export. Updates `correctedTilesData` and
+    /// `labeledAt` without touching the immutable `tilesData` snapshot
+    /// from the model.
+    static func saveLabels(
+        in context: ModelContext,
+        capture: Capture,
+        tiles: [TileObservation]
+    ) throws {
+        capture.correctedTilesData = try JSONEncoder().encode(tiles)
+        capture.labeledAt = .now
+        try context.save()
+    }
 }
