@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct ScoreboardView: View {
     let game: Game
@@ -11,6 +12,14 @@ struct ScoreboardView: View {
     @State private var renaming = false
     @State private var confirmDelete = false
     @State private var toast: String?
+    @State private var overrideTarget: OverrideTarget?
+    @State private var overrideConfirm: OverrideTarget?
+
+    struct OverrideTarget: Identifiable, Equatable {
+        let player: Player
+        let stop: Int
+        var id: String { "\(player.id)-\(stop)" }
+    }
 
     var body: some View {
         ZStack {
@@ -63,6 +72,68 @@ struct ScoreboardView: View {
             }
         }
         .hostBroadcaster(game: game)
+        .confirmationDialog(
+            overrideConfirm.map { "Submit on behalf of \($0.player.name)?" } ?? "",
+            isPresented: Binding(
+                get: { overrideConfirm != nil },
+                set: { if !$0 { overrideConfirm = nil } }
+            ),
+            presenting: overrideConfirm
+        ) { target in
+            Button("Open Camera as \(target.player.name)") {
+                coordinator.openCamera(
+                    game: game, player: target.player, stop: target.stop,
+                    topBarSubject: "AS \(target.player.name.uppercased()) · STOP \(target.stop)/\(game.lengthStops)"
+                )
+                overrideConfirm = nil
+            }
+            Button("Enter Manually") {
+                coordinator.openManualEntry(game: game, player: target.player, stop: target.stop)
+                overrideConfirm = nil
+            }
+            Button("Cancel", role: .cancel) { overrideConfirm = nil }
+        } message: { target in
+            Text("Submitting on behalf is recorded in the audit history. \(target.player.name) can still submit their own score from their phone and it will take priority.")
+        }
+        .onAppear {
+            coordinator.netSession.onScoreSubmissionReceived = { submission in
+                Task { @MainActor in
+                    handleIncomingSubmission(submission)
+                }
+            }
+        }
+        .onDisappear {
+            coordinator.netSession.onScoreSubmissionReceived = nil
+        }
+    }
+
+    private func handleIncomingSubmission(_ submission: ScoreSubmission) {
+        let photoStore = coordinator.photoStore
+        let thumb = submission.thumbJPEG
+        let gameID = game.id
+        do {
+            let outcome = try GamePersistence.handleScoreSubmission(
+                in: context, game: game, submission: submission,
+                saveCapture: { captureID in
+                    guard let data = thumb, let img = UIImage(data: data) else { return }
+                    try photoStore.save(image: img, gameID: gameID, captureID: captureID)
+                }
+            )
+            switch outcome {
+            case .created, .overrodeConductor:
+                try? GamePersistence.maybeAdvanceStop(in: context, game: game)
+                if let p = game.players.first(where: { $0.id == submission.playerID }) {
+                    withAnimation(.easeOut(duration: 0.25)) {
+                        toast = "\(p.name) submitted \(submission.pips)"
+                    }
+                    scheduleToastClear()
+                }
+            case .ignored, .rejected:
+                break
+            }
+        } catch {
+            // Surface persistence errors silently for v1; the joiner sees no toast.
+        }
     }
 
     private var header: some View {
@@ -237,9 +308,15 @@ struct ScoreboardView: View {
     private var tableArea: some View {
         ScrollView {
             VStack(spacing: 8) {
-                ScoreCardTable(game: game) { player, stop in
-                    coordinator.openAudit(game: game, player: player, stop: stop)
-                }
+                ScoreCardTable(
+                    game: game,
+                    onTapScore: { player, stop in
+                        coordinator.openAudit(game: game, player: player, stop: stop)
+                    },
+                    onTapAddOverride: { player, stop in
+                        overrideConfirm = OverrideTarget(player: player, stop: stop)
+                    }
+                )
                 legend
                 if game.currentStopIndex > 1 {
                     PhotoGalleryStrip(game: game, stop: game.currentStopIndex - 1)
@@ -256,10 +333,12 @@ struct ScoreboardView: View {
                 .tracking(1.2)
                 .foregroundStyle(theme.muted)
             Spacer()
-            Text("TAP ANY SCORE TO AUDIT")
+            Text("+ SUBMIT FOR PLAYER · TAP SCORE TO AUDIT")
                 .font(theme.monoFont(size: 9))
                 .tracking(1.2)
                 .foregroundStyle(theme.muted)
+                .minimumScaleFactor(0.8)
+                .lineLimit(1)
         }
         .padding(.horizontal, 6)
     }

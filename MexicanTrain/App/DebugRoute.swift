@@ -33,7 +33,8 @@ enum DebugRoute {
             }
         case "camera":
             if let g = liveGame, let p = firstPlayer {
-                coord.route = .camera(gameID: g.id, playerID: p.id, stop: g.currentStopIndex)
+                coord.route = .camera(gameID: g.id, playerID: p.id, stop: g.currentStopIndex,
+                                      topBarSubject: nil)
             }
         case "audit":
             if let g = liveGame, let p = scoredPlayer ?? firstPlayer {

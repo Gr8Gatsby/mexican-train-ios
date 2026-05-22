@@ -61,10 +61,10 @@ struct RootView: View {
             NewGameView()
         case .scoreboard(let id):
             GameLookupView(gameID: id) { ScoreboardView(game: $0) }
-        case .camera(let gid, let pid, let stop):
+        case .camera(let gid, let pid, let stop, let subject):
             GameLookupView(gameID: gid) { game in
                 if let player = game.players.first(where: { $0.id == pid }) {
-                    CameraView(game: game, player: player, stop: stop)
+                    CameraView(game: game, player: player, stop: stop, topBarSubject: subject)
                 } else {
                     Text("Player not found").onAppear { coordinator.goHome() }
                 }
@@ -93,6 +93,10 @@ struct RootView: View {
             GameLookupView(gameID: id) { GameHistoryView(game: $0) }
         case .spectator:
             SpectatorView()
+        case .joinerCamera(let pid, let pname, let stop, let len):
+            JoinerCameraHost(playerID: pid, playerName: pname, stop: stop, lengthStops: len)
+        case .joinerManualEntry(let pid, let pname, let stop, let len):
+            JoinerManualEntryView(playerID: pid, playerName: pname, stop: stop, lengthStops: len)
         }
     }
 }

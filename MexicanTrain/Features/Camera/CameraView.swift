@@ -1,9 +1,26 @@
 import SwiftUI
 
 struct CameraView: View {
-    let game: Game
-    let player: Player
+    /// `nil` when invoked from the joiner side (no SwiftData on that device).
+    /// When nil, `onSubmit` and `onCancel` must be provided by the caller.
+    let game: Game?
+    let player: Player?
     let stop: Int
+    /// Overrides the default "PLAYER · STOP N" pill in the top bar. Used by
+    /// the conductor override flow ("AS ALICE · STOP 4/13") and by the
+    /// joiner camera (no Game/Player available).
+    var topBarSubject: String?
+    /// Replaces the default "save Capture + recordScore + back to scoreboard"
+    /// behavior. The joiner camera path injects a closure that sends a
+    /// `ScoreSubmission` via `MexTrainNetSession` instead of writing locally.
+    var onSubmit: ((UIImage, PipCountResult) -> Void)?
+    /// Replaces the default "back to scoreboard" navigation on cancel.
+    /// Joiner mode points this at the spectator view.
+    var onCancel: (() -> Void)?
+    /// Replaces the default "open ManualEntryView for this player" path on
+    /// the "123" button. Joiner mode points this at a joiner-side manual
+    /// entry; passing nil hides the manual button entirely.
+    var onManual: (() -> Void)?
 
     @Environment(\.theme) private var theme
     @Environment(AppCoordinator.self) private var coordinator
@@ -71,7 +88,7 @@ struct CameraView: View {
     private var topBar: some View {
         HStack {
             Button {
-                coordinator.openScoreboard(game)
+                cancel()
             } label: {
                 Text("← CANCEL")
                     .font(theme.monoFont(size: 10))
@@ -81,28 +98,58 @@ struct CameraView: View {
                     .background(.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 14))
             }
             Spacer()
-            Text("\(player.name.uppercased()) · STOP \(stop)/\(game.lengthStops)")
+            Text(resolvedTopBarSubject)
                 .font(theme.monoFont(size: 10))
                 .tracking(1.6)
                 .foregroundStyle(.white.opacity(0.75))
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
             Spacer()
-            Button {
-                coordinator.openManualEntry(game: game, player: player, stop: stop)
-            } label: {
-                Text("123")
-                    .font(theme.monoFont(size: 11))
-                    .tracking(1.2)
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 10).padding(.vertical, 6)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .stroke(.white.opacity(0.25), lineWidth: 1)
-                    )
+            if shouldShowManualButton {
+                Button {
+                    manual()
+                } label: {
+                    Text("123")
+                        .font(theme.monoFont(size: 11))
+                        .tracking(1.2)
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10).padding(.vertical, 6)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke(.white.opacity(0.25), lineWidth: 1)
+                        )
+                }
+                .accessibilityLabel("Manual entry")
+            } else {
+                Color.clear.frame(width: 44, height: 1)
             }
-            .accessibilityLabel("Manual entry")
         }
         .padding(.horizontal, 12).padding(.vertical, 8)
         .background(.black.opacity(0.6))
+    }
+
+    private var resolvedTopBarSubject: String {
+        if let topBarSubject { return topBarSubject }
+        if let player, let game {
+            return "\(player.name.uppercased()) · STOP \(stop)/\(game.lengthStops)"
+        }
+        return "STOP \(stop)"
+    }
+
+    private var shouldShowManualButton: Bool {
+        onManual != nil || (game != nil && player != nil)
+    }
+
+    private func cancel() {
+        if let onCancel { onCancel(); return }
+        if let game { coordinator.openScoreboard(game) }
+    }
+
+    private func manual() {
+        if let onManual { onManual(); return }
+        if let game, let player {
+            coordinator.openManualEntry(game: game, player: player, stop: stop)
+        }
     }
 
     @ViewBuilder
@@ -307,6 +354,11 @@ struct CameraView: View {
 
     private func submit() {
         guard let image = captured, let result else { return }
+        if let onSubmit {
+            onSubmit(image, result)
+            return
+        }
+        guard let game, let player else { return }
         do {
             let capture = try CapturePersistence.saveCapture(
                 in: context, photoStore: coordinator.photoStore,

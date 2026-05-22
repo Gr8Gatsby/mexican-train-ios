@@ -117,7 +117,7 @@ struct AuditView: View {
                 Text("\(newTotal)")
                     .font(theme.displayFont(size: 28))
                     .foregroundStyle(theme.brand)
-                if delta != 0 {
+                if existing != nil, delta != 0 {
                     Text("\(delta > 0 ? "+" : "")\(delta) vs recorded")
                         .font(theme.monoFont(size: 10))
                         .foregroundStyle(delta > 0 ? Color(hex: 0xB54B2C) : Color(hex: 0x3A7A3A))
@@ -366,7 +366,7 @@ struct AuditView: View {
                     )
             }
             Button(action: save) {
-                Text("SAVE CORRECTION")
+                Text(existing == nil ? "SAVE SCORE" : "SAVE CORRECTION")
                     .font(theme.displayFont(size: 13))
                     .tracking(1.4)
                     .frame(maxWidth: .infinity, minHeight: 52)

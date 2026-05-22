@@ -122,6 +122,19 @@ struct EndGameView: View {
                     .foregroundStyle(theme.ctaText)
                     .background(theme.cta, in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
             }
+            ShareLink(item: GameReport.text(for: game)) {
+                Text("SHARE REPORT")
+                    .font(theme.monoFont(size: 12))
+                    .tracking(1.8)
+                    .frame(maxWidth: .infinity, minHeight: 44)
+                    .foregroundStyle(theme.ink)
+                    .background(theme.cardBg, in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: theme.buttonCornerRadius)
+                            .stroke(theme.border, lineWidth: 1)
+                    )
+            }
+            .accessibilityLabel("Share game report")
             Button {
                 coordinator.goHome()
             } label: {
@@ -182,6 +195,12 @@ struct GameHistoryView: View {
                 .font(theme.displayFont(size: 16))
                 .foregroundStyle(theme.brand)
             Spacer()
+            ShareLink(item: GameReport.text(for: game)) {
+                Image(systemName: "square.and.arrow.up")
+                    .foregroundStyle(theme.muted)
+                    .padding(8)
+            }
+            .accessibilityLabel("Share game report")
             Button {
                 confirmDelete = true
             } label: {

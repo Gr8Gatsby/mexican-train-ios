@@ -29,7 +29,15 @@ enum SnapshotBuilder {
             players: game.sortedPlayers.map {
                 PlayerSnapshot(id: $0.id, name: $0.name, seat: $0.seat, isYou: $0.isYou)
             },
-            scores: game.scores.map { ScoreSnapshot(playerID: $0.playerID, stop: $0.stopIndex, pips: $0.pips) },
+            scores: game.scores.map {
+                ScoreSnapshot(
+                    playerID: $0.playerID,
+                    stop: $0.stopIndex,
+                    pips: $0.pips,
+                    submittedByRaw: $0.submittedByRaw,
+                    excluded: $0.excluded
+                )
+            },
             recentCaptures: caps,
             endedAt: game.finishedAt,
             winnerPlayerID: Scoring.standings(for: game).first?.playerID,

@@ -15,10 +15,11 @@ struct SpectatorView: View {
                 if let snap = session.latestSnapshot {
                     engineStrip(snap: snap)
                     ScrollView {
-                        SnapshotTable(snap: snap)
+                        SnapshotTable(snap: snap, myPlayerID: session.myPlayerID)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 8)
                     }
+                    addMyScoreCTA(snap: snap, myID: session.myPlayerID)
                 } else {
                     Spacer()
                     Text("Waiting for host…")
@@ -33,6 +34,62 @@ struct SpectatorView: View {
                 hostEndedOverlay
             }
         }
+    }
+
+    /// CTA that appears when the joiner's claimed slot has no player-
+    /// submitted score for the current stop. Per spec §3.6 the CTA hides
+    /// once the player themselves has submitted, but stays available if
+    /// only the conductor has entered a value (player can override).
+    @ViewBuilder
+    private func addMyScoreCTA(snap: GameSnapshot, myID: UUID?) -> some View {
+        if let myID,
+           !snap.isFinished,
+           let me = snap.players.first(where: { $0.id == myID }),
+           snap.currentStop <= snap.length,
+           !mySlotHasPlayerScore(snap: snap, myID: myID, stop: snap.currentStop) {
+            VStack(spacing: 4) {
+                Button {
+                    coordinator.openJoinerCamera(
+                        playerID: myID, playerName: me.name,
+                        stop: snap.currentStop, lengthStops: snap.length
+                    )
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 18, weight: .bold))
+                            .accessibilityHidden(true)
+                        Text("ADD MY SCORE")
+                            .font(theme.displayFont(size: 14))
+                            .tracking(2.5)
+                        Text("STOP \(snap.currentStop)")
+                            .font(theme.monoFont(size: 10))
+                            .tracking(1.2)
+                            .foregroundStyle(theme.ctaText.opacity(0.7))
+                            .padding(.horizontal, 8).padding(.vertical, 3)
+                            .background(theme.ctaText.opacity(0.12), in: Capsule())
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 50)
+                    .foregroundStyle(theme.ctaText)
+                    .background(theme.cta, in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
+                }
+                if mySlotHasConductorScore(snap: snap, myID: myID, stop: snap.currentStop) {
+                    Text("Conductor already entered a value — your submission will replace it.")
+                        .font(theme.monoFont(size: 9))
+                        .tracking(1.0)
+                        .foregroundStyle(theme.muted)
+                        .multilineTextAlignment(.center)
+                }
+            }
+            .padding(.horizontal, 14).padding(.top, 6)
+        }
+    }
+
+    private func mySlotHasPlayerScore(snap: GameSnapshot, myID: UUID, stop: Int) -> Bool {
+        snap.scores.contains { $0.playerID == myID && $0.stop == stop && $0.submittedBy == .player }
+    }
+
+    private func mySlotHasConductorScore(snap: GameSnapshot, myID: UUID, stop: Int) -> Bool {
+        snap.scores.contains { $0.playerID == myID && $0.stop == stop && $0.submittedBy == .conductor }
     }
 
     private var header: some View {
@@ -130,6 +187,7 @@ struct SpectatorView: View {
 /// but reading from `GameSnapshot` instead of SwiftData models.
 struct SnapshotTable: View {
     let snap: GameSnapshot
+    var myPlayerID: UUID? = nil
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -152,6 +210,7 @@ struct SnapshotTable: View {
                 let claim = snap.claims.first(where: { $0.playerID == p.id })
                 playerRow(player: p, row: row, total: totals[p.id] ?? 0,
                           isLeader: p.id == leaderID, claim: claim,
+                          isMe: p.id == myPlayerID,
                           isLast: i == players.count - 1)
             }
         }
@@ -189,9 +248,12 @@ struct SnapshotTable: View {
         .overlay(alignment: .bottom) { Rectangle().fill(theme.border).frame(height: 1) }
     }
 
-    private func playerRow(player: PlayerSnapshot, row: [Int?], total: Int, isLeader: Bool, claim: PlayerClaim?, isLast: Bool) -> some View {
+    private func playerRow(player: PlayerSnapshot, row: [Int?], total: Int, isLeader: Bool, claim: PlayerClaim?, isMe: Bool, isLast: Bool) -> some View {
         HStack(spacing: 0) {
             HStack(spacing: 4) {
+                if isMe {
+                    Text("▸").foregroundStyle(theme.accent).font(.system(size: 10))
+                }
                 if let data = claim?.photoJPEG, let img = UIImage(data: data) {
                     Image(uiImage: img)
                         .resizable()
@@ -230,6 +292,7 @@ struct SnapshotTable: View {
                 .frame(width: 38, height: 28)
                 .background(theme.subBg)
         }
+        .background(isMe ? theme.youBg : Color.clear)
         .overlay(alignment: .bottom) {
             if !isLast {
                 Rectangle().fill(theme.borderLight).frame(height: 1)

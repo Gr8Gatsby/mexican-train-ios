@@ -2,7 +2,13 @@ import SwiftUI
 
 struct ScoreCardTable: View {
     let game: Game
+    /// Tapping a populated cell (any stop) or an unset past-stop cell.
+    /// AuditView opens in edit mode for the former, create mode for the latter.
     var onTapScore: (Player, Int) -> Void
+    /// Tapping the "+" in an unset current-stop cell. Triggers the conductor
+    /// override confirmation flow. Nil disables the affordance (used by the
+    /// read-only `GameHistoryView`).
+    var onTapAddOverride: ((Player, Int) -> Void)? = nil
 
     @Environment(\.theme) private var theme
 
@@ -96,22 +102,45 @@ struct ScoreCardTable: View {
             ForEach(1...stops, id: \.self) { n in
                 let s = (n <= row.count) ? row[n-1] : nil
                 let isCurrent = n == currentStop
+                let isAddOverride = s == nil && isCurrent && onTapAddOverride != nil
                 Button {
-                    if s != nil { onTapScore(player, n) }
+                    if s != nil {
+                        onTapScore(player, n)
+                    } else if isAddOverride, let cb = onTapAddOverride {
+                        cb(player, n)
+                    } else if s == nil && onTapAddOverride != nil {
+                        // Unset past-stop cell → AuditView in create mode.
+                        onTapScore(player, n)
+                    }
                 } label: {
-                    Text(s.map { "\($0)" } ?? "·")
-                        .font(theme.monoFont(size: 11))
-                        .fontWeight(.semibold)
-                        .foregroundStyle(s == nil ? theme.muted : theme.ink)
-                        .frame(maxWidth: .infinity, minHeight: 28)
-                        .background(isCurrent ? theme.currentColumn : Color.clear)
+                    Group {
+                        if let value = s {
+                            Text("\(value)")
+                                .foregroundStyle(theme.ink)
+                        } else if isAddOverride {
+                            Text("+")
+                                .foregroundStyle(theme.accent)
+                                .fontWeight(.bold)
+                        } else {
+                            Text("·")
+                                .foregroundStyle(theme.muted)
+                        }
+                    }
+                    .font(theme.monoFont(size: 11))
+                    .fontWeight(.semibold)
+                    .frame(maxWidth: .infinity, minHeight: 28)
+                    .background(isCurrent ? theme.currentColumn : Color.clear)
                 }
                 .buttonStyle(.plain)
-                .disabled(s == nil)
+                .disabled(s == nil && onTapAddOverride == nil)
                 .overlay(alignment: .leading) {
                     Rectangle().fill(theme.borderLight).frame(width: 1)
                 }
-                .accessibilityLabel("\(player.name), stop \(n): \(s.map { "\($0)" } ?? "blank")")
+                .accessibilityLabel({
+                    if let s { return "\(player.name), stop \(n): \(s)" }
+                    if isAddOverride { return "\(player.name), stop \(n): add on behalf" }
+                    return "\(player.name), stop \(n): blank, double-tap to enter"
+                }())
             }
 
             Text("\(row.compactMap { $0 }.reduce(0,+))")

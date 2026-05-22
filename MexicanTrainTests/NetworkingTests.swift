@@ -73,4 +73,40 @@ final class NetworkingTests: XCTestCase {
             XCTFail("Expected .claim")
         }
     }
+
+    func testScoreSubmissionRoundTrip() throws {
+        let pid = UUID()
+        let submission = ScoreSubmission(
+            playerID: pid, stopIndex: 4, pips: 27,
+            source: .scanned,
+            tiles: [
+                TileObservation(a: 5, b: 0),
+                TileObservation(a: 9, b: 0)
+            ],
+            thumbJPEG: Data([0xFF, 0xD8, 0xFF, 0xE0])
+        )
+        let data = try JSONEncoder().encode(MultipeerMessage.scoreSubmission(submission))
+        let decoded = try JSONDecoder().decode(MultipeerMessage.self, from: data)
+        guard case .scoreSubmission(let out) = decoded else {
+            return XCTFail("Expected .scoreSubmission")
+        }
+        XCTAssertEqual(out.playerID, pid)
+        XCTAssertEqual(out.stopIndex, 4)
+        XCTAssertEqual(out.pips, 27)
+        XCTAssertEqual(out.source, .scanned)
+        XCTAssertEqual(out.tiles.count, 2)
+        XCTAssertEqual(out.thumbJPEG?.count, 4)
+    }
+
+    func testScoreSnapshotDefaultsForBackCompat() throws {
+        // Older clients omit `submittedByRaw` / `excluded`; decode must
+        // still succeed and yield sensible defaults.
+        let json = """
+        {"playerID":"\(UUID().uuidString)","stop":1,"pips":5}
+        """.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(ScoreSnapshot.self, from: json)
+        XCTAssertEqual(decoded.pips, 5)
+        XCTAssertEqual(decoded.submittedBy, .conductor)
+        XCTAssertFalse(decoded.excluded)
+    }
 }
