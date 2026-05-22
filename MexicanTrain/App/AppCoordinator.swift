@@ -8,13 +8,15 @@ final class AppCoordinator {
         case home
         case newGame
         case scoreboard(gameID: UUID)
-        case camera(gameID: UUID, playerID: UUID, stop: Int)
+        case camera(gameID: UUID, playerID: UUID, stop: Int, topBarSubject: String?)
         case manualEntry(gameID: UUID, playerID: UUID, stop: Int)
         case audit(gameID: UUID, playerID: UUID, stop: Int)
         case endGame(gameID: UUID)
         case settings
         case gameHistory(gameID: UUID)
         case spectator
+        case joinerCamera(playerID: UUID, playerName: String, stop: Int, lengthStops: Int)
+        case joinerManualEntry(playerID: UUID, playerName: String, stop: Int, lengthStops: Int)
     }
 
     enum SheetRoute: Equatable, Identifiable {
@@ -53,8 +55,14 @@ final class AppCoordinator {
     func goHome() { route = .home }
     func openNewGame() { route = .newGame }
     func openScoreboard(_ game: Game) { route = .scoreboard(gameID: game.id) }
-    func openCamera(game: Game, player: Player, stop: Int) {
-        route = .camera(gameID: game.id, playerID: player.id, stop: stop)
+    func openCamera(game: Game, player: Player, stop: Int, topBarSubject: String? = nil) {
+        route = .camera(gameID: game.id, playerID: player.id, stop: stop, topBarSubject: topBarSubject)
+    }
+    func openJoinerCamera(playerID: UUID, playerName: String, stop: Int, lengthStops: Int) {
+        route = .joinerCamera(playerID: playerID, playerName: playerName, stop: stop, lengthStops: lengthStops)
+    }
+    func openJoinerManualEntry(playerID: UUID, playerName: String, stop: Int, lengthStops: Int) {
+        route = .joinerManualEntry(playerID: playerID, playerName: playerName, stop: stop, lengthStops: lengthStops)
     }
     func openManualEntry(game: Game, player: Player, stop: Int) {
         route = .manualEntry(gameID: game.id, playerID: player.id, stop: stop)

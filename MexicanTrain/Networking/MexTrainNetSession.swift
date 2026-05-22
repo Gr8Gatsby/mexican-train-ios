@@ -33,10 +33,20 @@ final class MexTrainNetSession: NSObject {
     /// Host-side accumulator of claims by player ID.
     private(set) var playerClaims: [UUID: PlayerClaim] = [:]
 
+    /// Joiner-side: the `playerID` we sent in our claim. Lets the spectator
+    /// view identify which row in the snapshot is "me" so it can decide
+    /// whether to show the Add-my-score CTA. Nil for spectators and when no
+    /// claim has been sent yet.
+    private(set) var myPlayerID: UUID?
+
     /// Optional callback invoked on the main actor when the host receives a
     /// claim. NewGameView uses this to add the joiner as a new Player slot
     /// in the lobby.
     var onClaimReceived: ((PlayerClaim) -> Void)?
+
+    /// Host-side callback for incoming `.scoreSubmission` messages. The
+    /// scoreboard wires this on appear to dispatch to `GamePersistence`.
+    var onScoreSubmissionReceived: ((ScoreSubmission) -> Void)?
 
     private let myPeerID: MCPeerID
     private var session: MCSession?
@@ -137,8 +147,21 @@ final class MexTrainNetSession: NSObject {
 
     func sendClaim(_ claim: PlayerClaim) {
         guard role == .joiner, let session else { return }
+        myPlayerID = claim.playerID
         do {
             let data = try JSONEncoder().encode(MultipeerMessage.claim(claim))
+            try session.send(data, toPeers: session.connectedPeers, with: .reliable)
+        } catch {
+            // Log only.
+        }
+    }
+
+    /// Joiner → host. Send a pip count for the joiner's own slot. The host
+    /// records the submission and rebroadcasts the resulting snapshot.
+    func sendScoreSubmission(_ submission: ScoreSubmission) {
+        guard role == .joiner, let session else { return }
+        do {
+            let data = try JSONEncoder().encode(MultipeerMessage.scoreSubmission(submission))
             try session.send(data, toPeers: session.connectedPeers, with: .reliable)
         } catch {
             // Log only.
@@ -152,6 +175,7 @@ final class MexTrainNetSession: NSObject {
         joinState = .disconnected
         latestSnapshot = nil
         connectedPeerCount = 0
+        myPlayerID = nil
     }
 }
 
@@ -189,6 +213,10 @@ extension MexTrainNetSession: @preconcurrency MCSessionDelegate {
                     playerClaims[claim.playerID] = claim
                     onClaimReceived?(claim)
                     if let s = latestSnapshot { broadcast(snapshot: s) }
+                }
+            case .scoreSubmission(let submission):
+                if role == .host {
+                    onScoreSubmissionReceived?(submission)
                 }
             }
         }

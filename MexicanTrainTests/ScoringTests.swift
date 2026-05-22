@@ -106,4 +106,80 @@ final class ScoringTests: XCTestCase {
         XCTAssertEqual(game.scores.filter { $0.playerID == p.id && $0.stopIndex == 1 }.count, 1)
         XCTAssertEqual(Scoring.total(for: p.id, in: game), 11)
     }
+
+    func testExcludedScoreCountsAsZero() throws {
+        let game = try makeGame()
+        let ctx = container.mainContext
+        let p = game.sortedPlayers[0]
+        try GamePersistence.recordScore(in: ctx, game: game, player: p, stop: 1, pips: 20, source: .manual)
+        guard let score = game.scores.first(where: { $0.playerID == p.id && $0.stopIndex == 1 }) else {
+            return XCTFail("score not saved")
+        }
+        try GamePersistence.setScoreExcluded(in: ctx, score: score, excluded: true)
+        XCTAssertEqual(Scoring.total(for: p.id, in: game), 0)
+        XCTAssertEqual(score.originalPips, 20)
+        XCTAssertEqual(score.edits.count, 1)
+    }
+
+    func testHandleScoreSubmissionCreates() throws {
+        let game = try makeGame()
+        let ctx = container.mainContext
+        let p = game.sortedPlayers[0]
+        let outcome = try GamePersistence.handleScoreSubmission(
+            in: ctx, game: game,
+            submission: ScoreSubmission(playerID: p.id, stopIndex: 1, pips: 14)
+        )
+        XCTAssertEqual(outcome, .created)
+        let s = game.scores.first(where: { $0.playerID == p.id && $0.stopIndex == 1 })
+        XCTAssertEqual(s?.pips, 14)
+        XCTAssertEqual(s?.submittedBy, .player)
+    }
+
+    func testHandleScoreSubmissionOverridesConductor() throws {
+        let game = try makeGame()
+        let ctx = container.mainContext
+        let p = game.sortedPlayers[0]
+        try GamePersistence.recordScore(in: ctx, game: game, player: p, stop: 1, pips: 8, source: .manual,
+                                        submittedBy: .conductor)
+        let outcome = try GamePersistence.handleScoreSubmission(
+            in: ctx, game: game,
+            submission: ScoreSubmission(playerID: p.id, stopIndex: 1, pips: 15)
+        )
+        XCTAssertEqual(outcome, .overrodeConductor)
+        let s = game.scores.first(where: { $0.playerID == p.id && $0.stopIndex == 1 })
+        XCTAssertEqual(s?.pips, 15)
+        XCTAssertEqual(s?.originalPips, 8, "original value (conductor's) preserved")
+        XCTAssertEqual(s?.submittedBy, .player, "submitter-of-record now the player")
+        XCTAssertEqual(s?.edits.count, 1)
+        XCTAssertEqual(s?.edits.first?.editedBy, .player)
+        XCTAssertEqual(s?.edits.first?.fromPips, 8)
+        XCTAssertEqual(s?.edits.first?.toPips, 15)
+    }
+
+    func testHandleScoreSubmissionIgnoresWhenPlayerAlreadySubmitted() throws {
+        let game = try makeGame()
+        let ctx = container.mainContext
+        let p = game.sortedPlayers[0]
+        try GamePersistence.recordScore(in: ctx, game: game, player: p, stop: 1, pips: 8, source: .manual,
+                                        submittedBy: .player)
+        let outcome = try GamePersistence.handleScoreSubmission(
+            in: ctx, game: game,
+            submission: ScoreSubmission(playerID: p.id, stopIndex: 1, pips: 99)
+        )
+        XCTAssertEqual(outcome, .ignored)
+        let s = game.scores.first(where: { $0.playerID == p.id && $0.stopIndex == 1 })
+        XCTAssertEqual(s?.pips, 8, "player's prior submission untouched")
+        XCTAssertEqual(s?.edits.count, 0)
+    }
+
+    func testHandleScoreSubmissionRejectsStaleStop() throws {
+        let game = try makeGame()
+        let ctx = container.mainContext
+        let p = game.sortedPlayers[0]
+        let outcome = try GamePersistence.handleScoreSubmission(
+            in: ctx, game: game,
+            submission: ScoreSubmission(playerID: p.id, stopIndex: 5, pips: 14)
+        )
+        if case .rejected = outcome {} else { XCTFail("expected rejection for stale stop, got \(outcome)") }
+    }
 }

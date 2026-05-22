@@ -66,6 +66,112 @@ enum GamePersistence {
         return s
     }
 
+    /// Outcome of `handleScoreSubmission` — surfaced for tests and for the
+    /// receive-path log so we can tell which branch fired.
+    enum SubmissionOutcome: Equatable {
+        case created            // no prior score; submission becomes the new score
+        case overrodeConductor  // a conductor-submitted value was overwritten by the player
+        case ignored            // player-submitted value already exists; submission discarded
+        case rejected(String)   // validation failure (unknown player, wrong stop, …)
+    }
+
+    /// Apply a `ScoreSubmission` received from a player joiner. Implements the
+    /// race rules from functional spec §7.4: a player's submission becomes
+    /// the score of record; a prior conductor-submitted value is preserved
+    /// in the audit history; a prior player-submitted value is left alone
+    /// (player must use the audit screen on the host to change it).
+    ///
+    /// `saveCapture` is the closure used to persist an optional thumbnail to
+    /// disk when one is attached — the persistence layer can't import
+    /// `PhotoStore`'s file IO directly, so callers wire it from the
+    /// scoreboard view.
+    @discardableResult
+    static func handleScoreSubmission(
+        in context: ModelContext,
+        game: Game,
+        submission: ScoreSubmission,
+        saveCapture: ((UUID) throws -> Void)? = nil
+    ) throws -> SubmissionOutcome {
+        guard let player = game.players.first(where: { $0.id == submission.playerID }) else {
+            return .rejected("unknown player")
+        }
+        guard submission.stopIndex == game.currentStopIndex else {
+            return .rejected("stale stop")
+        }
+        if let existing = game.scores.first(where: {
+            $0.playerID == player.id && $0.stopIndex == submission.stopIndex
+        }) {
+            switch existing.submittedBy {
+            case .player:
+                return .ignored
+            case .conductor:
+                // Overwrite the value; log the transition with the player as the editor.
+                let edit = ScoreEdit(
+                    fromPips: existing.pips, toPips: submission.pips,
+                    fromExcluded: existing.excluded, toExcluded: existing.excluded,
+                    editedBy: .player
+                )
+                edit.score = existing
+                context.insert(edit)
+                existing.pips = submission.pips
+                existing.submittedByRaw = ScoreActor.player.rawValue
+                existing.sourceRaw = submission.source.rawValue
+                existing.updatedAt = .now
+                if let captureID = try Self.persistCapture(submission: submission,
+                                                          game: game, player: player,
+                                                          context: context,
+                                                          saveCapture: saveCapture) {
+                    existing.captureID = captureID
+                }
+                try context.save()
+                return .overrodeConductor
+            }
+        }
+        let captureID = try Self.persistCapture(submission: submission, game: game,
+                                                player: player, context: context,
+                                                saveCapture: saveCapture)
+        let score = Score(
+            playerID: player.id,
+            stopIndex: submission.stopIndex,
+            pips: submission.pips,
+            source: submission.source,
+            submittedBy: .player,
+            captureID: captureID
+        )
+        score.game = game
+        context.insert(score)
+        try context.save()
+        return .created
+    }
+
+    /// If the submission carries a thumbnail, build a `Capture` row pointing
+    /// at the on-disk JPEG (written by `saveCapture` closure). Returns the
+    /// capture ID so the caller can wire it to the new `Score`.
+    private static func persistCapture(
+        submission: ScoreSubmission,
+        game: Game,
+        player: Player,
+        context: ModelContext,
+        saveCapture: ((UUID) throws -> Void)?
+    ) throws -> UUID? {
+        guard submission.thumbJPEG != nil, let saveCapture else { return nil }
+        let id = UUID()
+        try saveCapture(id)
+        let filename = "\(id.uuidString).jpg"
+        let capture = Capture(
+            id: id,
+            playerID: player.id,
+            stopIndex: submission.stopIndex,
+            filename: filename,
+            pipsDetected: submission.pips,
+            confidence: .medium,
+            tiles: submission.tiles
+        )
+        capture.game = game
+        context.insert(capture)
+        return id
+    }
+
     /// Toggle a score's excluded flag. Excluded scores contribute 0 to the
     /// total but remain on the board for audit visibility.
     static func setScoreExcluded(

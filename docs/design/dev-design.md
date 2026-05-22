@@ -1,6 +1,6 @@
 # Mexican Train iOS — Dev Design
 
-Companion to `docs/spec/functional-spec.md` (v0.2). The functional spec says **what** the app does; this doc says **how** we'll build it. Decisions here are reviewable and revisable.
+Companion to `docs/spec/functional-spec.md` (v0.6). The functional spec says **what** the app does; this doc says **how** we'll build it. Decisions here are reviewable and revisable.
 
 ## 1. Tech stack
 
@@ -441,6 +441,83 @@ If `joinState` flips to `.hostEnded`, the joiner sees a "host left" overlay with
 - No spectator chat or reactions.
 - No persistence on the joiner (snapshots are RAM-only). Joiners who reopen the app rejoin via room code; they don't see a history list of past hosts.
 
+### 8.8 Phase B: player score submissions (spec §3.6, §7.4)
+
+Three additions to the broadcast layer:
+
+1. **Wire model** — `MultipeerMessage.scoreSubmission(ScoreSubmission)`:
+   ```swift
+   struct ScoreSubmission: Codable, Equatable {
+       var playerID: UUID
+       var stopIndex: Int
+       var pips: Int
+       var tiles: [TileObservation]    // optional — empty when manually entered
+       var thumbJPEG: Data?            // ≤ 32 KB; same envelope budget as CaptureSnapshot
+   }
+   ```
+   Plus two new fields on `ScoreSnapshot`: `submittedByRaw: String` (`"player"`/`"conductor"`) and `excluded: Bool`. Both default to backwards-compatible values on decode so older snapshots still parse.
+
+2. **Joiner identity tracking** — `MexTrainNetSession` remembers the `UUID` it sent in the joiner's claim via a new `private(set) var myPlayerID: UUID?`. Set by `sendClaim`; cleared by `leave`. `SpectatorView` uses it to identify "my slot" in the snapshot.
+
+3. **Host receive path** — `session(_:didReceive:)` dispatches `.scoreSubmission` via a new `onScoreSubmissionReceived: ((ScoreSubmission) -> Void)?` callback (mirrors `onClaimReceived`). `ScoreboardView` wires it on appear to `GamePersistence.handleScoreSubmission`, which encodes the player-priority rules from spec §7.4 (create / overwrite-conductor / no-op) and reuses `CapturePersistence.saveCapture` when a thumbnail is attached.
+
+### 8.9 Phase B: conductor "+" override (spec §3.3, §3.6)
+
+`ScoreCardTable` already renders unset cells as a centered dot. For the conductor's row:
+- Unset **current-stop** cells render `+` instead of `·`, in `theme.accent`, and emit `onTapAddOverride(player, stop)`. They're hidden once a player-submitted score exists (per spec §3.6 race rule — the joiner-side CTA is the truth at that point).
+- Unset **past-stop** cells become tappable and route through `onTapScore(player, stop)`, falling into `AuditView` create mode.
+
+`ScoreboardView` shows a `confirmationDialog`: `"Submit on behalf of {Player}?"` with `"Open Camera as {Player}"` and `Cancel`. Confirming routes to the existing camera screen with a `topBarSubject: String?` override (e.g. `"AS ALICE · STOP 4/13"`). The underlying `recordScore` call uses `submittedBy: .conductor` (the existing default), which is what makes a player's later submission overwrite-with-audit-trail-entry rather than no-op.
+
+### 8.10 Phase B: joiner submit + camera (spec §3.3 joiner interactions, §7.4)
+
+A new `JoinerCameraView` lives in `Features/Broadcast/`. It mirrors `CameraView`'s aim → scanning → confirm flow but:
+- Reads `playerID`, `playerName`, `stop`, `lengthStops` from constructor args derived from the latest snapshot (no `Game`/`Player` SwiftData references).
+- On confirm, calls `coordinator.netSession.sendScoreSubmission(_:)` with the pip count + `result.tiles` + thumbnail JPEG, then navigates back to the spectator scoreboard.
+
+To avoid duplicating ~200 lines of camera UI, the visual chrome (top bar / viewfinder / phase-driven bottom bar) stays inside `CameraView`. Two new parameters preserve back-compat:
+- `topBarSubject: String?` — overrides the default `"{PLAYER} · STOP {N}/{L}"` text. Conductor override and joiner mode both pass a custom subject.
+- `onSubmit: ((UIImage, PipCountResult) -> Void)?` — when present, replaces the default "save Capture + recordScore + back to scoreboard" behavior. Joiner mode injects a closure that sends the submission and routes back to `SpectatorView`.
+
+(If duplication becomes painful in v2 we can factor out a `CameraCanvas` shell; for v1 the param surface is small enough.)
+
+### 8.11 Phase B: AuditView create mode (spec §3.3, §3.5)
+
+`AuditView` already handles `existing == nil` in its `save()` path — it calls `recordScore` which creates a new `Score` when none exists. Two cosmetic adjustments for create mode:
+- Footer label flips from `"SAVE CORRECTION"` to `"SAVE SCORE"` when `existing == nil`.
+- Hero strip omits the "delta vs. recorded" line (no recorded value to diff against).
+
+`ScoreCardTable.playerRow` removes the `.disabled(s == nil)` guard on past-stop cells so they participate in `onTapScore`. Current-stop unset cells continue to route through the new `onTapAddOverride` path instead.
+
+### 8.12 Phase B: GameReport (spec §3.8)
+
+Pure-Swift `GameReport` (in `Models/`) emits the §3.8 plain-text format from a `Game`:
+
+```swift
+enum GameReport {
+    static func text(for game: Game, now: Date = .now) -> String
+}
+```
+
+Layout:
+```
+MEXICAN TRAIN — "{game name}" — {date}
+{N} players · {length}-stop game · engine {N} → 0
+
+FINAL STANDINGS
+  1. Bob ............ 87
+  2. Alice .......... 102
+  3. Charlie ........ 134
+
+STOP 1 (engine 12)
+  Alice    18    submitted by Alice
+  Bob       8    submitted by Bob
+  Charlie  22    submitted by conductor → audited to 22 (was 32) — excluded entry
+...
+```
+
+Used by `ShareLink(item: GameReport.text(for: game))` from `EndGameView.actions` and `GameHistoryView`'s header. iOS handles the share-sheet presentation; no custom UIActivityViewController wrapper needed.
+
 ## 9. Testing
 
 We test what matters and skip the rest.
@@ -486,5 +563,6 @@ Each milestone is independently demoable. M1 alone is a useful manual scoreboard
 - 2026-05-21 — **M1 landed** on branch `m1-game-lifecycle`. Full SwiftData model (Game, Player, Score, Capture), pure-Swift `Scoring` (totals, standings with tied places, sparse grid, engine tile per house rule), `GamePersistence` helpers (create / record / advance / rename / delete / end early), `AppSettings` (UserDefaults). Screens: Home (in-progress card + history list + settings gear), NewGame (length picker, house-rule picker, dynamic player list, "you" toggle), Scoreboard (header + engine strip + you-stats strip + golf-card table + add-score / advance / finish CTA + game menu), ManualEntry (keypad), Audit (± / quick-chip pip editor), EndGame (winner card + standings), GameHistory (read-only), Settings. 10 unit tests passing (scoring totals, ties, sparse rows, stop advance, finish-on-final, engine traditional/alwaysTwelve, audit overwrite).
 - 2026-05-21 — **M2 landed** on branch `m2-camera-mock-vision`. Adds `PipCounter` protocol with `MockPipCounter` (seeded randomness, 4–8 tiles, ~700ms simulated latency). `PhotoStore` writes JPEGs under `Application Support/MexicanTrain/photos/<gameID>/<captureID>.jpg` and produces on-demand thumbnails. `CapturePersistence.saveCapture` ties a SwiftData `Capture` to a saved photo + pip-count result. New `CameraView` uses AVFoundation (with a simulator fallback that synthesizes a wood-tone capture) and runs an aim → scanning → confirm flow; "123" button swaps to manual entry. Scoreboard "Add Score" now opens camera by default; new `PhotoGalleryStrip` renders the previous stop's captures below the table. Audit screen shows the reference photo and a "Re-scan" button. `NSCameraUsageDescription` added. 4 new unit tests (PhotoStore round-trip, thumbnail, delete cascade; MockPipCounter contract). 14 total tests passing.
 - 2026-05-21 — **M3 landed** on branch `m3-coreml-wiring`. `VisionPipCounter` uses `VNCoreMLRequest` against a bundled `DominoDetector.mlmodel` and parses class strings of the form `tile-A-B` (with a forgiving regex that accepts `_` separators, no-separator concatenations, and either order). Confidence is bucketed via `avg ≥ 0.80 ∧ min ≥ 0.50 → high`, `avg ≥ 0.50 → medium`, else `low`. `PipCounterFactory.makeProductionCounter()` returns the Vision impl when the model file is bundled and falls back to `MockPipCounter` otherwise — the app shipping path. `Vision/MODEL_CONTRACT.md` documents input shape, class-string regex, confidence rules, and the `coremltools` export recipe to convert the YOLOv11 checkpoint from the web app's `ml/`. 4 new unit tests (class parser, confidence buckets, factory fallback). 18 total tests passing. The .mlmodel itself is **not yet bundled** — drop into `MexicanTrain/Vision/` and re-add to the target to activate without code changes.
+- 2026-05-22 — v0.3 — Phase B design notes added (§8.8 wire model, §8.9 conductor `+` override, §8.10 joiner submit + camera, §8.11 AuditView create mode, §8.12 `GameReport`). Tracks functional spec v0.6.
 - 2026-05-21 — **M4 landed** on branch `m4-polish`. Dynamic Type pass: `Theme.displayFont` / `monoFont` now anchor to `Font.TextStyle` via `relativeTo:` so custom-font text scales with the user's preferred size (system-font fallback already scaled). Camera confirm shows a row of detected tiles with a spring-animated pop entrance and uses `contentTransition(.numericText())` on the big total. Toast on stop-close slides up + fades. Accessibility labels on the scoreboard CTA, photo-tile buttons, individual detected tiles, and decorative SF Symbols marked `accessibilityHidden`. End-to-end persistence smoke tests cover the golden path (create → score every stop → finish, audit overwrite, delete cascade). 21 total tests passing.
 - 2026-05-21 — **M5 landed** on branch `m5-broadcast`. MultipeerConnectivity layer mirrors `~/code/farkle`: `MexTrainNetSession` (Bonjour service `mextrain-game`, host/joiner role, room-code-bearing discovery info, reliable channel only), `GameSnapshot` + `PlayerClaim` + `MultipeerMessage` wire models with per-host monotonic `seq`, `SnapshotBuilder` rolls SwiftData state + previous-stop thumbnails (≤32 KB each) into a snapshot, `HostBroadcaster` view modifier observes a fingerprint and rebroadcasts on every meaningful change. Host: scoreboard menu adds "Share with table" → `ShareGameSheet` with 4-digit room code, QR encoding `mextrain://join?code=NNNN`, and live claim list with revoke. Joiner: Home gets a "Join nearby game" link → `JoinSheet` with code entry + nearby-host list, identity prefill from `UIDevice.current.name` (the iOS-pragmatic substitute for the macOS Me-card API; spec v0.4 reflects this), role picker (Join as player / Spectate), open-slot picker, then `SpectatorView` renders the snapshot-driven scoreboard with claimed avatars and a "host left" overlay. URL scheme `mextrain://join?code=…` registered; `AppCoordinator.handle(url:)` routes `onOpenURL` straight to the JoinSheet. Plist gains `NSLocalNetworkUsageDescription`, `NSBonjourServices`, `CFBundleURLTypes`. Six new networking tests (room code generation + ambiguity, URL round-trip, snapshot/claim Codable). 27 total tests passing.
