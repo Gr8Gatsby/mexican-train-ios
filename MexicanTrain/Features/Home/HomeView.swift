@@ -24,7 +24,7 @@ struct HomeView: View {
     private var header: some View {
         HStack {
             Text("MEX·TRAIN")
-                .font(theme.displayFont(size: 22))
+                .font(theme.displayFont(size: 24))
                 .tracking(2)
                 .foregroundStyle(theme.brand)
             Spacer()
@@ -32,14 +32,15 @@ struct HomeView: View {
                 coordinator.openSettings()
             } label: {
                 Image(systemName: "gearshape")
-                    .font(.system(size: 18))
+                    .font(.system(size: 22))
                     .foregroundStyle(theme.muted)
-                    .padding(8)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .accessibilityLabel("Settings")
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
+        .padding(.horizontal, 16)
+        .padding(.vertical, 6)
         .overlay(alignment: .bottom) {
             Rectangle().fill(theme.border).frame(height: 1)
         }
@@ -107,7 +108,7 @@ struct HomeView: View {
     }
 
     private var cta: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: 10) {
             Button {
                 coordinator.openNewGame()
             } label: {
@@ -116,26 +117,24 @@ struct HomeView: View {
                         .font(.system(size: 18, weight: .bold))
                         .accessibilityHidden(true)
                     Text("NEW GAME")
-                        .font(theme.displayFont(size: 14))
-                        .tracking(2.5)
                 }
-                .frame(maxWidth: .infinity, minHeight: 56)
-                .foregroundStyle(theme.ctaText)
-                .background(theme.cta, in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
             }
+            .appPrimaryStyle()
             Button {
                 coordinator.openJoinSheet()
             } label: {
-                Text("JOIN NEARBY GAME")
-                    .font(theme.monoFont(size: 11))
-                    .tracking(1.6)
-                    .foregroundStyle(theme.brand)
+                HStack(spacing: 8) {
+                    Image(systemName: "qrcode.viewfinder")
+                        .font(.system(size: 14, weight: .semibold))
+                    Text("JOIN NEARBY GAME")
+                }
             }
+            .appSecondaryStyle()
             .accessibilityLabel("Join a nearby game")
         }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 16)
-        .padding(.top, 8)
+        .padding(.horizontal, 16)
+        .padding(.bottom, 14)
+        .padding(.top, 10)
         .background(theme.subBg)
         .overlay(alignment: .top) {
             Rectangle().fill(theme.border).frame(height: 1)

@@ -28,7 +28,17 @@ struct JoinSheet: View {
         ZStack {
             theme.bg.ignoresSafeArea()
             VStack(spacing: 14) {
-                header
+                AppHeaderBar(
+                    style: .modal,
+                    title: "Join game",
+                    onLeading: nil
+                ) {
+                    Button {
+                        coordinator.netSession.leave()
+                        dismiss()
+                    } label: { Text("CANCEL") }
+                        .appLinkStyle()
+                }
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
                         // Identity always visible — joiner can fill name +
@@ -100,57 +110,32 @@ struct JoinSheet: View {
         }
     }
 
-    private var header: some View {
-        HStack {
-            Text("JOIN GAME")
-                .font(theme.monoFont(size: 11))
-                .tracking(2)
-                .foregroundStyle(theme.muted)
-            Spacer()
-            Button("Cancel") {
-                coordinator.netSession.leave()
-                dismiss()
-            }
-            .font(theme.monoFont(size: 12))
-            .foregroundStyle(theme.brand)
-        }
-        .padding(.horizontal, 16)
-    }
-
     private var codeEntry: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text("ROOM CODE")
-                    .font(theme.monoFont(size: 10))
+                    .font(theme.monoFont(size: 12))
                     .tracking(2)
                     .foregroundStyle(theme.muted)
                 Spacer()
                 Button {
                     showScanner = true
                 } label: {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 6) {
                         Image(systemName: "qrcode.viewfinder")
-                            .font(.system(size: 12, weight: .semibold))
+                            .font(.system(size: 14, weight: .semibold))
                         Text("SCAN QR")
-                            .font(theme.monoFont(size: 10))
-                            .tracking(1.4)
                     }
-                    .foregroundStyle(theme.brand)
-                    .padding(.horizontal, 8).padding(.vertical, 4)
-                    .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 8))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(theme.border, lineWidth: 1)
-                    )
                 }
+                .appPillStyle()
                 .accessibilityLabel("Scan host QR code")
             }
-            TextField("0000", text: $code)
+            TextField("", text: $code, prompt: Text("0000").foregroundColor(theme.muted.opacity(0.4)))
                 .keyboardType(.numberPad)
-                .font(theme.displayFont(size: 36, relativeTo: .title))
+                .font(theme.displayFont(size: 40, relativeTo: .title))
                 .tracking(6)
                 .multilineTextAlignment(.center)
-                .padding(.vertical, 10)
+                .padding(.vertical, 12)
                 .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 10))
                 .overlay(
                     RoundedRectangle(cornerRadius: 10)
@@ -161,7 +146,7 @@ struct JoinSheet: View {
                 }
             if let hint = scannerHint {
                 Text(hint)
-                    .font(theme.monoFont(size: 10))
+                    .font(theme.monoFont(size: 12))
                     .foregroundStyle(theme.brand)
             }
         }
@@ -172,7 +157,7 @@ struct JoinSheet: View {
         if !coordinator.netSession.availableHosts.isEmpty {
             VStack(alignment: .leading, spacing: 6) {
                 Text("NEARBY")
-                    .font(theme.monoFont(size: 10))
+                    .font(theme.monoFont(size: 12))
                     .tracking(2)
                     .foregroundStyle(theme.muted)
                 ForEach(coordinator.netSession.availableHosts) { host in
@@ -186,7 +171,7 @@ struct JoinSheet: View {
                                     .font(theme.displayFont(size: 14))
                                     .foregroundStyle(theme.ink)
                                 Text("\(host.gameName) · \(host.playerCount) players · code \(host.roomCode)")
-                                    .font(theme.monoFont(size: 10))
+                                    .font(theme.monoFont(size: 12))
                                     .foregroundStyle(theme.muted)
                             }
                             Spacer()
@@ -200,9 +185,14 @@ struct JoinSheet: View {
                 }
             }
         } else {
-            Text("Searching for nearby hosts…")
-                .font(theme.monoFont(size: 11))
-                .foregroundStyle(theme.muted)
+            HStack(spacing: 8) {
+                ProgressView()
+                    .scaleEffect(0.8)
+                    .tint(theme.muted)
+                Text("Searching for nearby hosts…")
+                    .font(theme.monoFont(size: 12))
+                    .foregroundStyle(theme.muted)
+            }
         }
     }
 
@@ -210,7 +200,7 @@ struct JoinSheet: View {
     private var identityBlock: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("YOUR IDENTITY")
-                .font(theme.monoFont(size: 10))
+                .font(theme.monoFont(size: 12))
                 .tracking(2)
                 .foregroundStyle(theme.muted)
 
@@ -222,41 +212,42 @@ struct JoinSheet: View {
                         matching: .images,
                         photoLibrary: .shared()
                     ) {
-                        Text(currentPhotoData == nil ? "PICK PHOTO" : "CHANGE PHOTO")
-                            .font(theme.monoFont(size: 11))
-                            .tracking(1.4)
-                            .foregroundStyle(theme.ink)
-                            .padding(.horizontal, 10).padding(.vertical, 6)
-                            .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 8))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(theme.border, lineWidth: 1)
-                            )
+                        HStack(spacing: 6) {
+                            Image(systemName: "photo")
+                                .font(.system(size: 13, weight: .semibold))
+                            Text(currentPhotoData == nil ? "PICK PHOTO" : "CHANGE PHOTO")
+                        }
+                        .font(theme.monoFont(size: 12))
+                        .fontWeight(.semibold)
+                        .tracking(1.4)
+                        .foregroundStyle(theme.ink)
+                        .padding(.horizontal, 14)
+                        .frame(minHeight: 44)
+                        .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 10))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(theme.border, lineWidth: 1)
+                        )
                     }
                     .accessibilityLabel(currentPhotoData == nil ? "Pick a photo" : "Change photo")
                     if currentPhotoData != nil {
                         Button {
                             pickedPhotoData = nil
                             pickerItem = nil
-                            // Also blank out the auto-prefill so Remove
-                            // really removes the photo, instead of
-                            // silently reverting to the Contacts photo.
                             if let p = prefill {
                                 prefill = ContactPrefill(displayName: p.displayName, imageData: nil)
                             }
-                        } label: {
-                            Text("REMOVE")
-                                .font(theme.monoFont(size: 10))
-                                .tracking(1.2)
-                                .foregroundStyle(theme.brand)
-                        }
+                        } label: { Text("REMOVE") }
+                            .appLinkStyle()
                     }
                 }
                 Spacer()
             }
 
             TextField("Name", text: $editedName)
-                .padding(10)
+                .font(theme.monoFont(size: 14))
+                .padding(.horizontal, 12)
+                .frame(minHeight: 48)
                 .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 8))
                 .overlay(
                     RoundedRectangle(cornerRadius: 8)
@@ -264,7 +255,7 @@ struct JoinSheet: View {
                 )
 
             Text("Name is prefilled from this device — edit before joining if you like. Photo is optional; tap PICK PHOTO to choose one (iCloud Photo Library is surfaced automatically).")
-                .font(theme.monoFont(size: 10))
+                .font(theme.monoFont(size: 12))
                 .foregroundStyle(theme.muted)
         }
         .onChange(of: pickerItem) { _, newItem in
@@ -320,7 +311,7 @@ struct JoinSheet: View {
         if coordinator.netSession.latestSnapshot != nil {
             VStack(alignment: .leading, spacing: 6) {
                 Text("ROLE")
-                    .font(theme.monoFont(size: 10))
+                    .font(theme.monoFont(size: 12))
                     .tracking(2)
                     .foregroundStyle(theme.muted)
                 HStack {
@@ -329,7 +320,7 @@ struct JoinSheet: View {
                 }
                 if roleChoice == .player {
                     Text("You'll be added to the conductor's player list with the name above.")
-                        .font(theme.monoFont(size: 10))
+                        .font(theme.monoFont(size: 12))
                         .foregroundStyle(theme.muted)
                         .padding(.top, 4)
                 }
@@ -388,7 +379,7 @@ struct JoinSheet: View {
             .foregroundStyle(theme.ctaText)
             .background(enabled ? theme.cta : theme.muted,
                         in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
-            .opacity(enabled ? 1 : 0.55)
+            .opacity(enabled ? 1 : 0.5)
     }
 
     private var connectEnabled: Bool {

@@ -86,45 +86,53 @@ struct CameraView: View {
     }
 
     private var topBar: some View {
-        HStack {
+        HStack(spacing: 4) {
             Button {
                 cancel()
             } label: {
-                Text("← CANCEL")
-                    .font(theme.monoFont(size: 10))
-                    .tracking(1.2)
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 20, weight: .semibold))
                     .foregroundStyle(.white)
-                    .padding(.horizontal, 10).padding(.vertical, 6)
-                    .background(.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 14))
+                    .frame(width: 44, height: 44)
+                    .background(.white.opacity(0.10), in: Circle())
+                    .contentShape(Rectangle())
             }
-            Spacer()
+            .accessibilityLabel("Cancel")
+            Spacer(minLength: 0)
             Text(resolvedTopBarSubject)
-                .font(theme.monoFont(size: 10))
+                .font(theme.monoFont(size: 13))
+                .fontWeight(.semibold)
                 .tracking(1.6)
-                .foregroundStyle(.white.opacity(0.75))
+                .foregroundStyle(.white.opacity(0.92))
                 .lineLimit(1)
                 .minimumScaleFactor(0.8)
-            Spacer()
+            Spacer(minLength: 0)
             if shouldShowManualButton {
                 Button {
                     manual()
                 } label: {
-                    Text("123")
-                        .font(theme.monoFont(size: 11))
-                        .tracking(1.2)
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 10).padding(.vertical, 6)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 14)
-                                .stroke(.white.opacity(0.25), lineWidth: 1)
-                        )
+                    HStack(spacing: 4) {
+                        Image(systemName: "number")
+                            .font(.system(size: 13, weight: .semibold))
+                        Text("KEYPAD")
+                            .font(theme.monoFont(size: 12))
+                            .fontWeight(.semibold)
+                            .tracking(1.2)
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .frame(height: 44)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(.white.opacity(0.3), lineWidth: 1)
+                    )
                 }
                 .accessibilityLabel("Manual entry")
             } else {
                 Color.clear.frame(width: 44, height: 1)
             }
         }
-        .padding(.horizontal, 12).padding(.vertical, 8)
+        .padding(.horizontal, 8).padding(.vertical, 8)
         .background(.black.opacity(0.6))
     }
 
@@ -336,25 +344,33 @@ struct CameraView: View {
                         result = nil
                     }
                 } label: {
-                    Text("↻ RETAKE")
-                        .font(theme.displayFont(size: 14))
-                        .tracking(2)
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity, minHeight: 52)
-                        .foregroundStyle(.white)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: theme.buttonCornerRadius)
-                                .stroke(.white.opacity(0.25), lineWidth: 1)
-                        )
+                    HStack(spacing: 6) {
+                        Image(systemName: "arrow.counterclockwise")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("RETAKE")
+                    }
+                    .font(theme.displayFont(size: 14))
+                    .tracking(2)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, minHeight: 56)
+                    .foregroundStyle(.white)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: theme.buttonCornerRadius)
+                            .stroke(.white.opacity(0.3), lineWidth: 1)
+                    )
                 }
                 Button(action: submit) {
-                    Text("ALL ABOARD ✓")
-                        .font(theme.displayFont(size: 14))
-                        .tracking(2)
-                        .lineLimit(1)
-                        .frame(maxWidth: .infinity, minHeight: 52)
-                        .foregroundStyle(theme.ctaText)
-                        .background(theme.cta, in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("ALL ABOARD")
+                    }
+                    .font(theme.displayFont(size: 14))
+                    .tracking(2)
+                    .lineLimit(1)
+                    .frame(maxWidth: .infinity, minHeight: 56)
+                    .foregroundStyle(theme.ctaText)
+                    .background(theme.cta, in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
                 }
             }
         }

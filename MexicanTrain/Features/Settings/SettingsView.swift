@@ -15,7 +15,11 @@ struct SettingsView: View {
         return ZStack {
             theme.bg.ignoresSafeArea()
             VStack(spacing: 0) {
-                header
+                AppHeaderBar(
+                    style: .push,
+                    title: "Settings",
+                    onLeading: { coordinator.goHome() }
+                )
                 ScrollView {
                     VStack(alignment: .leading, spacing: 18) {
                         section("DEFAULT GAME LENGTH") {
@@ -55,32 +59,11 @@ struct SettingsView: View {
         }
     }
 
-    private var header: some View {
-        HStack {
-            Button("← BACK") { coordinator.goHome() }
-                .font(theme.monoFont(size: 10))
-                .tracking(1.2)
-                .foregroundStyle(theme.ink)
-                .padding(.horizontal, 10).padding(.vertical, 6)
-                .background(theme.subBg, in: RoundedRectangle(cornerRadius: 14))
-            Spacer()
-            Text("SETTINGS")
-                .font(theme.monoFont(size: 11))
-                .tracking(2)
-                .foregroundStyle(theme.muted)
-            Spacer()
-            Color.clear.frame(width: 70, height: 1)
-        }
-        .padding(.horizontal, 14).padding(.vertical, 10)
-        .background(theme.headerBg)
-        .overlay(alignment: .bottom) { Rectangle().fill(theme.border).frame(height: 1) }
-    }
-
     @ViewBuilder
     private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(theme.monoFont(size: 10))
+                .font(theme.monoFont(size: 11))
                 .tracking(2)
                 .foregroundStyle(theme.muted)
             content()
@@ -114,45 +97,41 @@ struct SettingsView: View {
                 )
 
                 if settings.trainingDataExportEnabled {
-                    HStack {
-                        Text("\(labeledCount) photo\(labeledCount == 1 ? "" : "s") labeled")
-                            .font(theme.monoFont(size: 11))
-                            .foregroundStyle(theme.muted)
-                        Spacer()
-                        Button {
-                            runExport()
-                        } label: {
-                            HStack(spacing: 6) {
-                                if exporting {
-                                    ProgressView().tint(theme.ink)
-                                }
-                                Text(exporting ? "PREPARING…" : "EXPORT LABELED PHOTOS")
-                                    .font(theme.monoFont(size: 11))
-                                    .tracking(1.4)
+                    Text("\(labeledCount) photo\(labeledCount == 1 ? "" : "s") labeled")
+                        .font(theme.monoFont(size: 12))
+                        .foregroundStyle(theme.muted)
+                    Button {
+                        runExport()
+                    } label: {
+                        HStack(spacing: 8) {
+                            if exporting {
+                                ProgressView().tint(theme.ink)
+                            } else {
+                                Image(systemName: "square.and.arrow.up")
+                                    .font(.system(size: 14, weight: .semibold))
                             }
-                            .foregroundStyle(labeledCount > 0 ? theme.ink : theme.muted)
-                            .padding(.horizontal, 10).padding(.vertical, 8)
-                            .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 8))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(theme.border, lineWidth: 1)
-                            )
+                            Text(exporting ? "PREPARING…" : "EXPORT LABELED PHOTOS")
                         }
-                        .disabled(labeledCount == 0 || exporting)
                     }
+                    .appSecondaryStyle()
+                    .disabled(labeledCount == 0 || exporting)
+                    .opacity(labeledCount == 0 ? 0.55 : 1)
                     if let url = exportZipURL {
                         ShareLink(item: url) {
-                            Text("SHARE EXPORT.ZIP")
-                                .font(theme.monoFont(size: 11))
-                                .tracking(1.4)
-                                .frame(maxWidth: .infinity, minHeight: 40)
-                                .foregroundStyle(theme.ctaText)
-                                .background(theme.cta, in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
+                            HStack(spacing: 8) {
+                                Image(systemName: "paperplane.fill")
+                                Text("SHARE EXPORT.ZIP")
+                            }
+                            .font(theme.displayFont(size: 14))
+                            .tracking(2.5)
+                            .frame(maxWidth: .infinity, minHeight: 56)
+                            .foregroundStyle(theme.ctaText)
+                            .background(theme.cta, in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
                         }
                     }
                     if let exportError {
                         Text(exportError)
-                            .font(theme.monoFont(size: 10))
+                            .font(theme.monoFont(size: 11))
                             .foregroundStyle(theme.brand)
                     }
                 }

@@ -10,7 +10,12 @@ struct EndGameView: View {
         ZStack {
             theme.bg.ignoresSafeArea()
             VStack(spacing: 0) {
-                header
+                AppHeaderBar(
+                    style: .push,
+                    title: game.displayName,
+                    subtitle: "FINAL · \(endDateText)",
+                    onLeading: { coordinator.goHome() }
+                )
                 ScrollView {
                     VStack(spacing: 14) {
                         if let winner = standings.first {
@@ -26,35 +31,6 @@ struct EndGameView: View {
                 actions
             }
         }
-    }
-
-    private var header: some View {
-        HStack {
-            Button {
-                coordinator.goHome()
-            } label: {
-                Image(systemName: "chevron.left").foregroundStyle(theme.ink).padding(8)
-            }
-            .accessibilityLabel("Back")
-            Spacer()
-            VStack(spacing: 0) {
-                Text(game.displayName)
-                    .font(theme.displayFont(size: 14))
-                    .foregroundStyle(theme.brand)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-                Text("FINAL · \(endDateText)")
-                    .font(theme.monoFont(size: 9))
-                    .tracking(1.6)
-                    .foregroundStyle(theme.muted)
-            }
-            Spacer()
-            // Mirrors the back-button width so the title stays centered.
-            Color.clear.frame(width: 40, height: 1)
-        }
-        .padding(.horizontal, 8).padding(.vertical, 4)
-        .background(theme.headerBg)
-        .overlay(alignment: .bottom) { Rectangle().fill(theme.border).frame(height: 1) }
     }
 
     private var endDateText: String {
@@ -128,38 +104,29 @@ struct EndGameView: View {
     }
 
     private var actions: some View {
-        VStack(spacing: 8) {
-            Button {
-                coordinator.openNewGame()
-            } label: {
-                Text("NEW GAME")
-                    .font(theme.displayFont(size: 14))
-                    .tracking(2.5)
-                    .frame(maxWidth: .infinity, minHeight: 56)
-                    .foregroundStyle(theme.ctaText)
-                    .background(theme.cta, in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
-            }
+        VStack(spacing: 10) {
+            Button { coordinator.openNewGame() } label: { Text("NEW GAME") }
+                .appPrimaryStyle()
             ShareLink(item: GameReport.text(for: game)) {
-                Text("SHARE REPORT")
-                    .font(theme.monoFont(size: 12))
-                    .tracking(1.8)
-                    .frame(maxWidth: .infinity, minHeight: 44)
-                    .foregroundStyle(theme.ink)
-                    .background(theme.cardBg, in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: theme.buttonCornerRadius)
-                            .stroke(theme.border, lineWidth: 1)
-                    )
+                HStack(spacing: 8) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 14, weight: .semibold))
+                    Text("SHARE REPORT")
+                }
+                .font(theme.monoFont(size: 13))
+                .fontWeight(.semibold)
+                .tracking(1.6)
+                .frame(maxWidth: .infinity, minHeight: 48)
+                .foregroundStyle(theme.ink)
+                .background(theme.cardBg, in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
+                .overlay(
+                    RoundedRectangle(cornerRadius: theme.buttonCornerRadius)
+                        .stroke(theme.border, lineWidth: 1)
+                )
             }
             .accessibilityLabel("Share game report")
-            Button {
-                coordinator.goHome()
-            } label: {
-                Text("BACK TO HOME")
-                    .font(theme.monoFont(size: 11))
-                    .tracking(1.6)
-                    .foregroundStyle(theme.muted)
-            }
+            Button { coordinator.goHome() } label: { Text("BACK TO HOME") }
+                .appLinkStyle()
         }
         .padding(.horizontal, 16).padding(.bottom, 14).padding(.top, 10)
         .background(theme.subBg)
@@ -178,7 +145,30 @@ struct GameHistoryView: View {
         ZStack {
             theme.bg.ignoresSafeArea()
             VStack(spacing: 0) {
-                header
+                AppHeaderBar(
+                    style: .push,
+                    title: game.displayName,
+                    onLeading: { coordinator.goHome() }
+                ) {
+                    ShareLink(item: GameReport.text(for: game)) {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(theme.muted)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .accessibilityLabel("Share game report")
+                    Button {
+                        confirmDelete = true
+                    } label: {
+                        Image(systemName: "trash")
+                            .font(.system(size: 18, weight: .semibold))
+                            .foregroundStyle(theme.muted)
+                            .frame(width: 44, height: 44)
+                            .contentShape(Rectangle())
+                    }
+                    .accessibilityLabel("Delete game")
+                }
                 ScrollView {
                     VStack(spacing: 12) {
                         EndGameView.WinnerHero(game: game)
@@ -201,51 +191,12 @@ struct GameHistoryView: View {
         }
     }
 
-    private var header: some View {
-        HStack {
-            Button {
-                coordinator.goHome()
-            } label: {
-                Image(systemName: "chevron.left").foregroundStyle(theme.ink).padding(8)
-            }
-            Text(game.displayName)
-                .font(theme.displayFont(size: 16))
-                .foregroundStyle(theme.brand)
-            Spacer()
-            ShareLink(item: GameReport.text(for: game)) {
-                Image(systemName: "square.and.arrow.up")
-                    .foregroundStyle(theme.muted)
-                    .padding(8)
-            }
-            .accessibilityLabel("Share game report")
-            Button {
-                confirmDelete = true
-            } label: {
-                Image(systemName: "trash")
-                    .foregroundStyle(theme.muted)
-                    .padding(8)
-            }
-            .accessibilityLabel("Delete game")
-        }
-        .padding(.horizontal, 8).padding(.vertical, 4)
-        .background(theme.headerBg)
-        .overlay(alignment: .bottom) { Rectangle().fill(theme.border).frame(height: 1) }
-    }
-
     private var footer: some View {
-        Button {
-            coordinator.goHome()
-        } label: {
-            Text("DONE")
-                .font(theme.displayFont(size: 14))
-                .tracking(2.5)
-                .frame(maxWidth: .infinity, minHeight: 56)
-                .foregroundStyle(theme.ctaText)
-                .background(theme.cta, in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
-        }
-        .padding(.horizontal, 16).padding(.bottom, 14).padding(.top, 10)
-        .background(theme.subBg)
-        .overlay(alignment: .top) { Rectangle().fill(theme.border).frame(height: 1) }
+        Button { coordinator.goHome() } label: { Text("DONE") }
+            .appPrimaryStyle()
+            .padding(.horizontal, 16).padding(.bottom, 14).padding(.top, 10)
+            .background(theme.subBg)
+            .overlay(alignment: .top) { Rectangle().fill(theme.border).frame(height: 1) }
     }
 }
 

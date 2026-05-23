@@ -196,37 +196,13 @@ struct ScoreboardView: View {
     }
 
     private var header: some View {
-        HStack {
-            Button {
-                coordinator.goHome()
-            } label: {
-                Image(systemName: "chevron.left")
-                    .foregroundStyle(theme.ink)
-                    .padding(8)
-            }
-            .accessibilityLabel("Back")
-
-            Text("MEX·TRAIN")
-                .font(theme.displayFont(size: 16))
-                .tracking(2)
-                .foregroundStyle(theme.brand)
-            Spacer()
-
+        AppHeaderBar(
+            style: .push,
+            title: game.displayName,
+            subtitle: "STOP \(min(game.currentStopIndex, game.lengthStops)) / \(game.lengthStops)",
+            onLeading: { coordinator.goHome() }
+        ) {
             broadcastPill
-
-            HStack(spacing: 4) {
-                Text("STOP")
-                    .font(theme.monoFont(size: 9))
-                    .tracking(1.4)
-                    .foregroundStyle(theme.muted)
-                Text("\(min(game.currentStopIndex, game.lengthStops))")
-                    .font(theme.displayFont(size: 18))
-                    .foregroundStyle(theme.ink)
-                Text("/\(game.lengthStops)")
-                    .font(theme.displayFont(size: 12))
-                    .foregroundStyle(theme.muted)
-            }
-
             Menu {
                 Button("Share with table") {
                     coordinator.openShareSheet(for: game)
@@ -243,18 +219,17 @@ struct ScoreboardView: View {
                 }
             } label: {
                 Image(systemName: "ellipsis")
+                    .font(.system(size: 18, weight: .semibold))
                     .foregroundStyle(theme.muted)
-                    .padding(8)
+                    .frame(width: 44, height: 44)
+                    .contentShape(Rectangle())
             }
             .accessibilityLabel("Game menu")
         }
-        .padding(.horizontal, 8).padding(.vertical, 4)
-        .background(theme.headerBg)
-        .overlay(alignment: .bottom) { Rectangle().fill(theme.border).frame(height: 1) }
     }
 
-    /// Compact farkle-style broadcast indicator: room code when nobody's
-    /// joined, viewer count when someone has. Tap opens the share sheet.
+    /// Broadcast indicator that doubles as the "open share sheet" tap target.
+    /// Now a real 44pt pill so it's not accidentally missed in the header.
     private var broadcastPill: some View {
         let session = coordinator.netSession
         let isHosting = session.role == .host
@@ -262,36 +237,29 @@ struct ScoreboardView: View {
         return Button {
             coordinator.openShareSheet(for: game)
         } label: {
-            HStack(spacing: 4) {
+            HStack(spacing: 6) {
                 if peers > 0 {
                     Image(systemName: "person.fill")
-                        .font(.system(size: 10, weight: .semibold))
+                        .font(.system(size: 13, weight: .semibold))
                         .accessibilityHidden(true)
                     Text("\(peers)")
-                        .font(theme.monoFont(size: 11))
+                        .font(theme.monoFont(size: 13))
                         .fontWeight(.bold)
                 } else {
                     Image(systemName: "dot.radiowaves.left.and.right")
-                        .font(.system(size: 11, weight: .semibold))
+                        .font(.system(size: 13, weight: .semibold))
                         .accessibilityHidden(true)
                     Text(isHosting ? session.roomCode : "SHARE")
-                        .font(theme.monoFont(size: 11))
+                        .font(theme.monoFont(size: 13))
                         .fontWeight(.bold)
                         .tracking(0.6)
                 }
             }
             .lineLimit(1)
             .fixedSize(horizontal: true, vertical: false)
-            .padding(.horizontal, 8)
-            .frame(height: 28)
             .foregroundStyle(peers > 0 ? theme.ctaText : theme.ink)
-            .background(peers > 0 ? theme.brand : theme.subBg,
-                        in: RoundedRectangle(cornerRadius: 8))
-            .overlay(
-                RoundedRectangle(cornerRadius: 8)
-                    .stroke(theme.border, lineWidth: 1)
-            )
         }
+        .appPillStyle(prominent: peers > 0)
         .accessibilityLabel(isHosting
                             ? "Room code \(session.roomCode). \(peers) joined."
                             : "Share game")

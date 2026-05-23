@@ -29,7 +29,11 @@ struct NewGameView: View {
                 Color.clear.hostBroadcaster(game: g)
             }
             VStack(spacing: 0) {
-                header
+                AppHeaderBar(
+                    style: .push,
+                    title: "New game",
+                    onLeading: { cancelAndExit() }
+                )
                 ScrollView {
                     VStack(alignment: .leading, spacing: 18) {
                         broadcastBlock
@@ -55,31 +59,6 @@ struct NewGameView: View {
                 try? GamePersistence.delete(game: g, in: context, photoStore: coordinator.photoStore)
             }
         }
-    }
-
-    private var header: some View {
-        HStack {
-            Button {
-                cancelAndExit()
-            } label: {
-                Text("← BACK")
-                    .font(theme.monoFont(size: 10))
-                    .tracking(1.2)
-                    .foregroundStyle(theme.ink)
-                    .padding(.horizontal, 10).padding(.vertical, 6)
-                    .background(theme.subBg, in: RoundedRectangle(cornerRadius: 14))
-            }
-            Spacer()
-            Text("NEW GAME")
-                .font(theme.monoFont(size: 11))
-                .tracking(2)
-                .foregroundStyle(theme.muted)
-            Spacer()
-            Color.clear.frame(width: 70, height: 1)
-        }
-        .padding(.horizontal, 14).padding(.vertical, 10)
-        .background(theme.headerBg)
-        .overlay(alignment: .bottom) { Rectangle().fill(theme.border).frame(height: 1) }
     }
 
     @ViewBuilder
@@ -137,7 +116,7 @@ struct NewGameView: View {
     private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(title)
-                .font(theme.monoFont(size: 10))
+                .font(theme.monoFont(size: 11))
                 .tracking(2)
                 .foregroundStyle(theme.muted)
             content()
@@ -250,7 +229,9 @@ struct NewGameView: View {
         HStack(spacing: 8) {
             TextField("Player name", text: $manualName)
                 .textInputAutocapitalization(.words)
-                .padding(10)
+                .font(theme.monoFont(size: 14))
+                .padding(.horizontal, 12)
+                .frame(minHeight: 48)
                 .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 10))
                 .overlay(
                     RoundedRectangle(cornerRadius: 10)
@@ -259,14 +240,9 @@ struct NewGameView: View {
             Button {
                 addManualPlayer()
             } label: {
-                Text("Add")
-                    .font(theme.monoFont(size: 12))
-                    .tracking(1)
-                    .foregroundStyle(theme.ctaText)
-                    .padding(.horizontal, 14).padding(.vertical, 12)
-                    .background(canAddManual ? theme.brand : theme.muted,
-                                in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
+                Text("ADD")
             }
+            .appPillStyle(prominent: true)
             .disabled(!canAddManual)
             .opacity(canAddManual ? 1 : 0.55)
         }
@@ -329,23 +305,15 @@ struct NewGameView: View {
     }
 
     private var footer: some View {
-        VStack(spacing: 6) {
+        VStack(spacing: 8) {
             if let error {
                 Text(error)
-                    .font(theme.monoFont(size: 10))
+                    .font(theme.monoFont(size: 11))
                     .foregroundStyle(theme.brand)
             }
-            Button(action: start) {
-                Text("START GAME")
-                    .font(theme.displayFont(size: 14))
-                    .tracking(2.5)
-                    .frame(maxWidth: .infinity, minHeight: 56)
-                    .foregroundStyle(theme.ctaText)
-                    .background(canStart ? theme.cta : theme.muted,
-                                in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
-            }
-            .disabled(!canStart)
-            .opacity(canStart ? 1 : 0.55)
+            Button(action: start) { Text("START GAME") }
+                .appPrimaryStyle(enabled: canStart)
+                .disabled(!canStart)
         }
         .padding(.horizontal, 16).padding(.bottom, 14).padding(.top, 10)
         .background(theme.subBg)
