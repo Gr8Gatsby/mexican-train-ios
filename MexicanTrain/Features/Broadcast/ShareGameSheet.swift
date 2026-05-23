@@ -11,15 +11,24 @@ struct ShareGameSheet: View {
         ZStack {
             theme.bg.ignoresSafeArea()
             VStack(spacing: 16) {
-                header
-                code
-                qr
-                claimsList
-                Spacer()
-                stopButton
+                AppHeaderBar(
+                    style: .modal,
+                    title: "Share game",
+                    onLeading: nil
+                ) {
+                    Button { dismiss() } label: { Text("DONE") }
+                        .appLinkStyle()
+                }
+                VStack(spacing: 16) {
+                    code
+                    qr
+                    claimsList
+                    Spacer()
+                    stopButton
+                }
+                .padding(.horizontal, 18)
+                .padding(.bottom, 14)
             }
-            .padding(.horizontal, 18)
-            .padding(.vertical, 14)
         }
         .onAppear {
             if coordinator.netSession.role != .host {
@@ -30,23 +39,10 @@ struct ShareGameSheet: View {
         }
     }
 
-    private var header: some View {
-        HStack {
-            Text("SHARE GAME")
-                .font(theme.monoFont(size: 11))
-                .tracking(2)
-                .foregroundStyle(theme.muted)
-            Spacer()
-            Button("Done") { dismiss() }
-                .font(theme.monoFont(size: 12))
-                .foregroundStyle(theme.brand)
-        }
-    }
-
     private var code: some View {
         VStack(spacing: 4) {
             Text("ROOM CODE")
-                .font(theme.monoFont(size: 10))
+                .font(theme.monoFont(size: 12))
                 .tracking(2)
                 .foregroundStyle(theme.muted)
             Text(roomCode)
@@ -55,7 +51,7 @@ struct ShareGameSheet: View {
                 .foregroundStyle(theme.brand)
                 .accessibilityLabel("Room code \(roomCode.map { String($0) }.joined(separator: " "))")
             Text("\(coordinator.netSession.connectedPeerCount) joined")
-                .font(theme.monoFont(size: 10))
+                .font(theme.monoFont(size: 12))
                 .tracking(1.2)
                 .foregroundStyle(theme.muted)
         }
@@ -64,7 +60,7 @@ struct ShareGameSheet: View {
     private var qr: some View {
         VStack(spacing: 8) {
             Text("SCAN OR ENTER CODE")
-                .font(theme.monoFont(size: 10))
+                .font(theme.monoFont(size: 12))
                 .tracking(2)
                 .foregroundStyle(theme.muted)
             if !roomCode.isEmpty {
@@ -83,35 +79,36 @@ struct ShareGameSheet: View {
     private var claimsList: some View {
         let claims = coordinator.netSession.playerClaims
         return VStack(alignment: .leading, spacing: 6) {
-            HStack {
+            HStack(spacing: 8) {
                 Text("JOINED PLAYERS")
-                    .font(theme.monoFont(size: 10))
+                    .font(theme.monoFont(size: 12))
                     .tracking(2)
                     .foregroundStyle(theme.muted)
+                if claims.isEmpty {
+                    ProgressView()
+                        .scaleEffect(0.65)
+                        .tint(theme.muted)
+                }
                 Spacer()
             }
             if claims.isEmpty {
-                Text("No one yet. Share the QR or code.")
-                    .font(theme.monoFont(size: 11))
+                Text("No one yet. Share the QR or room code.")
+                    .font(theme.monoFont(size: 12))
                     .foregroundStyle(theme.muted)
             } else {
                 ForEach(Array(claims.values)) { claim in
                     HStack {
                         Text(claim.displayName)
-                            .font(theme.displayFont(size: 14))
+                            .font(theme.displayFont(size: 16))
                             .foregroundStyle(theme.ink)
                         Spacer()
                         Button {
                             coordinator.netSession.revokeClaim(playerID: claim.playerID)
-                        } label: {
-                            Text("REVOKE")
-                                .font(theme.monoFont(size: 9))
-                                .tracking(1.2)
-                                .foregroundStyle(theme.brand)
-                        }
+                        } label: { Text("REVOKE") }
+                            .appLinkStyle()
                     }
-                    .padding(8)
-                    .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 8))
+                    .padding(.horizontal, 10).padding(.vertical, 4)
+                    .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 10))
                 }
             }
         }
@@ -121,18 +118,8 @@ struct ShareGameSheet: View {
         Button {
             coordinator.netSession.stopHosting()
             dismiss()
-        } label: {
-            Text("STOP SHARING")
-                .font(theme.displayFont(size: 13))
-                .tracking(2)
-                .frame(maxWidth: .infinity, minHeight: 50)
-                .foregroundStyle(theme.ink)
-                .background(theme.cardBg, in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
-                .overlay(
-                    RoundedRectangle(cornerRadius: theme.buttonCornerRadius)
-                        .stroke(theme.border, lineWidth: 1)
-                )
-        }
+        } label: { Text("STOP SHARING") }
+            .appSecondaryStyle()
     }
 
     private func start() {

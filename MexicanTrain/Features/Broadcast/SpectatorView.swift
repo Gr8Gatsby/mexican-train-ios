@@ -125,33 +125,19 @@ struct SpectatorView: View {
         let session = coordinator.netSession
         let snap = session.latestSnapshot
         let me = snap?.players.first(where: { $0.id == session.myPlayerID })
-        return HStack {
-            Button {
+        // Show whatever code we know about — the live snapshot's, or the
+        // code we connected with via the join sheet.
+        let codeText = (snap?.roomCode.isEmpty == false ? snap?.roomCode : session.roomCode) ?? "----"
+        let title = me.map { "Playing as \($0.name)" } ?? "Spectating"
+        return AppHeaderBar(
+            style: .push,
+            title: title,
+            subtitle: "CODE \(codeText)",
+            onLeading: {
                 coordinator.netSession.leave()
                 coordinator.goHome()
-            } label: {
-                Image(systemName: "chevron.left").foregroundStyle(theme.ink).padding(8)
             }
-            Text("MEX·TRAIN")
-                .font(theme.displayFont(size: 16))
-                .tracking(2)
-                .foregroundStyle(theme.brand)
-            Spacer()
-            VStack(alignment: .trailing, spacing: 0) {
-                Text(me != nil ? "PLAYING AS \(me!.name.uppercased())" : "SPECTATING")
-                    .font(theme.monoFont(size: 9))
-                    .tracking(1.4)
-                    .foregroundStyle(me != nil ? theme.accent : theme.muted)
-                Text("CODE \(snap?.roomCode ?? "----")")
-                    .font(theme.monoFont(size: 9))
-                    .tracking(1.4)
-                    .foregroundStyle(theme.muted)
-            }
-            .lineLimit(1)
-        }
-        .padding(.horizontal, 8).padding(.vertical, 4)
-        .background(theme.headerBg)
-        .overlay(alignment: .bottom) { Rectangle().fill(theme.border).frame(height: 1) }
+        )
     }
 
     private func engineStrip(snap: GameSnapshot) -> some View {
@@ -179,21 +165,11 @@ struct SpectatorView: View {
         Button {
             coordinator.netSession.leave()
             coordinator.goHome()
-        } label: {
-            Text("LEAVE")
-                .font(theme.displayFont(size: 13))
-                .tracking(2)
-                .frame(maxWidth: .infinity, minHeight: 50)
-                .foregroundStyle(theme.ink)
-                .background(theme.cardBg, in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
-                .overlay(
-                    RoundedRectangle(cornerRadius: theme.buttonCornerRadius)
-                        .stroke(theme.border, lineWidth: 1)
-                )
-        }
-        .padding(.horizontal, 14).padding(.bottom, 14).padding(.top, 10)
-        .background(theme.subBg)
-        .overlay(alignment: .top) { Rectangle().fill(theme.border).frame(height: 1) }
+        } label: { Text("LEAVE") }
+            .appSecondaryStyle()
+            .padding(.horizontal, 16).padding(.bottom, 14).padding(.top, 10)
+            .background(theme.subBg)
+            .overlay(alignment: .top) { Rectangle().fill(theme.border).frame(height: 1) }
     }
 
     private var hostEndedOverlay: some View {

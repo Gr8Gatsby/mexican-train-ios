@@ -50,7 +50,31 @@ struct JoinedGameView: View {
     @ViewBuilder
     private func content(record: JoinedGameRecord, snap: GameSnapshot) -> some View {
         VStack(spacing: 0) {
-            header(record: record, snap: snap)
+            AppHeaderBar(
+                style: .push,
+                title: record.gameName,
+                subtitle: record.isFinished ? "FINAL · hosted by \(record.hostName)" : "JOINED · hosted by \(record.hostName)",
+                onLeading: { coordinator.goHome() }
+            ) {
+                ShareLink(item: GameReport.text(snapshot: snap)) {
+                    Image(systemName: "square.and.arrow.up")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(theme.muted)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("Share game report")
+                Button {
+                    confirmDelete = true
+                } label: {
+                    Image(systemName: "trash")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(theme.muted)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("Delete joined game")
+            }
             ScrollView {
                 VStack(spacing: 12) {
                     summaryCard(snap: snap, record: record)
@@ -64,38 +88,6 @@ struct JoinedGameView: View {
             }
             footer
         }
-    }
-
-    private func header(record: JoinedGameRecord, snap: GameSnapshot) -> some View {
-        HStack {
-            Button {
-                coordinator.goHome()
-            } label: {
-                Image(systemName: "chevron.left").foregroundStyle(theme.ink).padding(8)
-            }
-            Text(record.gameName)
-                .font(theme.displayFont(size: 16))
-                .foregroundStyle(theme.brand)
-                .lineLimit(1)
-            Spacer()
-            ShareLink(item: GameReport.text(snapshot: snap)) {
-                Image(systemName: "square.and.arrow.up")
-                    .foregroundStyle(theme.muted)
-                    .padding(8)
-            }
-            .accessibilityLabel("Share game report")
-            Button {
-                confirmDelete = true
-            } label: {
-                Image(systemName: "trash")
-                    .foregroundStyle(theme.muted)
-                    .padding(8)
-            }
-            .accessibilityLabel("Delete joined game")
-        }
-        .padding(.horizontal, 8).padding(.vertical, 4)
-        .background(theme.headerBg)
-        .overlay(alignment: .bottom) { Rectangle().fill(theme.border).frame(height: 1) }
     }
 
     private func summaryCard(snap: GameSnapshot, record: JoinedGameRecord) -> some View {
@@ -157,18 +149,10 @@ struct JoinedGameView: View {
     }
 
     private var footer: some View {
-        Button {
-            coordinator.goHome()
-        } label: {
-            Text("DONE")
-                .font(theme.displayFont(size: 14))
-                .tracking(2.5)
-                .frame(maxWidth: .infinity, minHeight: 56)
-                .foregroundStyle(theme.ctaText)
-                .background(theme.cta, in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
-        }
-        .padding(.horizontal, 16).padding(.bottom, 14).padding(.top, 10)
-        .background(theme.subBg)
-        .overlay(alignment: .top) { Rectangle().fill(theme.border).frame(height: 1) }
+        Button { coordinator.goHome() } label: { Text("DONE") }
+            .appPrimaryStyle()
+            .padding(.horizontal, 16).padding(.bottom, 14).padding(.top, 10)
+            .background(theme.subBg)
+            .overlay(alignment: .top) { Rectangle().fill(theme.border).frame(height: 1) }
     }
 }

@@ -18,7 +18,12 @@ struct JoinerManualEntryView: View {
         ZStack {
             theme.bg.ignoresSafeArea()
             VStack(spacing: 0) {
-                header
+                AppHeaderBar(
+                    style: .push,
+                    title: playerName,
+                    subtitle: "STOP \(stop) / \(lengthStops)",
+                    onLeading: { coordinator.openSpectator() }
+                )
                 readout
                 if let referencePhoto {
                     referenceCard(referencePhoto)
@@ -54,31 +59,6 @@ struct JoinerManualEntryView: View {
         .padding(.horizontal, 16).padding(.bottom, 6)
     }
 
-    private var header: some View {
-        HStack {
-            Button {
-                coordinator.openSpectator()
-            } label: {
-                Text("← CANCEL")
-                    .font(theme.monoFont(size: 10))
-                    .tracking(1.2)
-                    .foregroundStyle(theme.ink)
-                    .padding(.horizontal, 10).padding(.vertical, 6)
-                    .background(theme.subBg, in: RoundedRectangle(cornerRadius: 14))
-            }
-            Spacer()
-            Text("\(playerName.uppercased()) · STOP \(stop)/\(lengthStops)")
-                .font(theme.monoFont(size: 10))
-                .tracking(1.6)
-                .foregroundStyle(theme.muted)
-            Spacer()
-            Color.clear.frame(width: 80, height: 1)
-        }
-        .padding(.horizontal, 12).padding(.vertical, 8)
-        .background(theme.headerBg)
-        .overlay(alignment: .bottom) { Rectangle().fill(theme.border).frame(height: 1) }
-    }
-
     private var readout: some View {
         VStack(spacing: 6) {
             Text("PIP COUNT")
@@ -99,22 +79,12 @@ struct JoinerManualEntryView: View {
     }
 
     private var footer: some View {
-        VStack {
-            Button(action: submit) {
-                Text("ALL ABOARD ✓")
-                    .font(theme.displayFont(size: 14))
-                    .tracking(2.5)
-                    .frame(maxWidth: .infinity, minHeight: 56)
-                    .foregroundStyle(theme.ctaText)
-                    .background(canSubmit ? theme.cta : theme.muted,
-                                in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
-            }
+        Button(action: submit) { Text("ALL ABOARD ✓") }
+            .appPrimaryStyle(enabled: canSubmit)
             .disabled(!canSubmit)
-            .opacity(canSubmit ? 1 : 0.55)
-        }
-        .padding(.horizontal, 16).padding(.bottom, 14).padding(.top, 10)
-        .background(theme.subBg)
-        .overlay(alignment: .top) { Rectangle().fill(theme.border).frame(height: 1) }
+            .padding(.horizontal, 16).padding(.bottom, 14).padding(.top, 10)
+            .background(theme.subBg)
+            .overlay(alignment: .top) { Rectangle().fill(theme.border).frame(height: 1) }
     }
 
     private var canSubmit: Bool { Int(value) != nil }

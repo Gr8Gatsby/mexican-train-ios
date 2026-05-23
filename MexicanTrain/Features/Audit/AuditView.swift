@@ -35,7 +35,12 @@ struct AuditView: View {
         ZStack {
             theme.bg.ignoresSafeArea()
             VStack(spacing: 0) {
-                header
+                AppHeaderBar(
+                    style: .push,
+                    title: "Audit · \(player.name)",
+                    subtitle: "STOP \(stop) / \(game.lengthStops)",
+                    onLeading: { coordinator.openScoreboard(game) }
+                )
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
                         hero
@@ -75,36 +80,11 @@ struct AuditView: View {
         Scoring.score(for: player.id, stop: stop, in: game)
     }
 
-    private var header: some View {
-        HStack {
-            Button {
-                coordinator.openScoreboard(game)
-            } label: {
-                Text("← BACK")
-                    .font(theme.monoFont(size: 10))
-                    .tracking(1.2)
-                    .foregroundStyle(theme.ink)
-                    .padding(.horizontal, 10).padding(.vertical, 6)
-                    .background(theme.subBg, in: RoundedRectangle(cornerRadius: 14))
-            }
-            Spacer()
-            Text("AUDIT · STOP \(stop)")
-                .font(theme.monoFont(size: 10))
-                .tracking(2)
-                .foregroundStyle(theme.muted)
-            Spacer()
-            Color.clear.frame(width: 70, height: 1)
-        }
-        .padding(.horizontal, 12).padding(.vertical, 8)
-        .background(theme.headerBg)
-        .overlay(alignment: .bottom) { Rectangle().fill(theme.border).frame(height: 1) }
-    }
-
     private var hero: some View {
         HStack(alignment: .top) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("PLAYER")
-                    .font(theme.monoFont(size: 9))
+                    .font(theme.monoFont(size: 11))
                     .tracking(1.8)
                     .foregroundStyle(theme.muted)
                 HStack(spacing: 6) {
@@ -113,14 +93,14 @@ struct AuditView: View {
                         .foregroundStyle(theme.ink)
                     if player.isYou {
                         Text("YOU")
-                            .font(theme.monoFont(size: 9))
+                            .font(theme.monoFont(size: 11))
                             .tracking(1.4)
                             .foregroundStyle(theme.accent)
                     }
                 }
                 HStack(spacing: 6) {
                     Text("ENGINE")
-                        .font(theme.monoFont(size: 9))
+                        .font(theme.monoFont(size: 11))
                         .tracking(1.4)
                         .foregroundStyle(theme.muted)
                     let n = Scoring.engineTile(stop: stop, rules: game.startingEngine, length: game.lengthStops)
@@ -130,7 +110,7 @@ struct AuditView: View {
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
                 Text("TOTAL AFTER SAVE")
-                    .font(theme.monoFont(size: 9))
+                    .font(theme.monoFont(size: 11))
                     .tracking(1.4)
                     .foregroundStyle(theme.muted)
                 Text("\(newTotal)")
@@ -138,7 +118,7 @@ struct AuditView: View {
                     .foregroundStyle(theme.brand)
                 if existing != nil, delta != 0 {
                     Text("\(delta > 0 ? "+" : "")\(delta) vs recorded")
-                        .font(theme.monoFont(size: 10))
+                        .font(theme.monoFont(size: 12))
                         .foregroundStyle(delta > 0 ? Color(hex: 0xB54B2C) : Color(hex: 0x3A7A3A))
                         .fontWeight(.semibold)
                 }
@@ -152,7 +132,7 @@ struct AuditView: View {
     private var pipEditor: some View {
         VStack(alignment: .leading, spacing: 8) {
             Text("PIP COUNT")
-                .font(theme.monoFont(size: 9))
+                .font(theme.monoFont(size: 11))
                 .tracking(1.8)
                 .foregroundStyle(theme.muted)
 
@@ -179,10 +159,10 @@ struct AuditView: View {
                         adjust(d)
                     } label: {
                         Text(d > 0 ? "+\(d)" : "\(d)")
-                            .font(theme.monoFont(size: 12))
+                            .font(theme.monoFont(size: 14))
                             .fontWeight(.semibold)
                             .foregroundStyle(theme.ink)
-                            .frame(maxWidth: .infinity, minHeight: 34)
+                            .frame(maxWidth: .infinity, minHeight: 44)
                             .background(theme.cardBg, in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
                             .overlay(
                                 RoundedRectangle(cornerRadius: theme.buttonCornerRadius)
@@ -199,12 +179,12 @@ struct AuditView: View {
         VStack(alignment: .leading, spacing: 4) {
             if let s = existing {
                 Text(s.source == .scanned ? "ENTERED VIA CAMERA" : "ENTERED MANUALLY")
-                    .font(theme.monoFont(size: 9))
+                    .font(theme.monoFont(size: 11))
                     .tracking(1.6)
                     .foregroundStyle(theme.muted)
             }
             Text("LAST UPDATED \(existing?.updatedAt.formatted(date: .omitted, time: .shortened) ?? "—")")
-                .font(theme.monoFont(size: 9))
+                .font(theme.monoFont(size: 11))
                 .tracking(1.2)
                 .foregroundStyle(theme.muted)
         }
@@ -224,27 +204,20 @@ struct AuditView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text(capture == nil ? "NO CAPTURE" : "REFERENCE PHOTO")
-                    .font(theme.monoFont(size: 9))
+                    .font(theme.monoFont(size: 11))
                     .tracking(1.8)
                     .foregroundStyle(theme.muted)
                 Spacer()
                 Button {
                     coordinator.openCamera(game: game, player: player, stop: stop)
                 } label: {
-                    HStack(spacing: 4) {
+                    HStack(spacing: 6) {
                         Image(systemName: "camera")
+                            .font(.system(size: 13, weight: .semibold))
                         Text(capture == nil ? "SCAN NOW" : "RE-SCAN")
                     }
-                    .font(theme.monoFont(size: 9))
-                    .tracking(1.2)
-                    .foregroundStyle(theme.ink)
-                    .padding(.horizontal, 8).padding(.vertical, 4)
-                    .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 12))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(theme.border, lineWidth: 1)
-                    )
                 }
+                .appPillStyle()
             }
             if let capture, let img = coordinator.photoStore.load(filename: capture.filename, gameID: game.id) {
                 Image(uiImage: img)
@@ -258,7 +231,7 @@ struct AuditView: View {
                     )
                 if !capture.tiles.isEmpty {
                     Text("DETECTED \(capture.tiles.count) TILES · \(capture.pipsDetected ?? 0) PIPS")
-                        .font(theme.monoFont(size: 9))
+                        .font(theme.monoFont(size: 11))
                         .tracking(1.2)
                         .foregroundStyle(theme.muted)
                 }
@@ -272,7 +245,7 @@ struct AuditView: View {
         VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Text("EXCLUDE FROM TOTAL")
-                    .font(theme.monoFont(size: 9))
+                    .font(theme.monoFont(size: 11))
                     .tracking(1.8)
                     .foregroundStyle(theme.muted)
                 Spacer()
@@ -283,7 +256,7 @@ struct AuditView: View {
             Text(excludedDraft
                  ? "Counts as 0 toward this player's total. Original value kept in audit history."
                  : "Counts toward the total normally.")
-                .font(theme.monoFont(size: 10))
+                .font(theme.monoFont(size: 12))
                 .foregroundStyle(theme.muted)
         }
         .padding(.horizontal, 14).padding(.vertical, 10)
@@ -296,19 +269,19 @@ struct AuditView: View {
             VStack(alignment: .leading, spacing: 6) {
                 HStack {
                     Text("LABEL TILES")
-                        .font(theme.monoFont(size: 9))
+                        .font(theme.monoFont(size: 11))
                         .tracking(1.8)
                         .foregroundStyle(theme.muted)
                     Spacer()
                     if capture.isLabeled || labelDraftDirty {
                         Text("LABELED")
-                            .font(theme.monoFont(size: 9))
+                            .font(theme.monoFont(size: 11))
                             .tracking(1.4)
                             .foregroundStyle(theme.accent)
                     }
                 }
                 Text("Tap a chip to correct its pip value. Tap empty space on the photo to add a missed half. Saved labels are used by Export in Settings.")
-                    .font(theme.monoFont(size: 10))
+                    .font(theme.monoFont(size: 12))
                     .foregroundStyle(theme.muted)
                 EditableDetectionOverlay(
                     image: img,
@@ -329,7 +302,7 @@ struct AuditView: View {
                 )
                 if labelDraftDirty {
                     Text("Sum of corrected halves: \(labelDraft.reduce(0) { $0 + $1.pips })")
-                        .font(theme.monoFont(size: 10))
+                        .font(theme.monoFont(size: 12))
                         .foregroundStyle(theme.muted)
                 }
             }
@@ -342,7 +315,7 @@ struct AuditView: View {
         if let s = existing, !s.edits.isEmpty || s.originalPips != s.pips {
             VStack(alignment: .leading, spacing: 6) {
                 Text("AUDIT HISTORY")
-                    .font(theme.monoFont(size: 9))
+                    .font(theme.monoFont(size: 11))
                     .tracking(1.8)
                     .foregroundStyle(theme.muted)
                 VStack(spacing: 0) {
@@ -376,7 +349,7 @@ struct AuditView: View {
                     .fontWeight(.semibold)
                     .foregroundStyle(theme.ink)
                 Text("by \(by == .player ? "player" : "conductor") · \(at.formatted(date: .omitted, time: .shortened))")
-                    .font(theme.monoFont(size: 9))
+                    .font(theme.monoFont(size: 11))
                     .foregroundStyle(theme.muted)
             }
             Spacer()
@@ -420,27 +393,12 @@ struct AuditView: View {
         HStack(spacing: 8) {
             Button {
                 coordinator.openScoreboard(game)
-            } label: {
-                Text("DISCARD")
-                    .font(theme.displayFont(size: 13))
-                    .tracking(1.6)
-                    .frame(maxWidth: .infinity, minHeight: 52)
-                    .foregroundStyle(theme.ink)
-                    .background(theme.cardBg, in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: theme.buttonCornerRadius)
-                            .stroke(theme.border, lineWidth: 1)
-                    )
-            }
+            } label: { Text("DISCARD") }
+                .appSecondaryStyle()
             Button(action: save) {
                 Text(existing == nil ? "SAVE SCORE" : "SAVE CORRECTION")
-                    .font(theme.displayFont(size: 13))
-                    .tracking(1.4)
-                    .frame(maxWidth: .infinity, minHeight: 52)
-                    .foregroundStyle(theme.ctaText)
-                    .background(theme.cta, in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
             }
-            .frame(maxWidth: .infinity)
+            .appPrimaryStyle()
         }
         .padding(.horizontal, 14).padding(.bottom, 14).padding(.top, 10)
         .background(theme.subBg)
