@@ -26,10 +26,22 @@ struct SpectatorView: View {
                     addMyScoreCTA(snap: snap, myID: session.myPlayerID)
                 } else {
                     Spacer()
-                    Text("Waiting for host…")
-                        .font(theme.monoFont(size: 12))
-                        .tracking(1.4)
-                        .foregroundStyle(theme.muted)
+                    VStack(spacing: 14) {
+                        ProgressView()
+                            .scaleEffect(1.2)
+                            .tint(theme.brand)
+                        Text("Waiting for host…")
+                            .font(theme.monoFont(size: 12))
+                            .tracking(1.4)
+                            .foregroundStyle(theme.muted)
+                        if !session.roomCode.isEmpty {
+                            Text("CODE \(session.roomCode)")
+                                .font(theme.displayFont(size: 22))
+                                .tracking(4)
+                                .foregroundStyle(theme.brand)
+                                .padding(.top, 4)
+                        }
+                    }
                     Spacer()
                 }
                 footer

@@ -20,6 +20,14 @@ enum DebugSeed {
             photoStore.deleteAll(gameID: g.id)
             ctx.delete(g)
         }
+        // Also clear any joined-game records left over from prior runs so
+        // the home view's JOINED section starts empty.
+        for r in (try? ctx.fetch(FetchDescriptor<JoinedGameRecord>())) ?? [] {
+            ctx.delete(r)
+        }
+        for c in (try? ctx.fetch(FetchDescriptor<JoinedCapture>())) ?? [] {
+            ctx.delete(c)
+        }
         try? ctx.save()
 
         // In-progress.

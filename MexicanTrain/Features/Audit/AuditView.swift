@@ -129,7 +129,7 @@ struct AuditView: View {
             }
             Spacer()
             VStack(alignment: .trailing, spacing: 2) {
-                Text("NEW TOTAL")
+                Text("TOTAL AFTER SAVE")
                     .font(theme.monoFont(size: 9))
                     .tracking(1.4)
                     .foregroundStyle(theme.muted)

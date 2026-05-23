@@ -7,6 +7,7 @@ struct ScoreboardView: View {
     @Environment(\.theme) private var theme
     @Environment(AppCoordinator.self) private var coordinator
     @Environment(\.modelContext) private var context
+    @Environment(AppSettings.self) private var settings
     @State private var menuOpen = false
     @State private var renamingTo = ""
     @State private var renaming = false
@@ -372,8 +373,14 @@ struct ScoreboardView: View {
                         coordinator.openAudit(game: game, player: player, stop: stop)
                     },
                     onTapAddOverride: { player, stop in
+                        // First override teaches the affordance — flip the
+                        // pulse off so it doesn't keep grabbing attention.
+                        if !settings.hasUsedConductorOverride {
+                            settings.hasUsedConductorOverride = true
+                        }
                         overrideConfirm = OverrideTarget(player: player, stop: stop)
-                    }
+                    },
+                    pulseOverride: !settings.hasUsedConductorOverride
                 )
                 legend
                 if game.currentStopIndex > 1 {
@@ -385,19 +392,20 @@ struct ScoreboardView: View {
     }
 
     private var legend: some View {
-        HStack {
-            Text("♔ LEADER  ▸ YOU")
-                .font(theme.monoFont(size: 9))
-                .tracking(1.2)
-                .foregroundStyle(theme.muted)
-            Spacer()
-            Text("+ SUBMIT FOR PLAYER · TAP SCORE TO AUDIT")
-                .font(theme.monoFont(size: 9))
-                .tracking(1.2)
-                .foregroundStyle(theme.muted)
-                .minimumScaleFactor(0.8)
-                .lineLimit(1)
+        VStack(alignment: .leading, spacing: 2) {
+            HStack {
+                Text("♔ LEADER  ▸ YOU")
+                Spacer()
+                Text("+ SUBMIT FOR PLAYER")
+            }
+            HStack {
+                Spacer()
+                Text("TAP A SCORE TO AUDIT")
+            }
         }
+        .font(theme.monoFont(size: 9))
+        .tracking(1.2)
+        .foregroundStyle(theme.muted)
         .padding(.horizontal, 6)
     }
 

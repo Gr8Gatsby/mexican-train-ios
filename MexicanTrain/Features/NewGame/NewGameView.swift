@@ -19,6 +19,8 @@ struct NewGameView: View {
     @State private var roomCode: String = ""
     @State private var manualName: String = ""
     @State private var error: String?
+    @State private var renamingPlayer: Player?
+    @State private var renameDraft: String = ""
 
     var body: some View {
         ZStack {
@@ -162,8 +164,13 @@ struct NewGameView: View {
                                         .tracking(1.2)
                                         .foregroundStyle(theme.accent)
                                 }
+                                if p.isYou {
+                                    Image(systemName: "pencil")
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(theme.muted)
+                                }
                             }
-                            Text(p.isYou ? "You · added from device" : (p.avatarFilename != nil ? "Joined from phone" : "Manual entry"))
+                            Text(p.isYou ? "You · tap to rename" : (p.avatarFilename != nil ? "Joined from phone" : "Manual entry"))
                                 .font(theme.monoFont(size: 9))
                                 .foregroundStyle(theme.muted)
                         }
@@ -182,8 +189,34 @@ struct NewGameView: View {
                         RoundedRectangle(cornerRadius: 10)
                             .stroke(theme.borderLight, lineWidth: 1)
                     )
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        guard p.isYou else { return }
+                        renameDraft = p.name
+                        renamingPlayer = p
+                    }
                 }
             }
+        }
+        .alert("Your name", isPresented: Binding(
+            get: { renamingPlayer != nil },
+            set: { if !$0 { renamingPlayer = nil } }
+        )) {
+            TextField("Name", text: $renameDraft)
+                .textInputAutocapitalization(.words)
+            Button("Save") {
+                if let p = renamingPlayer {
+                    let trimmed = renameDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+                    if !trimmed.isEmpty {
+                        p.name = trimmed
+                        try? context.save()
+                    }
+                }
+                renamingPlayer = nil
+            }
+            Button("Cancel", role: .cancel) { renamingPlayer = nil }
+        } message: {
+            Text("Other phones at the table will see this name.")
         }
     }
 
@@ -336,7 +369,9 @@ struct NewGameView: View {
         length = settings.defaultLengthStops
         engine = settings.lastStartingEngine
 
-        // Identity from device.
+        // Identity from device. `loadCurrentIdentity()` now returns nil for
+        // generic strings like "iPhone 17", so we land on "Conductor" by
+        // default — the conductor can tap their row to rename inline.
         let identity = await DeviceIdentity.loadCurrentIdentity()
         let conductorName: String = {
             if !settings.defaultYouName.isEmpty { return settings.defaultYouName }
