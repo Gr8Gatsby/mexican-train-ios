@@ -356,6 +356,16 @@ struct NewGameView: View {
                 playerNames: [conductorName], youIndex: 0, name: nil
             )
             g.currentStopIndex = 0
+            // Reuse the persisted "you" photo as the conductor's avatar so
+            // the lobby shows their face immediately. Stored once per
+            // game's photoStore namespace alongside captures.
+            if let data = settings.defaultYouPhotoJPEG,
+               let img = UIImage(data: data),
+               let conductor = g.players.first(where: { $0.isYou }),
+               let filename = try? coordinator.photoStore.save(
+                image: img, gameID: g.id, captureID: conductor.id) {
+                conductor.avatarFilename = filename
+            }
             try context.save()
             game = g
 

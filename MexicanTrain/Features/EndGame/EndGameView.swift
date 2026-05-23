@@ -1,9 +1,11 @@
 import SwiftUI
+import UIKit
 
 struct EndGameView: View {
     let game: Game
     @Environment(\.theme) private var theme
     @Environment(AppCoordinator.self) private var coordinator
+    @State private var confettiID = UUID()
 
     var body: some View {
         let standings = Scoring.standings(for: game)
@@ -28,9 +30,13 @@ struct EndGameView: View {
                     .frame(maxWidth: .infinity, alignment: .top)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                actions
+                actions(standings: standings)
             }
+            ConfettiView()
+                .id(confettiID)
+                .ignoresSafeArea()
         }
+        .onAppear { confettiID = UUID() }
     }
 
     private var endDateText: String {
@@ -42,28 +48,8 @@ struct EndGameView: View {
     }
 
     private func winnerCard(_ s: Standing) -> some View {
-        VStack(spacing: 6) {
-            Text("ALL ABOARD · WINNER")
-                .font(theme.monoFont(size: 10))
-                .tracking(2)
-                .foregroundStyle(theme.muted)
-            Text("♔")
-                .font(.system(size: 34))
-                .foregroundStyle(theme.brand)
-            Text(s.name)
-                .font(theme.displayFont(size: 36))
-                .foregroundStyle(theme.brand)
-            Text("\(s.total) pips")
-                .font(theme.monoFont(size: 13))
-                .foregroundStyle(theme.muted)
-        }
-        .padding(20)
-        .frame(maxWidth: .infinity)
-        .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 14))
-        .overlay(
-            RoundedRectangle(cornerRadius: 14)
-                .stroke(theme.brand, lineWidth: 1.5)
-        )
+        WinnerCard(name: s.name, total: s.total, gameName: game.displayName,
+                   dateText: endDateText, theme: theme)
     }
 
     private func standingsList(_ standings: [Standing]) -> some View {
@@ -103,9 +89,84 @@ struct EndGameView: View {
         )
     }
 
-    private var actions: some View {
+    private func actions(standings: [Standing]) -> some View {
         VStack(spacing: 10) {
             Button { coordinator.openNewGame() } label: { Text("NEW GAME") }
+                .appPrimaryStyle()
+            if let winner = standings.first,
+               let image = renderWinnerImage(name: winner.name, total: winner.total) {
+                ShareLink(
+                    item: Image(uiImage: image),
+                    preview: SharePreview("\(winner.name) wins!", image: Image(uiImage: image))
+                ) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "square.and.arrow.up")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text("SHARE WINNER")
+                    }
+                    .font(theme.monoFont(size: 13))
+                    .fontWeight(.semibold)
+                    .tracking(1.6)
+                    .frame(maxWidth: .infinity, minHeight: 48)
+                    .foregroundStyle(theme.ink)
+                    .background(theme.cardBg, in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: theme.buttonCornerRadius)
+                            .stroke(theme.border, lineWidth: 1)
+                    )
+                }
+                .accessibilityLabel("Share winner image")
+            }
+            Button { coordinator.goHome() } label: { Text("BACK TO HOME") }
+                .appLinkStyle()
+        }
+        .padding(.horizontal, 16).padding(.bottom, 14).padding(.top, 10)
+        .background(theme.subBg)
+        .overlay(alignment: .top) { Rectangle().fill(theme.border).frame(height: 1) }
+    }
+
+    @MainActor
+    private func renderWinnerImage(name: String, total: Int) -> UIImage? {
+        let card = WinnerCard(name: name, total: total, gameName: game.displayName,
+                              dateText: endDateText, theme: theme, shareMode: true)
+            .frame(width: 600)
+        let renderer = ImageRenderer(content: card)
+        renderer.scale = UIScreen.main.scale
+        return renderer.uiImage
+    }
+}
+
+struct GameHistoryView: View {
+    let game: Game
+    @Environment(\.theme) private var theme
+    @Environment(AppCoordinator.self) private var coordinator
+    @Environment(\.modelContext) private var context
+
+    var body: some View {
+        ZStack {
+            theme.bg.ignoresSafeArea()
+            VStack(spacing: 0) {
+                AppHeaderBar(
+                    style: .push,
+                    title: game.displayName,
+                    onLeading: { coordinator.goHome() }
+                )
+                ScrollView {
+                    VStack(spacing: 12) {
+                        EndGameView.WinnerHero(game: game)
+                        ScoreCardTable(game: game) { _, _ in }
+                            .padding(.horizontal, 8)
+                    }
+                    .padding(.vertical, 12)
+                }
+                footer
+            }
+        }
+    }
+
+    private var footer: some View {
+        VStack(spacing: 10) {
+            Button { coordinator.goHome() } label: { Text("DONE") }
                 .appPrimaryStyle()
             ShareLink(item: GameReport.text(for: game)) {
                 HStack(spacing: 8) {
@@ -125,78 +186,10 @@ struct EndGameView: View {
                 )
             }
             .accessibilityLabel("Share game report")
-            Button { coordinator.goHome() } label: { Text("BACK TO HOME") }
-                .appLinkStyle()
         }
         .padding(.horizontal, 16).padding(.bottom, 14).padding(.top, 10)
         .background(theme.subBg)
         .overlay(alignment: .top) { Rectangle().fill(theme.border).frame(height: 1) }
-    }
-}
-
-struct GameHistoryView: View {
-    let game: Game
-    @Environment(\.theme) private var theme
-    @Environment(AppCoordinator.self) private var coordinator
-    @Environment(\.modelContext) private var context
-    @State private var confirmDelete = false
-
-    var body: some View {
-        ZStack {
-            theme.bg.ignoresSafeArea()
-            VStack(spacing: 0) {
-                AppHeaderBar(
-                    style: .push,
-                    title: game.displayName,
-                    onLeading: { coordinator.goHome() }
-                ) {
-                    ShareLink(item: GameReport.text(for: game)) {
-                        Image(systemName: "square.and.arrow.up")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(theme.muted)
-                            .frame(width: 44, height: 44)
-                            .contentShape(Rectangle())
-                    }
-                    .accessibilityLabel("Share game report")
-                    Button {
-                        confirmDelete = true
-                    } label: {
-                        Image(systemName: "trash")
-                            .font(.system(size: 18, weight: .semibold))
-                            .foregroundStyle(theme.muted)
-                            .frame(width: 44, height: 44)
-                            .contentShape(Rectangle())
-                    }
-                    .accessibilityLabel("Delete game")
-                }
-                ScrollView {
-                    VStack(spacing: 12) {
-                        EndGameView.WinnerHero(game: game)
-                        ScoreCardTable(game: game) { _, _ in }
-                            .padding(.horizontal, 8)
-                    }
-                    .padding(.vertical, 12)
-                }
-                footer
-            }
-        }
-        .alert("Delete this game?", isPresented: $confirmDelete) {
-            Button("Delete", role: .destructive) {
-                try? GamePersistence.delete(game: game, in: context, photoStore: coordinator.photoStore)
-                coordinator.goHome()
-            }
-            Button("Cancel", role: .cancel) {}
-        } message: {
-            Text("All scores and photos for this game will be removed.")
-        }
-    }
-
-    private var footer: some View {
-        Button { coordinator.goHome() } label: { Text("DONE") }
-            .appPrimaryStyle()
-            .padding(.horizontal, 16).padding(.bottom, 14).padding(.top, 10)
-            .background(theme.subBg)
-            .overlay(alignment: .top) { Rectangle().fill(theme.border).frame(height: 1) }
     }
 }
 

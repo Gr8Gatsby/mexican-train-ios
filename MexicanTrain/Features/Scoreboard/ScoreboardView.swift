@@ -199,10 +199,8 @@ struct ScoreboardView: View {
         AppHeaderBar(
             style: .push,
             title: game.displayName,
-            subtitle: "STOP \(min(game.currentStopIndex, game.lengthStops)) / \(game.lengthStops)",
             onLeading: { coordinator.goHome() }
         ) {
-            broadcastPill
             Menu {
                 Button("Share with table") {
                     coordinator.openShareSheet(for: game)
@@ -226,43 +224,6 @@ struct ScoreboardView: View {
             }
             .accessibilityLabel("Game menu")
         }
-    }
-
-    /// Broadcast indicator that doubles as the "open share sheet" tap target.
-    /// Now a real 44pt pill so it's not accidentally missed in the header.
-    private var broadcastPill: some View {
-        let session = coordinator.netSession
-        let isHosting = session.role == .host
-        let peers = session.connectedPeerCount
-        return Button {
-            coordinator.openShareSheet(for: game)
-        } label: {
-            HStack(spacing: 6) {
-                if peers > 0 {
-                    Image(systemName: "person.fill")
-                        .font(.system(size: 13, weight: .semibold))
-                        .accessibilityHidden(true)
-                    Text("\(peers)")
-                        .font(theme.monoFont(size: 13))
-                        .fontWeight(.bold)
-                } else {
-                    Image(systemName: "dot.radiowaves.left.and.right")
-                        .font(.system(size: 13, weight: .semibold))
-                        .accessibilityHidden(true)
-                    Text(isHosting ? session.roomCode : "SHARE")
-                        .font(theme.monoFont(size: 13))
-                        .fontWeight(.bold)
-                        .tracking(0.6)
-                }
-            }
-            .lineLimit(1)
-            .fixedSize(horizontal: true, vertical: false)
-            .foregroundStyle(peers > 0 ? theme.ctaText : theme.ink)
-        }
-        .appPillStyle(prominent: peers > 0)
-        .accessibilityLabel(isHosting
-                            ? "Room code \(session.roomCode). \(peers) joined."
-                            : "Share game")
     }
 
     private var engineStrip: some View {
@@ -426,10 +387,57 @@ struct ScoreboardView: View {
                     .tracking(1.4)
                     .foregroundStyle(theme.muted)
             }
+            broadcastStrip
         }
         .padding(.horizontal, 14).padding(.bottom, 14).padding(.top, 8)
         .background(theme.subBg)
         .overlay(alignment: .top) { Rectangle().fill(theme.border).frame(height: 1) }
+    }
+
+    /// Bottom-of-screen broadcast status. Replaces the old header-side pill
+    /// so the game title can sit centered. Tappable target for the share
+    /// sheet; visual treatment intensifies once a peer is actually connected.
+    private var broadcastStrip: some View {
+        let session = coordinator.netSession
+        let isHosting = session.role == .host
+        let peers = session.connectedPeerCount
+        let active = peers > 0
+        return Button {
+            coordinator.openShareSheet(for: game)
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: active ? "person.fill" : "dot.radiowaves.left.and.right")
+                    .font(.system(size: 11, weight: .semibold))
+                    .accessibilityHidden(true)
+                if active {
+                    Text("\(peers) joined")
+                        .font(theme.monoFont(size: 11))
+                        .fontWeight(.semibold)
+                        .tracking(1.2)
+                } else {
+                    Text(isHosting ? "Code \(session.roomCode)" : "Share game")
+                        .font(theme.monoFont(size: 11))
+                        .fontWeight(.semibold)
+                        .tracking(1.2)
+                }
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 9, weight: .semibold))
+                    .opacity(0.6)
+                    .accessibilityHidden(true)
+            }
+            .foregroundStyle(active ? theme.accent : theme.muted)
+            .padding(.horizontal, 10).padding(.vertical, 6)
+            .background(
+                Capsule().fill(active ? theme.accent.opacity(0.12) : Color.clear)
+            )
+            .overlay(
+                Capsule().stroke(active ? theme.accent.opacity(0.35) : theme.borderLight,
+                                 lineWidth: 1)
+            )
+        }
+        .accessibilityLabel(isHosting
+                            ? "Room code \(session.roomCode). \(peers) joined. Tap to share."
+                            : "Share game")
     }
 
     private func scheduleToastClear() {

@@ -396,7 +396,7 @@ struct AuditView: View {
             } label: { Text("DISCARD") }
                 .appSecondaryStyle()
             Button(action: save) {
-                Text(existing == nil ? "SAVE SCORE" : "SAVE CORRECTION")
+                Text(existing == nil ? "SAVE SCORE" : "UPDATE")
             }
             .appPrimaryStyle()
         }

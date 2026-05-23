@@ -1,5 +1,7 @@
 import SwiftUI
 import SwiftData
+import PhotosUI
+import UIKit
 
 struct SettingsView: View {
     @Environment(\.theme) private var theme
@@ -9,6 +11,7 @@ struct SettingsView: View {
     @State private var exportError: String?
     @State private var exportZipURL: URL?
     @State private var exporting: Bool = false
+    @State private var photoPickerItem: PhotosPickerItem?
 
     var body: some View {
         @Bindable var bind = settings
@@ -40,15 +43,8 @@ struct SettingsView: View {
                                 }
                             }
                         }
-                        section("DEFAULT \"YOU\" NAME") {
-                            TextField("Your name", text: $bind.defaultYouName)
-                                .textInputAutocapitalization(.words)
-                                .padding(12)
-                                .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 10))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .stroke(theme.borderLight, lineWidth: 1)
-                                )
+                        section("YOUR IDENTITY") {
+                            identityBlock(bind: bind)
                         }
                         trainingExportSection(bind: bind)
                         about
@@ -56,6 +52,94 @@ struct SettingsView: View {
                     .padding(16)
                 }
             }
+        }
+    }
+
+    @ViewBuilder
+    private func identityBlock(bind: AppSettings) -> some View {
+        @Bindable var bind = bind
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 12) {
+                avatarView
+                    .frame(width: 64, height: 64)
+                VStack(alignment: .leading, spacing: 6) {
+                    PhotosPicker(
+                        selection: $photoPickerItem,
+                        matching: .images,
+                        photoLibrary: .shared()
+                    ) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "photo")
+                                .font(.system(size: 13, weight: .semibold))
+                            Text(settings.defaultYouPhotoJPEG == nil ? "PICK PHOTO" : "CHANGE PHOTO")
+                        }
+                        .font(theme.monoFont(size: 12))
+                        .fontWeight(.semibold)
+                        .tracking(1.4)
+                        .foregroundStyle(theme.ink)
+                        .padding(.horizontal, 14)
+                        .frame(minHeight: 44)
+                        .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 10))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 10)
+                                .stroke(theme.border, lineWidth: 1)
+                        )
+                    }
+                    .accessibilityLabel(settings.defaultYouPhotoJPEG == nil ? "Pick photo" : "Change photo")
+                    if settings.defaultYouPhotoJPEG != nil {
+                        Button {
+                            bind.defaultYouPhotoJPEG = nil
+                            photoPickerItem = nil
+                        } label: { Text("REMOVE PHOTO") }
+                            .appLinkStyle()
+                    }
+                }
+                Spacer()
+            }
+
+            TextField("Your name", text: $bind.defaultYouName)
+                .textInputAutocapitalization(.words)
+                .padding(12)
+                .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(theme.borderLight, lineWidth: 1)
+                )
+
+            Text("Used as the default for new games and when joining games from this device.")
+                .font(theme.monoFont(size: 10))
+                .foregroundStyle(theme.muted)
+        }
+        .onChange(of: photoPickerItem) { _, newItem in
+            Task { await loadPickedPhoto(newItem, into: bind) }
+        }
+    }
+
+    @ViewBuilder
+    private var avatarView: some View {
+        ZStack {
+            Circle()
+                .fill(theme.cardBg)
+                .overlay(Circle().stroke(theme.border, lineWidth: 1))
+            if let data = settings.defaultYouPhotoJPEG, let img = UIImage(data: data) {
+                Image(uiImage: img)
+                    .resizable()
+                    .scaledToFill()
+                    .clipShape(Circle())
+            } else {
+                Image(systemName: "person.fill")
+                    .font(.system(size: 22))
+                    .foregroundStyle(theme.muted)
+            }
+        }
+    }
+
+    private func loadPickedPhoto(_ item: PhotosPickerItem?, into bind: AppSettings) async {
+        guard let item else { return }
+        guard let raw = try? await item.loadTransferable(type: Data.self) else { return }
+        let compressed = DeviceIdentity.compressPhoto(raw)
+        await MainActor.run {
+            bind.defaultYouPhotoJPEG = compressed
         }
     }
 
