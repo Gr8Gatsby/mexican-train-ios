@@ -53,6 +53,7 @@ final class MexTrainNetSession: NSObject {
     private var advertiser: MCNearbyServiceAdvertiser?
     private var browser: MCNearbyServiceBrowser?
     private var lastSentSeq: Int = 0
+    private let tcpBridge = TCPBridge()
 
     override init() {
         let trimmed = String(UIDevice.current.name.prefix(63))
@@ -83,6 +84,23 @@ final class MexTrainNetSession: NSObject {
         advertiser.startAdvertisingPeer()
         self.advertiser = advertiser
 
+        // Start TCP bridge for Android clients.
+        try? tcpBridge.start(roomCode: initialSnapshot.roomCode)
+        tcpBridge.onClaimReceived = { [weak self] claim in
+            Task { @MainActor in
+                guard let self, self.role == .host else { return }
+                self.playerClaims[claim.playerID] = claim
+                self.onClaimReceived?(claim)
+                if let s = self.latestSnapshot { self.broadcast(snapshot: s) }
+            }
+        }
+        tcpBridge.onScoreSubmissionReceived = { [weak self] submission in
+            Task { @MainActor in
+                guard let self, self.role == .host else { return }
+                self.onScoreSubmissionReceived?(submission)
+            }
+        }
+
         broadcast(snapshot: initialSnapshot)
     }
 
@@ -91,6 +109,7 @@ final class MexTrainNetSession: NSObject {
         advertiser = nil
         session?.disconnect()
         session = nil
+        tcpBridge.stop()
         role = .idle
         roomCode = ""
         playerClaims.removeAll()
@@ -105,13 +124,19 @@ final class MexTrainNetSession: NSObject {
         copy.seq = lastSentSeq
         copy.claims = Array(playerClaims.values)
         latestSnapshot = copy
-        guard !session.connectedPeers.isEmpty else { return }
-        do {
-            let data = try JSONEncoder().encode(MultipeerMessage.snapshot(copy))
-            try session.send(data, toPeers: session.connectedPeers, with: .reliable)
-        } catch {
-            // Log-only — broadcast errors aren't user-visible in v1.
+
+        // Send to MPC peers.
+        if !session.connectedPeers.isEmpty {
+            do {
+                let data = try JSONEncoder().encode(MultipeerMessage.snapshot(copy))
+                try session.send(data, toPeers: session.connectedPeers, with: .reliable)
+            } catch {
+                // Log-only — broadcast errors aren't user-visible in v1.
+            }
         }
+
+        // Send to TCP (Android) clients.
+        tcpBridge.broadcast(copy)
     }
 
     func revokeClaim(playerID: UUID) {
@@ -182,7 +207,7 @@ final class MexTrainNetSession: NSObject {
 extension MexTrainNetSession: @preconcurrency MCSessionDelegate {
     func session(_ session: MCSession, peer peerID: MCPeerID, didChange state: MCSessionState) {
         Task { @MainActor in
-            self.connectedPeerCount = session.connectedPeers.count
+            self.connectedPeerCount = session.connectedPeers.count + self.tcpBridge.connectedClientCount
             switch state {
             case .connected:
                 if role == .joiner { joinState = .connected }
