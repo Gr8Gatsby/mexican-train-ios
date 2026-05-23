@@ -4,8 +4,10 @@ import SwiftData
 struct HomeView: View {
     @Environment(\.theme) private var theme
     @Environment(AppCoordinator.self) private var coordinator
+    @Environment(\.modelContext) private var modelContext
     @Query(sort: \Game.createdAt, order: .reverse) private var games: [Game]
     @Query(sort: \JoinedGameRecord.lastUpdatedAt, order: .reverse) private var joinedGames: [JoinedGameRecord]
+    @State private var pendingDelete: Game?
 
     private var inProgress: Game? { games.first(where: { !$0.isFinished }) }
     private var finished: [Game] { games.filter { $0.isFinished } }
@@ -18,6 +20,22 @@ struct HomeView: View {
                 content
                 cta
             }
+        }
+        .alert(
+            "Delete this game?",
+            isPresented: Binding(
+                get: { pendingDelete != nil },
+                set: { if !$0 { pendingDelete = nil } }
+            ),
+            presenting: pendingDelete
+        ) { game in
+            Button("Delete", role: .destructive) {
+                try? GamePersistence.delete(game: game, in: modelContext, photoStore: coordinator.photoStore)
+                pendingDelete = nil
+            }
+            Button("Cancel", role: .cancel) { pendingDelete = nil }
+        } message: { _ in
+            Text("All scores and photos for this game will be removed.")
         }
     }
 
@@ -61,8 +79,13 @@ struct HomeView: View {
                     if !finished.isEmpty {
                         sectionLabel("HISTORY")
                         ForEach(finished) { g in
-                            HistoryRow(game: g) {
-                                coordinator.openGameHistory(g)
+                            SwipeToDelete(
+                                onDelete: { pendingDelete = g },
+                                accessibilityLabel: "Delete \(g.displayName)"
+                            ) {
+                                HistoryRow(game: g) {
+                                    coordinator.openGameHistory(g)
+                                }
                             }
                         }
                     }

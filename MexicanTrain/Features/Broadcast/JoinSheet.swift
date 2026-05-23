@@ -5,6 +5,7 @@ import UIKit
 struct JoinSheet: View {
     @Environment(\.theme) private var theme
     @Environment(AppCoordinator.self) private var coordinator
+    @Environment(AppSettings.self) private var settings
     @Environment(\.dismiss) private var dismiss
 
     var initialCode: String?
@@ -19,6 +20,10 @@ struct JoinSheet: View {
     /// User-picked photo (compressed, ≤ 32 KB). When set, takes precedence
     /// over the silent Contacts Me-card photo for the outgoing claim.
     @State private var pickedPhotoData: Data?
+    /// Which train-color swatch is currently selected, if any. Setting
+    /// this also writes a rendered JPEG into `pickedPhotoData`. Cleared
+    /// whenever the user picks a real photo from their library.
+    @State private var trainIndex: Int?
     enum RoleChoice: String, CaseIterable, Identifiable {
         case player, spectator
         var id: String { rawValue }
@@ -234,6 +239,7 @@ struct JoinSheet: View {
                         Button {
                             pickedPhotoData = nil
                             pickerItem = nil
+                            trainIndex = nil
                             if let p = prefill {
                                 prefill = ContactPrefill(displayName: p.displayName, imageData: nil)
                             }
@@ -254,9 +260,16 @@ struct JoinSheet: View {
                         .stroke(theme.borderLight, lineWidth: 1)
                 )
 
-            Text("Name is prefilled from this device — edit before joining if you like. Photo is optional; tap PICK PHOTO to choose one (iCloud Photo Library is surfaced automatically).")
+            Text("Name is prefilled from this device — edit before joining if you like. Photo is optional; tap PICK PHOTO to choose one (iCloud Photo Library is surfaced automatically), or pick a train below.")
                 .font(theme.monoFont(size: 12))
                 .foregroundStyle(theme.muted)
+
+            TrainColorPicker(selection: trainIndex) { idx, data in
+                trainIndex = idx
+                pickedPhotoData = data
+                pickerItem = nil
+            }
+            .padding(.top, 2)
         }
         .onChange(of: pickerItem) { _, newItem in
             Task { await loadPickedPhoto(newItem) }
@@ -303,6 +316,7 @@ struct JoinSheet: View {
         let compressed = DeviceIdentity.compressPhoto(raw)
         await MainActor.run {
             pickedPhotoData = compressed
+            trainIndex = nil  // real photo wins over the train fallback
         }
     }
 
@@ -398,7 +412,20 @@ struct JoinSheet: View {
     private func loadPrefill() async {
         let p = await DeviceIdentity.loadCurrentIdentity()
         prefill = p
-        if editedName.isEmpty, let n = p.displayName { editedName = n }
+        // Settings-saved name wins over the device-derived name when
+        // present — it's the user's explicit identity choice.
+        if editedName.isEmpty {
+            if !settings.defaultYouName.isEmpty {
+                editedName = settings.defaultYouName
+            } else if let n = p.displayName {
+                editedName = n
+            }
+        }
+        // And the settings-saved photo wins over no-photo. The user can
+        // still tap CHANGE PHOTO to override, or REMOVE to clear.
+        if pickedPhotoData == nil, let saved = settings.defaultYouPhotoJPEG {
+            pickedPhotoData = saved
+        }
     }
 
     private func confirm() {

@@ -51,8 +51,10 @@ Additional house-rule toggles may be added in later versions (e.g. satisfying th
 - On launch, the user lands on a home screen.
 - The home screen shows:
   - A primary "New game" CTA.
-  - A list of past games (most recent first), each with: date, player count, winner, final total spread. Tapping opens the game in read-only view.
+  - A list of past games (most recent first), each with: date, player count, winner, final total spread. Tapping opens the game in read-only view. **Swiping a past-game row left reveals a destructive Delete handle**; tapping it presents a confirmation alert that, on accept, removes the game and its photos from the device.
   - An in-progress game pinned at the top (at most one in-progress game can exist; resuming it is the primary path back into play).
+
+Deletion of finished games is reachable only from this list — the read-only detail view does not surface a destructive action.
 
 ### 3.2 New-game setup (lobby)
 The new-game screen is a live lobby. As soon as the conductor (the person who taps "New game") enters this screen:
@@ -66,12 +68,13 @@ The new-game screen is a live lobby. As soon as the conductor (the person who ta
 
 ### 3.3 Scoreboard (primary screen during a game)
 The scoreboard is the home of the in-progress game. It must show, at a glance:
-- Game title strip with current stop indicator (e.g. "STOP 4/13") and a menu affordance for game actions (rename, end early, delete).
+- A centered game-title strip with a back affordance and a menu affordance for game actions (rename, share with table, end early, delete). The current stop indicator (e.g. "STOP 4/13") is conveyed by the table itself and the primary CTA, not duplicated in the header.
 - Engine indicator: a small domino glyph showing the double-tile for the current stop, plus "N aboard" (player count).
 - **Your-stats strip** (only when a "you" player is set): the user's current place (1st, 2nd, …), their total, and either "leading the train" or "X pts behind {leader name}".
 - **Golf-card table**: rows = players, columns = stops. Each cell shows that player's score for that stop, or a placeholder dot if unset. A total column on the right. The current stop column is visually highlighted. The "you" row is visually highlighted. The leader is marked with a crown.
 - **Photo gallery** (when applicable): below the table, a row/grid of thumbnail captures from the previous stop, one per player. Each thumbnail shows the player's name and points. If no previous stop has photos, this area is hidden.
 - **Primary CTA at the bottom**: "Add Score" — large, oxblood/ink button, labelled with the current stop.
+- **Broadcast status strip**: a slim, tappable indicator beneath the primary CTA that surfaces the room code and joined-peer count (or "Share game" when nothing is connected yet). Tapping opens the share sheet (QR + room code). This replaces a header-side affordance so the title can stay centered.
 
 Interactions (conductor on the host device):
 - Tap "Add Score" → camera screen for the next player who has not yet been entered for the current stop. If all players are entered for the current stop, the CTA changes to "Advance to stop N+1" (or "Finish game" on the final stop).
@@ -112,7 +115,7 @@ Opened by the conductor by tapping any score cell (populated → edit mode; unse
 - **Scanned tiles section** (if the original entry was from a photo): the tiles the model identified, with a "Re-scan" button that returns to the camera screen for this (player, stop). For manual entries, this section shows "Entered manually" and a "Scan now" affordance.
 - **Reference photo** (if any): the captured photo, with timestamp.
 - **Audit history**: an ordered list of the original submission and every subsequent change, each line showing what changed (pip value or exclude state), who made the change (player or conductor), and when. The original submitted value is never overwritten and is always shown first.
-- Footer: "Discard" (cancel changes, return) and "Save correction" (persist the edited value).
+- Footer: "Discard" (cancel changes, return) and a primary commit button. The commit button is labelled **"Save score"** when creating a previously-unset score, and **"Update"** when modifying an existing one.
 
 The audit screen is the conductor's general-purpose adjustment tool. Audits change the score that counts toward the game total but never modify the originally submitted value; the audit history preserves the full chain. This rule is what makes the end-of-game report (§3.8) honest.
 
@@ -129,7 +132,9 @@ Flow:
 
 ### 3.7 End of game
 - When the final stop's last score is entered, the app advances to an end-game screen.
-- End-game screen shows: final standings (ascending by total), winner badge, per-player totals, a **Share report** action (see §3.8), a "New game" CTA, and a button to view the completed game in the history list.
+- End-game screen shows: a celebratory **winner card** with a prominent trophy icon, the winner's name, and their final total; final standings (ascending by total); per-player totals; a "New game" CTA; and a button to view the completed game in the history list.
+- A short **confetti animation** plays once on arrival to mark the moment. The animation is decorative only; it does not block interaction.
+- The primary **Share action** shares a rendered image of the winner card (PNG) via the iOS share sheet — visual, suitable for text/chat. The plain-text game report (§3.8) remains reachable from the game's row in the home history list.
 
 ### 3.8 Game report
 A report of a completed game can be shared as plain text via the iOS share sheet. The report must include:
@@ -139,8 +144,9 @@ A report of a completed game can be shared as plain text via the iOS share sheet
 - An indication of who submitted each score (player vs conductor override) where that distinction is meaningful.
 
 The share action is reachable from:
-- The end-of-game screen (§3.7), as a "Share report" button.
-- Any finished game's row or detail view in the home screen's history list (§3.1).
+- Any finished game's row in the home screen's history list (§3.1) and from the read-only game detail view as a "Share report" button.
+
+The end-of-game screen's primary share is an **image** of the winner card rather than this text report; see §3.7.
 
 The intent is that the report is faithful to what actually happened — including all corrections — so it can be sent to players after the game without anyone wondering how a score got from one value to another.
 
@@ -177,7 +183,10 @@ The intent is that the report is faithful to what actually happened — includin
 
 A minimal settings screen, reachable from the home screen menu:
 - Default game length (7 / 10 / 13).
-- Default "you" name (pre-fills the player list when starting a new game).
+- **Your identity**: a default name and, optionally, a default profile photo picked from the user's photo library. Both persist across launches and serve as the canonical "this is me" identity for this device.
+  - When starting a new game, the conductor's player slot is pre-populated with this name and photo.
+  - When joining another phone's game, the join sheet pre-populates the joiner's name and photo from the same values (still editable before tapping Join).
+  - Either field can be cleared independently. When no photo is set, slots fall back to initials (or the train avatar, see §7.3).
 - About / version.
 
 House-rule defaults (e.g. starting engine) are not duplicated in settings; new-game setup remembers the last-used choice instead.
@@ -206,12 +215,19 @@ Multiple joiners can connect to a single host concurrently, in any combination o
 - Discovery is local-only (same Wi-Fi network or short-range wireless). The app makes no internet calls for any part of join or broadcast.
 
 ### 7.3 Identity prefill for player joiners
-When joining as a player, the join sheet pre-populates the slot's display name from the joiner's device-owner information — on iOS, `UIDevice.current.name` with the trailing "'s iPhone" / "'s iPad" suffix stripped. (iOS does not expose a macOS-style "Me card" API; the device name is the closest stable signal available without prompting.)
+When joining as a player, the join sheet pre-populates the slot's display name and photo from this device's saved identity:
 
-- The prefilled name is always editable before joining; the joiner is never forced to send what we prefilled.
-- A photo is optional: v1 ships without an automatic photo source. The wire format and host-side persistence reserve a `photoJPEG` field so a future Photo Picker / contact-pick flow can attach an image without protocol changes (resized to ~256² and ≤ 32 KB).
-- When the joiner taps "Join," the chosen name (and any photo) becomes the visible identity for that slot across the host and every other joiner.
-- A joined player's name overrides any host-set name for that slot. If the joiner provides no photo, the slot continues to show only initials.
+1. **Settings-saved identity (§6)** wins when set: the user's chosen name and photo from settings.
+2. **Device-derived fallback**: if no name is saved in settings, the prefill comes from `UIDevice.current.name` with the trailing "'s iPhone" / "'s iPad" suffix stripped. (iOS does not expose a macOS-style "Me card" API; the device name is the closest stable signal available without prompting.)
+
+Both the name and the photo are always editable before tapping Join. The joiner is never forced to send what was prefilled.
+
+For the photo, the joiner has three options:
+- Use whatever photo is prefilled from settings.
+- Pick a new photo from the iOS photo library via the standard Photos picker (no permission prompt; runs out of process).
+- **Pick a colored train**: a 10-color palette of `tram.fill` glyphs presented as a grid on the join sheet. Picking one renders the colored train as the avatar JPEG and sends it through the same `photoJPEG` field used for real photos — no protocol change. This is the fallback for joiners who don't want to share a real photo but still want their slot to be visually distinct.
+
+When the joiner taps "Join," the chosen name and photo (real or train) becomes the visible identity for that slot across the host and every other joiner. A joined player's name overrides any host-set name for that slot. If the joiner provides no photo and no train, the slot shows initials only. The photo wire format remains a single JPEG, resized to ~256² and ≤ 32 KB.
 
 ### 7.4 Live state sync between host and joiners
 
@@ -266,3 +282,4 @@ Joiners do not submit on behalf of other players, do not audit, and do not exclu
 - 2026-05-21 — v0.4 — Tightened §7.3 to reflect the iOS reality: identity prefill comes from `UIDevice.current.name` (with the device-suffix stripped) rather than a Contacts "Me card," which iOS doesn't expose. The wire format still carries an optional photo for a future Photo Picker flow.
 - 2026-05-21 — v0.5 — Reframed §3.2 New-game setup as a live lobby: the conductor is auto-added with their device-derived identity, broadcast (QR + room code) starts immediately so other phones can join as players from the new-game screen, and a "Add player manually" path remains for phone-less players. Replaces the previous "type every name" flow.
 - 2026-05-22 — v0.6 — Shifted scoring authority: player joiners now submit their own scores from their own phones (§1, §7.1, §7.4); the conductor can submit on behalf of any player as a deliberate override (new §3.6) via a "+" affordance on unset current-stop cells (§3.3) plus a mandatory confirmation. Player submissions take priority over conductor overrides for the same slot/stop; conflicts are preserved in the audit history. Documented exclude semantics and the audit history list on the audit screen (§3.5). Audits never overwrite originally submitted values — they update the score that counts toward the total while preserving the original. Added a plain-text shareable end-of-game report (new §3.8), reachable from the end-of-game screen (§3.7) and from finished-game entries in the history list (§3.1). Updated §8 non-goals accordingly.
+- 2026-05-23 — v0.7 — UX-review sweep across the v2 deck. §3.1: deletion of past games moves to swipe-to-delete on the home list (no longer offered from the read-only detail view). §3.3: scoreboard title is centered; the broadcast/share affordance moves out of the header into a tappable bottom strip beneath the primary CTA; the per-stop subtitle is removed (the table and CTA already convey it). §3.5: existing-score commit button is labelled "Update" (was "Save correction"). §3.7: end-of-game screen gains a larger trophy treatment, a one-shot confetti flourish, and an **image** share of the winner card; §3.8 plain-text report stays reachable from the history list. §6: settings now own a persistent "your identity" with name + optional library photo; both prefill new-game conductor and join-sheet joiner identity. §7.3: joiners get a 10-color `tram.fill` train-avatar fallback for when they'd rather not share a real photo; settings-saved name/photo wins over the device-derived prefill.

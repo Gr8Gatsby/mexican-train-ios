@@ -10,6 +10,12 @@ final class AppSettings {
     var defaultYouName: String {
         didSet { UserDefaults.standard.set(defaultYouName, forKey: Keys.you) }
     }
+    /// User's saved profile photo, compressed JPEG (≤ ~32 KB). Stored as
+    /// raw Data in UserDefaults so the lifecycle is trivially atomic and
+    /// piggybacks on the existing settings sync. nil ⇒ no photo set.
+    var defaultYouPhotoJPEG: Data? {
+        didSet { UserDefaults.standard.set(defaultYouPhotoJPEG, forKey: Keys.youPhoto) }
+    }
     var lastStartingEngine: StartingEngine {
         didSet { UserDefaults.standard.set(lastStartingEngine.rawValue, forKey: Keys.engine) }
     }
@@ -34,6 +40,7 @@ final class AppSettings {
         let storedLen = d.object(forKey: Keys.length) as? Int
         self.defaultLengthStops = storedLen ?? 13
         self.defaultYouName = d.string(forKey: Keys.you) ?? ""
+        self.defaultYouPhotoJPEG = d.data(forKey: Keys.youPhoto)
         let raw = d.string(forKey: Keys.engine) ?? StartingEngine.traditional.rawValue
         self.lastStartingEngine = StartingEngine(rawValue: raw) ?? .traditional
         self.trainingDataExportEnabled = d.bool(forKey: Keys.trainingExport)
@@ -43,6 +50,7 @@ final class AppSettings {
     private enum Keys {
         static let length = "settings.defaultLengthStops"
         static let you = "settings.defaultYouName"
+        static let youPhoto = "settings.defaultYouPhotoJPEG"
         static let engine = "settings.lastStartingEngine"
         static let trainingExport = "settings.trainingDataExportEnabled"
         static let usedOverride = "settings.hasUsedConductorOverride"
