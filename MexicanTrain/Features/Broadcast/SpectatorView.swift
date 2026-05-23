@@ -110,7 +110,10 @@ struct SpectatorView: View {
     }
 
     private var header: some View {
-        HStack {
+        let session = coordinator.netSession
+        let snap = session.latestSnapshot
+        let me = snap?.players.first(where: { $0.id == session.myPlayerID })
+        return HStack {
             Button {
                 coordinator.netSession.leave()
                 coordinator.goHome()
@@ -122,10 +125,17 @@ struct SpectatorView: View {
                 .tracking(2)
                 .foregroundStyle(theme.brand)
             Spacer()
-            Text("SPECTATING · CODE \(coordinator.netSession.latestSnapshot?.roomCode ?? "----")")
-                .font(theme.monoFont(size: 9))
-                .tracking(1.4)
-                .foregroundStyle(theme.muted)
+            VStack(alignment: .trailing, spacing: 0) {
+                Text(me != nil ? "PLAYING AS \(me!.name.uppercased())" : "SPECTATING")
+                    .font(theme.monoFont(size: 9))
+                    .tracking(1.4)
+                    .foregroundStyle(me != nil ? theme.accent : theme.muted)
+                Text("CODE \(snap?.roomCode ?? "----")")
+                    .font(theme.monoFont(size: 9))
+                    .tracking(1.4)
+                    .foregroundStyle(theme.muted)
+            }
+            .lineLimit(1)
         }
         .padding(.horizontal, 8).padding(.vertical, 4)
         .background(theme.headerBg)

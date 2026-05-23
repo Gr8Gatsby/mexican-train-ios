@@ -104,10 +104,65 @@ struct ScoreboardView: View {
                     handleIncomingSubmission(submission)
                 }
             }
+            coordinator.netSession.onClaimReceived = { claim in
+                Task { @MainActor in
+                    handleIncomingClaim(claim)
+                }
+            }
         }
         .onDisappear {
             coordinator.netSession.onScoreSubmissionReceived = nil
+            coordinator.netSession.onClaimReceived = nil
         }
+    }
+
+    /// Handle a `PlayerClaim` from a joiner while the game is already in
+    /// progress. New UUIDs become new player slots — they're effectively
+    /// joining mid-game as a player. To keep totals and stop-completion
+    /// coherent for prior stops they weren't here for, we auto-fill those
+    /// stops with excluded 0-pip scores so the totals don't make them
+    /// appear to lead the game from a standing start.
+    private func handleIncomingClaim(_ claim: PlayerClaim) {
+        // Existing slot: update name + photo.
+        if let existing = game.players.first(where: { $0.id == claim.playerID }) {
+            existing.name = claim.displayName
+            if let photo = claim.photoJPEG, let img = UIImage(data: photo),
+               let filename = try? coordinator.photoStore.save(
+                image: img, gameID: game.id, captureID: existing.id) {
+                existing.avatarFilename = filename
+            }
+            try? context.save()
+            return
+        }
+        // New slot: add as a fresh player, capped at the 8-player limit.
+        guard game.players.count < 8 else { return }
+        let seat = (game.sortedPlayers.last?.seat ?? -1) + 1
+        let newPlayer = Player(id: claim.playerID, name: claim.displayName, seat: seat)
+        newPlayer.game = game
+        context.insert(newPlayer)
+        if let photo = claim.photoJPEG, let img = UIImage(data: photo),
+           let filename = try? coordinator.photoStore.save(
+            image: img, gameID: game.id, captureID: newPlayer.id) {
+            newPlayer.avatarFilename = filename
+        }
+        // Prior stops: excluded 0s so isStopComplete stays true (we already
+        // advanced past them) and the late joiner doesn't appear to lead
+        // with a 0 total. They start scoring from the current stop forward.
+        let firstActiveStop = max(1, game.currentStopIndex)
+        if firstActiveStop > 1 {
+            for s in 1..<firstActiveStop {
+                let score = Score(playerID: newPlayer.id, stopIndex: s, pips: 0,
+                                  source: .manual, submittedBy: .conductor)
+                score.excluded = true
+                score.game = game
+                context.insert(score)
+            }
+        }
+        try? context.save()
+        withAnimation(.easeOut(duration: 0.25)) {
+            toast = "\(newPlayer.name) joined as a player"
+        }
+        scheduleToastClear()
     }
 
     private func handleIncomingSubmission(_ submission: ScoreSubmission) {
