@@ -19,6 +19,7 @@ struct EndGameView: View {
                         standingsList(standings)
                     }
                     .padding(16)
+                    .padding(.bottom, 24)
                     .frame(maxWidth: .infinity, alignment: .top)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -36,16 +37,32 @@ struct EndGameView: View {
             }
             .accessibilityLabel("Back")
             Spacer()
-            Text("FINAL STOP")
-                .font(theme.monoFont(size: 11))
-                .tracking(2)
-                .foregroundStyle(theme.muted)
+            VStack(spacing: 0) {
+                Text(game.displayName)
+                    .font(theme.displayFont(size: 14))
+                    .foregroundStyle(theme.brand)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                Text("FINAL · \(endDateText)")
+                    .font(theme.monoFont(size: 9))
+                    .tracking(1.6)
+                    .foregroundStyle(theme.muted)
+            }
             Spacer()
-            Color.clear.frame(width: 40)
+            // Mirrors the back-button width so the title stays centered.
+            Color.clear.frame(width: 40, height: 1)
         }
         .padding(.horizontal, 8).padding(.vertical, 4)
         .background(theme.headerBg)
         .overlay(alignment: .bottom) { Rectangle().fill(theme.border).frame(height: 1) }
+    }
+
+    private var endDateText: String {
+        let date = game.finishedAt ?? .now
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        f.timeStyle = .none
+        return f.string(from: date)
     }
 
     private func winnerCard(_ s: Standing) -> some View {

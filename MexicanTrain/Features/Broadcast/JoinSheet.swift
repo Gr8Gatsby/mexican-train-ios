@@ -31,11 +31,15 @@ struct JoinSheet: View {
                 header
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
+                        // Identity always visible — joiner can fill name +
+                        // photo while picking a host. Previously this only
+                        // appeared after connection, which felt like a
+                        // surprise extra step.
+                        identityBlock
                         if coordinator.netSession.joinState != .connected {
                             codeEntry
                             hostList
                         } else {
-                            identityBlock
                             slotPicker
                         }
                     }
@@ -50,11 +54,9 @@ struct JoinSheet: View {
                 coordinator.netSession.startBrowsing()
             }
             if let initialCode { code = initialCode }
-        }
-        .onChange(of: coordinator.netSession.joinState) { _, newValue in
-            if newValue == .connected {
-                Task { await loadPrefill() }
-            }
+            // Kick off prefill immediately so the name field has a default
+            // by the time the user starts editing.
+            Task { await loadPrefill() }
         }
         .sheet(isPresented: $showScanner) {
             qrScannerSheet

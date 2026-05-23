@@ -201,44 +201,79 @@ private struct JoinedGameRow: View {
             Button(action: onOpen) {
                 HStack {
                     VStack(alignment: .leading, spacing: 3) {
-                        Text(record.gameName)
-                            .font(theme.displayFont(size: 16))
+                        Text(record.hostName)
+                            .font(theme.monoFont(size: 13))
+                            .fontWeight(.semibold)
                             .foregroundStyle(theme.ink)
+                            .lineLimit(1)
                         HStack(spacing: 4) {
-                            Text("Hosted by \(record.hostName)")
+                            if usesFallbackName {
+                                Text(timeText)
+                            } else {
+                                Text(record.gameName)
+                                Text("·")
+                                Text(dateText)
+                            }
                             Text("·")
                             Text(record.isFinished ? "final" : "in progress")
+                                .foregroundStyle(record.isFinished ? theme.muted : theme.accent)
                         }
                         .font(theme.monoFont(size: 10))
-                        .tracking(1)
+                        .tracking(0.8)
                         .foregroundStyle(theme.muted)
+                        .lineLimit(1)
                     }
                     Spacer()
                     Image(systemName: "chevron.right")
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(theme.muted)
                 }
-                .padding(12)
+                .padding(.horizontal, 12).padding(.vertical, 10)
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             if let snap = record.snapshot {
                 ShareLink(item: GameReport.text(snapshot: snap)) {
                     Image(systemName: "square.and.arrow.up")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(theme.brand)
-                        .frame(width: 44, height: 44)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(theme.muted)
+                        .frame(width: 40, height: 40)
                         .contentShape(Rectangle())
                 }
                 .accessibilityLabel("Share \(record.gameName) report")
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 10))
+        // Slightly lighter background so JOINED rows visually sit under
+        // the user's own IN PROGRESS / HISTORY entries.
+        .background(theme.subBg, in: RoundedRectangle(cornerRadius: 10))
         .overlay(
             RoundedRectangle(cornerRadius: 10)
                 .stroke(theme.borderLight, lineWidth: 1)
         )
+    }
+
+    /// `gameName` falls back to `Game.displayName` (a formatted date) when
+    /// the host never set a name. In that case we'd rather show the join
+    /// time as the distinguishing piece of metadata.
+    private var usesFallbackName: Bool {
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        return f.date(from: record.gameName) != nil
+    }
+
+    private var dateText: String {
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        f.timeStyle = .none
+        return f.string(from: record.lastUpdatedAt)
+    }
+
+    private var timeText: String {
+        let f = DateFormatter()
+        f.dateStyle = .medium
+        f.timeStyle = .short
+        return f.string(from: record.lastUpdatedAt)
     }
 }
 

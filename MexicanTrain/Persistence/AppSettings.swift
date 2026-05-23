@@ -21,6 +21,13 @@ final class AppSettings {
     var trainingDataExportEnabled: Bool {
         didSet { UserDefaults.standard.set(trainingDataExportEnabled, forKey: Keys.trainingExport) }
     }
+    /// Tracks whether the conductor has used the cell-level "+" override
+    /// at least once. While false, the scoreboard renders a one-time
+    /// pulse on those affordances to make their interactivity obvious;
+    /// flips true the moment they're tapped.
+    var hasUsedConductorOverride: Bool {
+        didSet { UserDefaults.standard.set(hasUsedConductorOverride, forKey: Keys.usedOverride) }
+    }
 
     init() {
         let d = UserDefaults.standard
@@ -30,6 +37,7 @@ final class AppSettings {
         let raw = d.string(forKey: Keys.engine) ?? StartingEngine.traditional.rawValue
         self.lastStartingEngine = StartingEngine(rawValue: raw) ?? .traditional
         self.trainingDataExportEnabled = d.bool(forKey: Keys.trainingExport)
+        self.hasUsedConductorOverride = d.bool(forKey: Keys.usedOverride)
     }
 
     private enum Keys {
@@ -37,5 +45,6 @@ final class AppSettings {
         static let you = "settings.defaultYouName"
         static let engine = "settings.lastStartingEngine"
         static let trainingExport = "settings.trainingDataExportEnabled"
+        static let usedOverride = "settings.hasUsedConductorOverride"
     }
 }

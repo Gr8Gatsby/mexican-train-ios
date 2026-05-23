@@ -63,20 +63,31 @@ private struct PhotoTile: View {
             coordinator.openAudit(game: game, player: player, stop: stop)
         } label: {
             ZStack(alignment: .bottomTrailing) {
-                if let capture, let img = coordinator.photoStore.thumbnail(filename: capture.filename, gameID: game.id) {
+                let hasImage = capture != nil && coordinator.photoStore.thumbnail(
+                    filename: capture!.filename, gameID: game.id
+                ) != nil
+                if let capture, let img = coordinator.photoStore.thumbnail(
+                    filename: capture.filename, gameID: game.id
+                ) {
                     Image(uiImage: img)
                         .resizable()
                         .scaledToFill()
                 } else {
-                    LinearGradient(colors: [Color(hex: 0x8B6F47), Color(hex: 0x4A3522)],
-                                   startPoint: .topLeading, endPoint: .bottomTrailing)
+                    // Subtle parchment placeholder — no harsh dark gradient
+                    // — so debug-seeded gallery tiles don't look broken.
+                    ZStack {
+                        theme.cardBg
+                        Image(systemName: "camera")
+                            .font(.system(size: 18))
+                            .foregroundStyle(theme.muted.opacity(0.45))
+                    }
                 }
                 VStack(alignment: .leading) {
                     HStack {
                         Text(String(player.name.prefix(4)).uppercased())
                             .font(theme.monoFont(size: 8))
-                            .foregroundStyle(.white.opacity(0.85))
-                            .shadow(color: .black.opacity(0.6), radius: 2)
+                            .foregroundStyle(hasImage ? .white.opacity(0.85) : theme.muted)
+                            .shadow(color: .black.opacity(hasImage ? 0.6 : 0), radius: 2)
                         Spacer()
                     }
                     Spacer()
@@ -84,20 +95,21 @@ private struct PhotoTile: View {
                 .padding(4)
                 if let score {
                     Text("\(score.pips)")
-                        .font(theme.monoFont(size: 9))
+                        .font(theme.monoFont(size: 10))
                         .fontWeight(.bold)
-                        .foregroundStyle(theme.accent)
-                        .padding(.horizontal, 5).padding(.vertical, 1)
-                        .background(.black.opacity(0.65), in: RoundedRectangle(cornerRadius: 4))
-                        .padding(4)
-                } else {
-                    Text("—")
-                        .font(theme.monoFont(size: 9))
-                        .foregroundStyle(.white.opacity(0.7))
-                        .padding(.horizontal, 5).padding(.vertical, 1)
-                        .background(.black.opacity(0.5), in: RoundedRectangle(cornerRadius: 4))
+                        .foregroundStyle(hasImage ? theme.accent : theme.ink)
+                        .padding(.horizontal, 6).padding(.vertical, 2)
+                        .background(hasImage ? Color.black.opacity(0.65) : theme.subBg,
+                                    in: RoundedRectangle(cornerRadius: 4))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4)
+                                .stroke(hasImage ? Color.clear : theme.border, lineWidth: 1)
+                        )
                         .padding(4)
                 }
+                // When there's no score AND no image, we render no badge —
+                // an empty card communicates "nothing yet" without
+                // resorting to a placeholder symbol.
             }
             .aspectRatio(1, contentMode: .fit)
             .clipShape(RoundedRectangle(cornerRadius: 8))

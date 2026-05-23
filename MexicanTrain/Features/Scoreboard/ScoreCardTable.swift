@@ -9,8 +9,13 @@ struct ScoreCardTable: View {
     /// override confirmation flow. Nil disables the affordance (used by the
     /// read-only `GameHistoryView`).
     var onTapAddOverride: ((Player, Int) -> Void)? = nil
+    /// When true, the "+" affordances pulse to call attention to themselves.
+    /// `ScoreboardView` flips this off the first time the conductor taps
+    /// one (tracked in `AppSettings.hasUsedConductorOverride`).
+    var pulseOverride: Bool = false
 
     @Environment(\.theme) private var theme
+    @State private var pulse: Bool = false
 
     var body: some View {
         let players = game.sortedPlayers
@@ -40,6 +45,12 @@ struct ScoreCardTable: View {
                 .stroke(theme.border, lineWidth: 1)
         )
         .clipShape(RoundedRectangle(cornerRadius: 8))
+        .onAppear {
+            guard pulseOverride else { return }
+            withAnimation(.easeInOut(duration: 0.7).repeatForever(autoreverses: true)) {
+                pulse = true
+            }
+        }
     }
 
     private func header(stops: Int, currentStop: Int) -> some View {
@@ -116,18 +127,22 @@ struct ScoreCardTable: View {
                     Group {
                         if let value = s {
                             Text("\(value)")
+                                .font(theme.monoFont(size: 11))
+                                .fontWeight(.semibold)
                                 .foregroundStyle(theme.ink)
                         } else if isAddOverride {
                             Text("+")
+                                .font(.system(size: 16, weight: .bold))
                                 .foregroundStyle(theme.accent)
-                                .fontWeight(.bold)
+                                .scaleEffect(pulseOverride && pulse ? 1.18 : 1.0)
+                                .opacity(pulseOverride && pulse ? 1.0 : 0.85)
                         } else {
                             Text("·")
+                                .font(theme.monoFont(size: 11))
+                                .fontWeight(.semibold)
                                 .foregroundStyle(theme.muted)
                         }
                     }
-                    .font(theme.monoFont(size: 11))
-                    .fontWeight(.semibold)
                     .frame(maxWidth: .infinity, minHeight: 28)
                     .background(isCurrent ? theme.currentColumn : Color.clear)
                 }

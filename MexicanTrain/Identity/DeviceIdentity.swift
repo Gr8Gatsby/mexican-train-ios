@@ -21,7 +21,8 @@ enum DeviceIdentity {
     static func loadCurrentIdentity() async -> ContactPrefill {
         let raw = UIDevice.current.name
         let cleaned = stripDeviceSuffix(raw)
-        return ContactPrefill(displayName: cleaned.isEmpty ? nil : cleaned, imageData: nil)
+        let usable = isGenericDeviceName(cleaned) ? "" : cleaned
+        return ContactPrefill(displayName: usable.isEmpty ? nil : usable, imageData: nil)
     }
 
     static func stripDeviceSuffix(_ name: String) -> String {
@@ -33,6 +34,17 @@ enum DeviceIdentity {
             }
         }
         return out.trimmingCharacters(in: .whitespaces)
+    }
+
+    /// Treat raw device-model strings like "iPhone", "iPhone 17",
+    /// "iPhone 17 Pro Max", "iPad Pro" as "no personal name set." These
+    /// are common when the user hasn't customized Settings → General →
+    /// About → Name; using them as a player identity reads as wrong.
+    static func isGenericDeviceName(_ name: String) -> Bool {
+        let lower = name.lowercased().trimmingCharacters(in: .whitespaces)
+        guard !lower.isEmpty else { return true }
+        let prefixes = ["iphone", "ipad", "ipod"]
+        return prefixes.contains { lower == $0 || lower.hasPrefix($0 + " ") }
     }
 
     /// Resize + JPEG-compress so a photo fits inside the multipeer reliable
