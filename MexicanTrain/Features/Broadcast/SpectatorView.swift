@@ -178,7 +178,7 @@ struct SpectatorView: View {
             VStack(spacing: 10) {
                 Text("Host left the game")
                     .font(theme.displayFont(size: 22))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(theme.ink)
                 Button {
                     coordinator.netSession.leave()
                     coordinator.goHome()

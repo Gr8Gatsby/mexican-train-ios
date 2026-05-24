@@ -437,7 +437,8 @@ struct NewGameView: View {
         try? context.save()
         settings.defaultLengthStops = length
         settings.lastStartingEngine = engine
-        if let conductor = g.players.first(where: { $0.isYou }) {
+        if let conductor = g.players.first(where: { $0.isYou }),
+           conductor.name != "Conductor" {
             settings.defaultYouName = conductor.name
         }
         coordinator.netSession.onClaimReceived = nil  // scoreboard owns broadcast from here
