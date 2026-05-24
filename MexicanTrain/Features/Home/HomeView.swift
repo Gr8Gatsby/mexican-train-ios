@@ -95,7 +95,11 @@ struct HomeView: View {
                         sectionLabel("JOINED")
                         ForEach(joinedGames) { record in
                             JoinedGameRow(record: record) {
-                                coordinator.openJoinedGameDetail(record.gameID)
+                                if !record.isFinished, let snap = record.snapshot, !snap.roomCode.isEmpty {
+                                    coordinator.openJoinSheet(code: snap.roomCode)
+                                } else {
+                                    coordinator.openJoinedGameDetail(record.gameID)
+                                }
                             }
                         }
                     }

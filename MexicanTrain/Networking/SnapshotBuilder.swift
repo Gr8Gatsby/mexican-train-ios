@@ -3,32 +3,18 @@ import UIKit
 
 enum SnapshotBuilder {
     @MainActor private static var thumbCache: [UUID: Data] = [:]
-    @MainActor private static var pendingIDs: Set<UUID> = []
 
     @MainActor
     static func build(game: Game, photoStore: PhotoStore, roomCode: String) -> GameSnapshot {
         var caps: [CaptureSnapshot] = []
-        var uncached: [(Capture, UUID)] = []
         for c in game.captures {
             if let cached = thumbCache[c.id] {
                 caps.append(CaptureSnapshot(id: c.id, playerID: c.playerID, stop: c.stopIndex, thumbJPEG: cached))
-            } else if !pendingIDs.contains(c.id) {
-                uncached.append((c, game.id))
-            }
-        }
-        if !uncached.isEmpty {
-            for (c, _) in uncached { pendingIDs.insert(c.id) }
-            let items = uncached.map { (id: $0.0.id, playerID: $0.0.playerID, stop: $0.0.stopIndex, filename: $0.0.filename, gameID: $0.1) }
-            Task.detached(priority: .utility) {
-                for item in items {
-                    guard let img = photoStore.thumbnail(filename: item.filename, gameID: item.gameID, maxEdge: PlayerPhoto.targetEdge),
-                          let data = img.jpegData(compressionQuality: 0.6),
-                          data.count <= PlayerPhoto.maxJPEGBytes else { continue }
-                    await MainActor.run {
-                        thumbCache[item.id] = data
-                        pendingIDs.remove(item.id)
-                    }
-                }
+            } else if let img = photoStore.thumbnail(filename: c.filename, gameID: game.id, maxEdge: PlayerPhoto.targetEdge),
+                      let data = img.jpegData(compressionQuality: 0.6),
+                      data.count <= PlayerPhoto.maxJPEGBytes {
+                thumbCache[c.id] = data
+                caps.append(CaptureSnapshot(id: c.id, playerID: c.playerID, stop: c.stopIndex, thumbJPEG: data))
             }
         }
         return GameSnapshot(
