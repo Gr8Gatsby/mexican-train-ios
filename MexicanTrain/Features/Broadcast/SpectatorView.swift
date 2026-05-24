@@ -128,7 +128,7 @@ struct SpectatorView: View {
         // Show whatever code we know about — the live snapshot's, or the
         // code we connected with via the join sheet.
         let codeText = (snap?.roomCode.isEmpty == false ? snap?.roomCode : session.roomCode) ?? "----"
-        let title = me.map { "Playing as \($0.name)" } ?? "Spectating"
+        let title = me.map { "Playing as \($0.name)" } ?? "Joining…"
         return AppHeaderBar(
             style: .push,
             title: title,

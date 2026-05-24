@@ -13,7 +13,6 @@ struct JoinSheet: View {
     @State private var code: String = ""
     @State private var prefill: ContactPrefill?
     @State private var editedName: String = ""
-    @State private var roleChoice: RoleChoice = .player
     @State private var showScanner: Bool = false
     @State private var scannerHint: String?
     @State private var pickerItem: PhotosPickerItem?
@@ -26,10 +25,6 @@ struct JoinSheet: View {
     @State private var trainIndex: Int?
     @State private var directIP: String = ""
     @State private var directPort: String = "5111"
-    enum RoleChoice: String, CaseIterable, Identifiable {
-        case player, spectator
-        var id: String { rawValue }
-    }
 
     var body: some View {
         ZStack {
@@ -385,30 +380,10 @@ struct JoinSheet: View {
                 Text("You'll join as a player with the name above.")
                     .font(theme.monoFont(size: 12))
                     .foregroundStyle(theme.muted)
-                Button { roleChoice = .spectator } label: {
-                    Text("Watch as spectator instead")
-                        .font(theme.monoFont(size: 11))
-                        .foregroundStyle(theme.muted)
-                }
             }
         }
     }
 
-    private func rolePill(_ value: RoleChoice, label: String) -> some View {
-        Button { roleChoice = value } label: {
-            Text(label)
-                .font(theme.monoFont(size: 11))
-                .tracking(1.4)
-                .foregroundStyle(roleChoice == value ? theme.ctaText : theme.ink)
-                .frame(maxWidth: .infinity, minHeight: 40)
-                .background(roleChoice == value ? theme.cta : theme.cardBg,
-                            in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
-                .overlay(
-                    RoundedRectangle(cornerRadius: theme.buttonCornerRadius)
-                        .stroke(theme.border, lineWidth: 1)
-                )
-        }
-    }
 
     private var joinButton: some View {
         let state = coordinator.netSession.joinState
@@ -427,7 +402,7 @@ struct JoinSheet: View {
                 joinButtonLabel(text: "CONNECTING…", enabled: false)
             case .connected:
                 Button(action: confirm) {
-                    joinButtonLabel(text: roleChoice == .player ? "JOIN AS PLAYER" : "SPECTATE", enabled: canConfirm)
+                    joinButtonLabel(text: "JOIN AS PLAYER", enabled: canConfirm)
                 }
                 .disabled(!canConfirm)
             case .hostEnded:
@@ -454,11 +429,7 @@ struct JoinSheet: View {
     }
 
     private var canConfirm: Bool {
-        let nameOK = !editedName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        if roleChoice == .player {
-            return nameOK
-        }
-        return true
+        !editedName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     private func loadPrefill() async {
@@ -482,23 +453,18 @@ struct JoinSheet: View {
     }
 
     private func confirm() {
-        switch roleChoice {
-        case .player:
-            // Prefer the user-picked photo (already compressed by
-            // loadPickedPhoto). Fall back to the silent Contacts photo,
-            // which still goes through compressPhoto so the wire-size
-            // contract holds. Nil → slot shows initials only.
-            let photo = pickedPhotoData ?? DeviceIdentity.compressPhoto(prefill?.imageData)
-            // Fresh UUID — the host treats unknown IDs as "add me as a new
-            // player slot" (lobby) or as a claim against an existing slot
-            // matching this id (in-progress games).
-            let claim = PlayerClaim(playerID: UUID(),
-                                    displayName: editedName.trimmingCharacters(in: .whitespacesAndNewlines),
-                                    photoJPEG: photo)
-            coordinator.netSession.sendClaim(claim)
-        case .spectator:
-            break
-        }
+        // Prefer the user-picked photo (already compressed by
+        // loadPickedPhoto). Fall back to the silent Contacts photo,
+        // which still goes through compressPhoto so the wire-size
+        // contract holds. Nil → slot shows initials only.
+        let photo = pickedPhotoData ?? DeviceIdentity.compressPhoto(prefill?.imageData)
+        // Fresh UUID — the host treats unknown IDs as "add me as a new
+        // player slot" (lobby) or as a claim against an existing slot
+        // matching this id (in-progress games).
+        let claim = PlayerClaim(playerID: UUID(),
+                                displayName: editedName.trimmingCharacters(in: .whitespacesAndNewlines),
+                                photoJPEG: photo)
+        coordinator.netSession.sendClaim(claim)
         // Dismiss the sheet first, then navigate. Using dismissSheet()
         // rather than the environment dismiss() to avoid a SwiftUI timing
         // race where the sheet animation could reset the route change.
