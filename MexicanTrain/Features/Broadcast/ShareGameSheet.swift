@@ -94,7 +94,7 @@ struct ShareGameSheet: View {
             guard name == "en0" || name == "en1" else { continue }
             var addr = ptr.pointee.ifa_addr.pointee
             var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
-            withUnsafePointer(to: &addr) { ptr in
+            _ = withUnsafePointer(to: &addr) { ptr in
                 ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
                     getnameinfo(sa, socklen_t(sa.pointee.sa_len), &hostname, socklen_t(hostname.count), nil, 0, NI_NUMERICHOST)
                 }

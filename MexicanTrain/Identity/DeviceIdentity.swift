@@ -19,7 +19,7 @@ enum DeviceIdentity {
     static func request() async -> Access { .granted }
 
     static func loadCurrentIdentity() async -> ContactPrefill {
-        let raw = UIDevice.current.name
+        let raw = await UIDevice.current.name
         let cleaned = stripDeviceSuffix(raw)
         let usable = isGenericDeviceName(cleaned) ? "" : cleaned
         return ContactPrefill(displayName: usable.isEmpty ? nil : usable, imageData: nil)

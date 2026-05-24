@@ -65,7 +65,6 @@ final class CameraCapture: NSObject {
         state = .capturing
         defer { state = .ready }
         let settings = AVCapturePhotoSettings()
-        settings.isHighResolutionPhotoEnabled = false
         return try await withCheckedThrowingContinuation { cont in
             self.continuation = cont
             self.output.capturePhoto(with: settings, delegate: self)

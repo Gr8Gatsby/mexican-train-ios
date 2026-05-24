@@ -100,7 +100,7 @@ final class MexTrainNetSession: NSObject {
         self.advertiser = advertiser
 
         // Start TCP bridge for Android clients.
-        try? tcpBridge.start(roomCode: initialSnapshot.roomCode)
+        _ = try? tcpBridge.start(roomCode: initialSnapshot.roomCode)
         tcpBridge.onClaimReceived = { [weak self] claim in
             Task { @MainActor in
                 guard let self, self.role == .host else { return }
@@ -232,6 +232,15 @@ final class MexTrainNetSession: NSObject {
                 // Log only.
             }
         }
+    }
+
+    /// Connect directly to a host via IP address and port (bypasses discovery).
+    func connectDirect(host: String, port: UInt16) {
+        guard role == .joiner else { return }
+        joinState = .connecting
+        hostPeerID = nil
+        let endpoint = NWEndpoint.hostPort(host: NWEndpoint.Host(host), port: NWEndpoint.Port(rawValue: port)!)
+        connectViaTCP(endpoint: endpoint)
     }
 
     func leave() {

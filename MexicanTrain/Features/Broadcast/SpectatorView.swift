@@ -60,7 +60,7 @@ struct SpectatorView: View {
 
     private func persistLatestSnapshot() {
         guard let snap = coordinator.netSession.latestSnapshot else { return }
-        try? JoinedGamePersistence.upsert(
+        _ = try? JoinedGamePersistence.upsert(
             in: modelContext,
             snapshot: snap,
             myPlayerID: coordinator.netSession.myPlayerID

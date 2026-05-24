@@ -17,7 +17,7 @@ enum SnapshotBuilder {
             }
         }
         if !uncached.isEmpty {
-            for (c, gameID) in uncached { pendingIDs.insert(c.id) }
+            for (c, _) in uncached { pendingIDs.insert(c.id) }
             let items = uncached.map { (id: $0.0.id, playerID: $0.0.playerID, stop: $0.0.stopIndex, filename: $0.0.filename, gameID: $0.1) }
             Task.detached(priority: .utility) {
                 for item in items {

@@ -58,6 +58,7 @@ struct SettingsView: View {
     @ViewBuilder
     private func identityBlock(bind: AppSettings) -> some View {
         @Bindable var bind = bind
+        let hasPhoto = bind.defaultYouPhotoJPEG != nil
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 12) {
                 avatarView
@@ -71,7 +72,7 @@ struct SettingsView: View {
                         HStack(spacing: 6) {
                             Image(systemName: "photo")
                                 .font(.system(size: 13, weight: .semibold))
-                            Text(settings.defaultYouPhotoJPEG == nil ? "PICK PHOTO" : "CHANGE PHOTO")
+                            Text(hasPhoto ? "CHANGE PHOTO" : "PICK PHOTO")
                         }
                         .font(theme.monoFont(size: 12))
                         .fontWeight(.semibold)
@@ -85,8 +86,8 @@ struct SettingsView: View {
                                 .stroke(theme.border, lineWidth: 1)
                         )
                     }
-                    .accessibilityLabel(settings.defaultYouPhotoJPEG == nil ? "Pick photo" : "Change photo")
-                    if settings.defaultYouPhotoJPEG != nil {
+                    .accessibilityLabel(hasPhoto ? "Change photo" : "Pick photo")
+                    if hasPhoto {
                         Button {
                             bind.defaultYouPhotoJPEG = nil
                             photoPickerItem = nil

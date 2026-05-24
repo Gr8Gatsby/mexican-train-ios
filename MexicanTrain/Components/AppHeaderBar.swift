@@ -29,7 +29,7 @@ struct AppHeaderBar<Trailing: View>: View {
         title: String,
         subtitle: String? = nil,
         onLeading: (() -> Void)? = nil,
-        @ViewBuilder trailing: @escaping () -> Trailing = { EmptyView() }
+        @ViewBuilder trailing: @escaping () -> Trailing
     ) {
         self.style = style
         self.title = title
@@ -114,5 +114,20 @@ struct AppHeaderBar<Trailing: View>: View {
             trailing()
         }
         .frame(minHeight: 44)
+    }
+}
+
+extension AppHeaderBar where Trailing == EmptyView {
+    init(
+        style: Style,
+        title: String,
+        subtitle: String? = nil,
+        onLeading: (() -> Void)? = nil
+    ) {
+        self.style = style
+        self.title = title
+        self.subtitle = subtitle
+        self.onLeading = onLeading
+        self.trailing = { EmptyView() }
     }
 }

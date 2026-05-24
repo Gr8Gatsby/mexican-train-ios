@@ -46,7 +46,7 @@ enum DebugSeed {
             ]
             for (pi, p) in players.enumerated() {
                 for (si, val) in pattern[pi].enumerated() {
-                    try? GamePersistence.recordScore(in: ctx, game: live, player: p,
+                    _ = try? GamePersistence.recordScore(in: ctx, game: live, player: p,
                                                      stop: si + 1, pips: val, source: .manual)
                 }
             }
@@ -81,7 +81,7 @@ enum DebugSeed {
             ]
             for (pi, p) in players.enumerated() {
                 for (si, val) in totals[pi].enumerated() {
-                    try? GamePersistence.recordScore(in: ctx, game: done, player: p,
+                    _ = try? GamePersistence.recordScore(in: ctx, game: done, player: p,
                                                      stop: si + 1, pips: val, source: .manual)
                 }
             }
