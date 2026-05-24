@@ -469,7 +469,7 @@ struct JoinSheet: View {
         // Persist join info so the user can rejoin after a crash or leave.
         coordinator.settings.activeJoinPlayerID = claim.playerID
         coordinator.settings.activeJoinPlayerName = claim.displayName
-        coordinator.settings.activeJoinRoomCode = coordinator.netSession.roomCode
+        coordinator.settings.activeJoinRoomCode = code.isEmpty ? coordinator.netSession.latestSnapshot?.roomCode ?? "" : code
 
         // Dismiss the sheet first, then navigate. Using dismissSheet()
         // rather than the environment dismiss() to avoid a SwiftUI timing
