@@ -73,11 +73,6 @@ final class NSDServiceBrowserDelegate: NSObject, NetServiceBrowserDelegate, NetS
             return
         }
 
-        // Android emulator IPs aren't reachable — use localhost (requires adb forward)
-        if resolvedHost.hasPrefix("10.0.2.") {
-            resolvedHost = "127.0.0.1"
-        }
-
         let endpoint = NWEndpoint.hostPort(
             host: NWEndpoint.Host(resolvedHost),
             port: NWEndpoint.Port(rawValue: UInt16(sender.port))!
