@@ -211,6 +211,7 @@ struct SpectatorView: View {
             title: title,
             subtitle: "CODE \(codeText)",
             onLeading: {
+                coordinator.settings.clearActiveJoin()
                 coordinator.netSession.leave()
                 coordinator.goHome()
             }
@@ -240,6 +241,7 @@ struct SpectatorView: View {
 
     private var footer: some View {
         Button {
+            coordinator.settings.clearActiveJoin()
             coordinator.netSession.leave()
             coordinator.goHome()
         } label: { Text("LEAVE") }
@@ -257,6 +259,7 @@ struct SpectatorView: View {
                     .font(theme.displayFont(size: 22))
                     .foregroundStyle(theme.ink)
                 Button {
+                    coordinator.settings.clearActiveJoin()
                     coordinator.netSession.leave()
                     coordinator.goHome()
                 } label: {

@@ -4,6 +4,7 @@ import SwiftData
 struct HomeView: View {
     @Environment(\.theme) private var theme
     @Environment(AppCoordinator.self) private var coordinator
+    @Environment(AppSettings.self) private var settings
     @Environment(\.modelContext) private var modelContext
     @Query(sort: \Game.createdAt, order: .reverse) private var games: [Game]
     @Query(sort: \JoinedGameRecord.lastUpdatedAt, order: .reverse) private var joinedGames: [JoinedGameRecord]
@@ -66,11 +67,12 @@ struct HomeView: View {
 
     @ViewBuilder
     private var content: some View {
-        if games.isEmpty && joinedGames.isEmpty {
+        if games.isEmpty && joinedGames.isEmpty && settings.activeJoinPlayerID == nil {
             emptyState
         } else {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
+                    rejoinBanner
                     if let g = inProgress {
                         sectionLabel("IN PROGRESS")
                         InProgressCard(game: g)
@@ -115,6 +117,8 @@ struct HomeView: View {
     private var emptyState: some View {
         VStack(spacing: 10) {
             Spacer()
+            rejoinBanner
+                .padding(.horizontal, 16)
             Text("No games yet")
                 .font(theme.displayFont(size: 28, relativeTo: .title))
                 .foregroundStyle(theme.ink)
@@ -128,6 +132,51 @@ struct HomeView: View {
         }
         .transition(.opacity.combined(with: .move(edge: .bottom)))
         .accessibilityElement(children: .combine)
+    }
+
+    @ViewBuilder
+    private var rejoinBanner: some View {
+        if let playerName = settings.activeJoinPlayerName,
+           let roomCode = settings.activeJoinRoomCode {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text("Rejoin as \(playerName)?")
+                            .font(theme.displayFont(size: 16))
+                            .foregroundStyle(theme.ink)
+                        Text("CODE \(roomCode)")
+                            .font(theme.monoFont(size: 11))
+                            .tracking(1.4)
+                            .foregroundStyle(theme.accent)
+                    }
+                    Spacer()
+                    Button {
+                        coordinator.openJoinSheet(code: roomCode)
+                    } label: {
+                        Text("REJOIN")
+                            .font(theme.monoFont(size: 12))
+                            .fontWeight(.semibold)
+                            .tracking(1.4)
+                            .foregroundStyle(theme.ctaText)
+                            .padding(.horizontal, 14).padding(.vertical, 10)
+                            .background(theme.cta, in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
+                    }
+                }
+                Button {
+                    settings.clearActiveJoin()
+                } label: {
+                    Text("Dismiss")
+                        .font(theme.monoFont(size: 11))
+                        .foregroundStyle(theme.muted)
+                }
+            }
+            .padding(14)
+            .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 12))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(theme.brand.opacity(0.5), lineWidth: 1)
+            )
+        }
     }
 
     private var cta: some View {

@@ -35,6 +35,34 @@ final class AppSettings {
         didSet { UserDefaults.standard.set(hasUsedConductorOverride, forKey: Keys.usedOverride) }
     }
 
+    // MARK: - Active Join (rejoin after crash/leave)
+
+    var activeJoinRoomCode: String? {
+        didSet { UserDefaults.standard.set(activeJoinRoomCode, forKey: Keys.joinRoomCode) }
+    }
+    var activeJoinPlayerID: UUID? {
+        didSet {
+            UserDefaults.standard.set(activeJoinPlayerID?.uuidString, forKey: Keys.joinPlayerID)
+        }
+    }
+    var activeJoinPlayerName: String? {
+        didSet { UserDefaults.standard.set(activeJoinPlayerName, forKey: Keys.joinPlayerName) }
+    }
+    var activeJoinHostIP: String? {
+        didSet { UserDefaults.standard.set(activeJoinHostIP, forKey: Keys.joinHostIP) }
+    }
+    var activeJoinHostPort: Int {
+        didSet { UserDefaults.standard.set(activeJoinHostPort, forKey: Keys.joinHostPort) }
+    }
+
+    func clearActiveJoin() {
+        activeJoinRoomCode = nil
+        activeJoinPlayerID = nil
+        activeJoinPlayerName = nil
+        activeJoinHostIP = nil
+        activeJoinHostPort = 5111
+    }
+
     init() {
         let d = UserDefaults.standard
         let storedLen = d.object(forKey: Keys.length) as? Int
@@ -45,6 +73,15 @@ final class AppSettings {
         self.lastStartingEngine = StartingEngine(rawValue: raw) ?? .traditional
         self.trainingDataExportEnabled = d.bool(forKey: Keys.trainingExport)
         self.hasUsedConductorOverride = d.bool(forKey: Keys.usedOverride)
+        self.activeJoinRoomCode = d.string(forKey: Keys.joinRoomCode)
+        if let idStr = d.string(forKey: Keys.joinPlayerID) {
+            self.activeJoinPlayerID = UUID(uuidString: idStr)
+        } else {
+            self.activeJoinPlayerID = nil
+        }
+        self.activeJoinPlayerName = d.string(forKey: Keys.joinPlayerName)
+        self.activeJoinHostIP = d.string(forKey: Keys.joinHostIP)
+        self.activeJoinHostPort = d.object(forKey: Keys.joinHostPort) as? Int ?? 5111
     }
 
     private enum Keys {
@@ -54,5 +91,10 @@ final class AppSettings {
         static let engine = "settings.lastStartingEngine"
         static let trainingExport = "settings.trainingDataExportEnabled"
         static let usedOverride = "settings.hasUsedConductorOverride"
+        static let joinRoomCode = "settings.activeJoinRoomCode"
+        static let joinPlayerID = "settings.activeJoinPlayerID"
+        static let joinPlayerName = "settings.activeJoinPlayerName"
+        static let joinHostIP = "settings.activeJoinHostIP"
+        static let joinHostPort = "settings.activeJoinHostPort"
     }
 }
