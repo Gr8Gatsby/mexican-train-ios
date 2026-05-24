@@ -73,7 +73,36 @@ struct ShareGameSheet: View {
                             .stroke(theme.border, lineWidth: 1)
                     )
             }
+            if let ip = Self.localIPAddress {
+                Text("IP: \(ip) : 5111")
+                    .font(theme.monoFont(size: 11))
+                    .tracking(1)
+                    .foregroundStyle(theme.muted)
+            }
         }
+    }
+
+    private static var localIPAddress: String? {
+        var address: String?
+        var ifaddr: UnsafeMutablePointer<ifaddrs>?
+        guard getifaddrs(&ifaddr) == 0, let firstAddr = ifaddr else { return nil }
+        defer { freeifaddrs(ifaddr) }
+        for ptr in sequence(first: firstAddr, next: { $0.pointee.ifa_next }) {
+            let sa = ptr.pointee.ifa_addr.pointee
+            guard sa.sa_family == UInt8(AF_INET) else { continue }
+            let name = String(cString: ptr.pointee.ifa_name)
+            guard name == "en0" || name == "en1" else { continue }
+            var addr = ptr.pointee.ifa_addr.pointee
+            var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+            withUnsafePointer(to: &addr) { ptr in
+                ptr.withMemoryRebound(to: sockaddr.self, capacity: 1) { sa in
+                    getnameinfo(sa, socklen_t(sa.pointee.sa_len), &hostname, socklen_t(hostname.count), nil, 0, NI_NUMERICHOST)
+                }
+            }
+            address = String(cString: hostname)
+            break
+        }
+        return address
     }
 
     private var claimsList: some View {
