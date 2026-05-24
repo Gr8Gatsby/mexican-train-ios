@@ -25,7 +25,7 @@ struct SettingsView: View {
                 )
                 ScrollView {
                     VStack(alignment: .leading, spacing: 18) {
-                        section("DEFAULT GAME LENGTH") {
+                        section("DEFAULT STOPS") {
                             HStack(spacing: 8) {
                                 ForEach([7, 10, 13], id: \.self) { n in
                                     Button { bind.defaultLengthStops = n } label: {
