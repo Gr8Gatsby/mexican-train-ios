@@ -1,5 +1,5 @@
 import CoreML
-import Vision
+@preconcurrency import Vision
 import UIKit
 
 /// Production pip counter backed by a YOLOv11n model trained to detect
