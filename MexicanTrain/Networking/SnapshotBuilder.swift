@@ -2,15 +2,18 @@ import Foundation
 import UIKit
 
 enum SnapshotBuilder {
-    /// Build a snapshot of the current game state for broadcast. `claims` are
-    /// merged in by the session itself; we pass an empty array here.
+    private static var thumbCache: [UUID: Data] = [:]
+
     @MainActor
     static func build(game: Game, photoStore: PhotoStore, roomCode: String) -> GameSnapshot {
         var caps: [CaptureSnapshot] = []
         for c in game.captures {
-            if let img = photoStore.thumbnail(filename: c.filename, gameID: game.id, maxEdge: PlayerPhoto.targetEdge),
-               let data = img.jpegData(compressionQuality: 0.6),
-               data.count <= PlayerPhoto.maxJPEGBytes {
+            if let cached = thumbCache[c.id] {
+                caps.append(CaptureSnapshot(id: c.id, playerID: c.playerID, stop: c.stopIndex, thumbJPEG: cached))
+            } else if let img = photoStore.thumbnail(filename: c.filename, gameID: game.id, maxEdge: PlayerPhoto.targetEdge),
+                      let data = img.jpegData(compressionQuality: 0.6),
+                      data.count <= PlayerPhoto.maxJPEGBytes {
+                thumbCache[c.id] = data
                 caps.append(CaptureSnapshot(id: c.id, playerID: c.playerID, stop: c.stopIndex, thumbJPEG: data))
             }
         }
