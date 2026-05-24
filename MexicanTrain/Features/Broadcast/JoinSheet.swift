@@ -458,10 +458,8 @@ struct JoinSheet: View {
         // which still goes through compressPhoto so the wire-size
         // contract holds. Nil → slot shows initials only.
         let photo = pickedPhotoData ?? DeviceIdentity.compressPhoto(prefill?.imageData)
-        // Fresh UUID — the host treats unknown IDs as "add me as a new
-        // player slot" (lobby) or as a claim against an existing slot
-        // matching this id (in-progress games).
-        let claim = PlayerClaim(playerID: UUID(),
+        let rejoinID = coordinator.settings.activeJoinPlayerID
+        let claim = PlayerClaim(playerID: rejoinID ?? UUID(),
                                 displayName: editedName.trimmingCharacters(in: .whitespacesAndNewlines),
                                 photoJPEG: photo)
         coordinator.netSession.sendClaim(claim)

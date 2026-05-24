@@ -15,6 +15,8 @@ struct ScoreboardView: View {
     @State private var toast: String?
     @State private var overrideTarget: OverrideTarget?
     @State private var overrideConfirm: OverrideTarget?
+    @State private var pendingClaim: PlayerClaim?
+    @State private var showAssignDialog = false
 
     struct OverrideTarget: Identifiable, Equatable {
         let player: Player
@@ -99,6 +101,26 @@ struct ScoreboardView: View {
         } message: { target in
             Text("Submitting on behalf is recorded in the audit history. \(target.player.name) can still submit their own score from their phone and it will take priority.")
         }
+        .confirmationDialog(
+            pendingClaim.map { "\($0.displayName) wants to join" } ?? "",
+            isPresented: $showAssignDialog,
+            presenting: pendingClaim
+        ) { claim in
+            ForEach(game.sortedPlayers) { player in
+                Button("Assign to \(player.name)") {
+                    assignClaim(claim, to: player)
+                    pendingClaim = nil
+                }
+            }
+            Button("Reject", role: .destructive) {
+                pendingClaim = nil
+            }
+            Button("Cancel", role: .cancel) {
+                pendingClaim = nil
+            }
+        } message: { _ in
+            Text("Assign to an existing player or reject")
+        }
         .onAppear {
             coordinator.netSession.onScoreSubmissionReceived = { submission in
                 Task { @MainActor in
@@ -118,11 +140,9 @@ struct ScoreboardView: View {
     }
 
     /// Handle a `PlayerClaim` from a joiner while the game is already in
-    /// progress. New UUIDs become new player slots — they're effectively
-    /// joining mid-game as a player. To keep totals and stop-completion
-    /// coherent for prior stops they weren't here for, we auto-fill those
-    /// stops with excluded 0-pip scores so the totals don't make them
-    /// appear to lead the game from a standing start.
+    /// progress. If scoring hasn't started yet, new UUIDs become new player
+    /// slots. Once scores exist, new players must be assigned to an existing
+    /// seat by the conductor (to prevent strangers from joining mid-game).
     private func handleIncomingClaim(_ claim: PlayerClaim) {
         // Existing slot: update name + photo.
         if let existing = game.players.first(where: { $0.id == claim.playerID }) {
@@ -135,7 +155,15 @@ struct ScoreboardView: View {
             try? context.save()
             return
         }
-        // New slot: add as a fresh player, capped at the 8-player limit.
+
+        // If scores exist, block auto-add and ask the conductor to assign.
+        if !game.scores.isEmpty {
+            pendingClaim = claim
+            showAssignDialog = true
+            return
+        }
+
+        // No scores yet: auto-add as a fresh player, capped at the 8-player limit.
         guard game.players.count < 8 else { return }
         let seat = (game.sortedPlayers.last?.seat ?? -1) + 1
         let newPlayer = Player(id: claim.playerID, name: claim.displayName, seat: seat)
@@ -162,6 +190,23 @@ struct ScoreboardView: View {
         try? context.save()
         withAnimation(.easeOut(duration: 0.25)) {
             toast = "\(newPlayer.name) joined as a player"
+        }
+        scheduleToastClear()
+    }
+
+    /// Assign a pending claim to an existing player slot, updating their
+    /// name and avatar to match the joiner's identity.
+    private func assignClaim(_ claim: PlayerClaim, to player: Player) {
+        let previousName = player.name
+        player.name = claim.displayName
+        if let photo = claim.photoJPEG, let img = UIImage(data: photo),
+           let filename = try? coordinator.photoStore.save(
+            image: img, gameID: game.id, captureID: player.id) {
+            player.avatarFilename = filename
+        }
+        try? context.save()
+        withAnimation(.easeOut(duration: 0.25)) {
+            toast = "\(claim.displayName) assigned to \(previousName)"
         }
         scheduleToastClear()
     }
