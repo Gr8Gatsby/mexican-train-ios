@@ -44,6 +44,13 @@ struct JoinerCameraHost: View {
             .jpegData(compressionQuality: 0.7)
             .flatMap { $0.count <= PlayerPhoto.maxJPEGBytes ? $0 : nil }
 
+        // Save the captured photo locally on the joiner device.
+        if let gameID = coordinator.netSession.latestSnapshot?.gameID {
+            _ = try? coordinator.photoStore.save(
+                image: image, gameID: gameID, captureID: UUID()
+            )
+        }
+
         let submission = ScoreSubmission(
             playerID: playerID,
             stopIndex: stop,
