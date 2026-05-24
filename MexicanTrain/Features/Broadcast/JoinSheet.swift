@@ -465,6 +465,12 @@ struct JoinSheet: View {
                                 displayName: editedName.trimmingCharacters(in: .whitespacesAndNewlines),
                                 photoJPEG: photo)
         coordinator.netSession.sendClaim(claim)
+
+        // Persist join info so the user can rejoin after a crash or leave.
+        coordinator.settings.activeJoinPlayerID = claim.playerID
+        coordinator.settings.activeJoinPlayerName = claim.displayName
+        coordinator.settings.activeJoinRoomCode = coordinator.netSession.roomCode
+
         // Dismiss the sheet first, then navigate. Using dismissSheet()
         // rather than the environment dismiss() to avoid a SwiftUI timing
         // race where the sheet animation could reset the route change.
