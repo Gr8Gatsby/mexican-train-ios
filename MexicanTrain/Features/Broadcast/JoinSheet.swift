@@ -24,6 +24,8 @@ struct JoinSheet: View {
     /// this also writes a rendered JPEG into `pickedPhotoData`. Cleared
     /// whenever the user picks a real photo from their library.
     @State private var trainIndex: Int?
+    @State private var directIP: String = ""
+    @State private var directPort: String = "5111"
     enum RoleChoice: String, CaseIterable, Identifiable {
         case player, spectator
         var id: String { rawValue }
@@ -54,6 +56,7 @@ struct JoinSheet: View {
                         if coordinator.netSession.joinState != .connected {
                             codeEntry
                             hostList
+                            connectByIPSection
                         } else {
                             slotPicker
                         }
@@ -198,6 +201,61 @@ struct JoinSheet: View {
                     .font(theme.monoFont(size: 12))
                     .foregroundStyle(theme.muted)
             }
+        }
+    }
+
+    private var connectByIPSection: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("CONNECT BY IP")
+                .font(theme.monoFont(size: 12))
+                .tracking(2)
+                .foregroundStyle(theme.muted)
+            HStack(spacing: 8) {
+                TextField("", text: $directIP, prompt: Text("IP Address").foregroundColor(theme.muted.opacity(0.4)))
+                    .keyboardType(.numbersAndPunctuation)
+                    .font(theme.monoFont(size: 14))
+                    .padding(.horizontal, 12)
+                    .frame(minHeight: 48)
+                    .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 8))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(theme.border, lineWidth: 1)
+                    )
+                TextField("", text: $directPort, prompt: Text("5111").foregroundColor(theme.muted.opacity(0.4)))
+                    .keyboardType(.numberPad)
+                    .font(theme.monoFont(size: 14))
+                    .padding(.horizontal, 12)
+                    .frame(minHeight: 48)
+                    .frame(width: 80)
+                    .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 8))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(theme.border, lineWidth: 1)
+                    )
+            }
+            Button {
+                let host = directIP.trimmingCharacters(in: .whitespacesAndNewlines)
+                let port = UInt16(directPort.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 5111
+                guard !host.isEmpty else { return }
+                if coordinator.netSession.role != .joiner {
+                    coordinator.netSession.startBrowsing()
+                }
+                coordinator.netSession.connectDirect(host: host, port: port)
+            } label: {
+                Text("Connect")
+                    .font(theme.monoFont(size: 12))
+                    .fontWeight(.semibold)
+                    .tracking(1.4)
+                    .foregroundStyle(theme.ink)
+                    .padding(.horizontal, 14)
+                    .frame(minHeight: 40)
+                    .background(theme.cardBg, in: Capsule())
+                    .overlay(
+                        Capsule()
+                            .stroke(theme.border, lineWidth: 1)
+                    )
+            }
+            .buttonStyle(.plain)
         }
     }
 
@@ -441,7 +499,10 @@ struct JoinSheet: View {
         case .spectator:
             break
         }
+        // Dismiss the sheet first, then navigate. Using dismissSheet()
+        // rather than the environment dismiss() to avoid a SwiftUI timing
+        // race where the sheet animation could reset the route change.
+        coordinator.dismissSheet()
         coordinator.openSpectator()
-        dismiss()
     }
 }
