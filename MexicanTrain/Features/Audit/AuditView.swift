@@ -395,6 +395,7 @@ struct AuditView: View {
                 coordinator.openScoreboard(game)
             } label: { Text("DISCARD") }
                 .appSecondaryStyle()
+                .frame(minHeight: 56)
             Button(action: save) {
                 Text(existing == nil ? "SAVE SCORE" : "UPDATE")
             }
