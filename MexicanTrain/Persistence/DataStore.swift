@@ -16,18 +16,22 @@ enum DataStore {
         do {
             return try ModelContainer(for: schema, configurations: [config])
         } catch {
-            // Schema mismatch with existing store — wipe and recreate
-            let url = config.url
-            if FileManager.default.fileExists(atPath: url.path()) {
-                try? FileManager.default.removeItem(at: url)
-                try? FileManager.default.removeItem(at: URL(filePath: url.path() + "-wal"))
-                try? FileManager.default.removeItem(at: URL(filePath: url.path() + "-shm"))
-            }
+            print("ModelContainer failed: \(error) — deleting store and retrying")
+            Self.deleteStore()
             do {
                 return try ModelContainer(for: schema, configurations: [config])
             } catch {
                 fatalError("Failed to create ModelContainer: \(error)")
             }
+        }
+    }
+
+    private static func deleteStore() {
+        guard let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return }
+        let storeName = "default.store"
+        for suffix in ["", "-wal", "-shm"] {
+            let url = appSupport.appendingPathComponent(storeName + suffix)
+            try? FileManager.default.removeItem(at: url)
         }
     }
 }
