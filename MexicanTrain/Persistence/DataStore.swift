@@ -16,7 +16,18 @@ enum DataStore {
         do {
             return try ModelContainer(for: schema, configurations: [config])
         } catch {
-            fatalError("Failed to create ModelContainer: \(error)")
+            // Schema mismatch with existing store — wipe and recreate
+            let url = config.url
+            if FileManager.default.fileExists(atPath: url.path()) {
+                try? FileManager.default.removeItem(at: url)
+                try? FileManager.default.removeItem(at: URL(filePath: url.path() + "-wal"))
+                try? FileManager.default.removeItem(at: URL(filePath: url.path() + "-shm"))
+            }
+            do {
+                return try ModelContainer(for: schema, configurations: [config])
+            } catch {
+                fatalError("Failed to create ModelContainer: \(error)")
+            }
         }
     }
 }
