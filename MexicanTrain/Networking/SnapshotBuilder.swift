@@ -6,15 +6,12 @@ enum SnapshotBuilder {
     /// merged in by the session itself; we pass an empty array here.
     @MainActor
     static func build(game: Game, photoStore: PhotoStore, roomCode: String) -> GameSnapshot {
-        let recentStop = game.currentStopIndex - 1
         var caps: [CaptureSnapshot] = []
-        if recentStop >= 1 {
-            for c in game.captures where c.stopIndex == recentStop {
-                if let img = photoStore.thumbnail(filename: c.filename, gameID: game.id, maxEdge: PlayerPhoto.targetEdge),
-                   let data = img.jpegData(compressionQuality: 0.6),
-                   data.count <= PlayerPhoto.maxJPEGBytes {
-                    caps.append(CaptureSnapshot(id: c.id, playerID: c.playerID, stop: c.stopIndex, thumbJPEG: data))
-                }
+        for c in game.captures {
+            if let img = photoStore.thumbnail(filename: c.filename, gameID: game.id, maxEdge: PlayerPhoto.targetEdge),
+               let data = img.jpegData(compressionQuality: 0.6),
+               data.count <= PlayerPhoto.maxJPEGBytes {
+                caps.append(CaptureSnapshot(id: c.id, playerID: c.playerID, stop: c.stopIndex, thumbJPEG: data))
             }
         }
         return GameSnapshot(

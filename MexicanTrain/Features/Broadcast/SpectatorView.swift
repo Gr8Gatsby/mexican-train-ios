@@ -22,6 +22,8 @@ struct SpectatorView: View {
                         SnapshotTable(snap: snap, myPlayerID: session.myPlayerID)
                             .padding(.horizontal, 8)
                             .padding(.vertical, 8)
+                        snapshotPhotoGallery(snap: snap)
+                            .padding(.horizontal, 8)
                     }
                     addMyScoreCTA(snap: snap, myID: session.myPlayerID)
                 } else {
@@ -119,6 +121,81 @@ struct SpectatorView: View {
 
     private func mySlotHasConductorScore(snap: GameSnapshot, myID: UUID, stop: Int) -> Bool {
         snap.scores.contains { $0.playerID == myID && $0.stop == stop && $0.submittedBy == .conductor }
+    }
+
+    @ViewBuilder
+    private func snapshotPhotoGallery(snap: GameSnapshot) -> some View {
+        let stops = Set(snap.recentCaptures.map(\.stop)).sorted()
+        if !stops.isEmpty {
+            ForEach(stops, id: \.self) { stop in
+                let capsForStop = snap.recentCaptures.filter { $0.stop == stop }
+                if !capsForStop.isEmpty {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("📷 STOP \(stop) · CAMERA ROLL")
+                            .font(theme.monoFont(size: 9))
+                            .tracking(1.4)
+                            .foregroundStyle(theme.muted)
+                        let cols = min(max(capsForStop.count, 1), 4)
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 5), count: cols), spacing: 5) {
+                            ForEach(capsForStop, id: \.id) { cap in
+                                snapshotPhotoTile(cap: cap, snap: snap)
+                            }
+                        }
+                    }
+                    .padding(8)
+                    .background(theme.subBg, in: RoundedRectangle(cornerRadius: 10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(theme.borderLight, lineWidth: 1)
+                    )
+                }
+            }
+        }
+    }
+
+    private func snapshotPhotoTile(cap: CaptureSnapshot, snap: GameSnapshot) -> some View {
+        let playerName = snap.players.first(where: { $0.id == cap.playerID })?.name ?? ""
+        let score = snap.scores.first(where: { $0.playerID == cap.playerID && $0.stop == cap.stop })
+        return ZStack(alignment: .bottomTrailing) {
+            if let img = UIImage(data: cap.thumbJPEG) {
+                Image(uiImage: img)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                ZStack {
+                    theme.cardBg
+                    Image(systemName: "camera")
+                        .font(.system(size: 18))
+                        .foregroundStyle(theme.muted.opacity(0.45))
+                }
+            }
+            VStack(alignment: .leading) {
+                HStack {
+                    Text(String(playerName.prefix(4)).uppercased())
+                        .font(theme.monoFont(size: 8))
+                        .foregroundStyle(.white.opacity(0.85))
+                        .shadow(color: .black.opacity(0.6), radius: 2)
+                    Spacer()
+                }
+                Spacer()
+            }
+            .padding(4)
+            if let score {
+                Text("\(score.pips)")
+                    .font(theme.monoFont(size: 10))
+                    .fontWeight(.bold)
+                    .foregroundStyle(theme.accent)
+                    .padding(.horizontal, 6).padding(.vertical, 2)
+                    .background(Color.black.opacity(0.65), in: RoundedRectangle(cornerRadius: 4))
+                    .padding(4)
+            }
+        }
+        .aspectRatio(1, contentMode: .fit)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(Color.black.opacity(0.4), lineWidth: 1)
+        )
     }
 
     private var header: some View {
