@@ -80,6 +80,7 @@
 		E9C0FC056D5AB031A0062E5A /* ScoreboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E747CB2D4D49CBE4BE654AC /* ScoreboardView.swift */; };
 		EAC945BB099E2C0975877839 /* GameSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = F416DCFCC6FDDF33431E57D8 /* GameSnapshot.swift */; };
 		301E3BE57D70933A4E015915 /* TCPBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9E25E8C4E83D2A07682AB3C /* TCPBridge.swift */; };
+		A1B2C3D4E5F6A7B8C9D0E1F2 /* NSDServiceBrowserDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1E2F3A4B5C6D7E8F9A0B1C2 /* NSDServiceBrowserDelegate.swift */; };
 		ECD49E228929C9A0579CD4B6 /* JoinerManualEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA7E4CACAB54D6C67E5A0513 /* JoinerManualEntryView.swift */; };
 		F00D43E89878B150B417D3AE /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FEC9F87CC1BA3D6DC8C1591 /* CameraView.swift */; };
 		F08DE00481B2E72D787B4817 /* Player.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9AB39A036DB952613ECC34D /* Player.swift */; };
@@ -178,6 +179,7 @@
 		DD448005F7BE93B07B0B2814 /* DominoDetector.mlpackage */ = {isa = PBXFileReference; path = DominoDetector.mlpackage; sourceTree = "<group>"; };
 		E10604A76B6860DFE12B0213 /* MexTrainNetSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MexTrainNetSession.swift; sourceTree = "<group>"; };
 		C9E25E8C4E83D2A07682AB3C /* TCPBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TCPBridge.swift; sourceTree = "<group>"; };
+		D1E2F3A4B5C6D7E8F9A0B1C2 /* NSDServiceBrowserDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NSDServiceBrowserDelegate.swift; sourceTree = "<group>"; };
 		E8E662B62C184EF266FECD74 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		E9AB39A036DB952613ECC34D /* Player.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Player.swift; sourceTree = "<group>"; };
 		ED64A16FE8E809AB51B69608 /* DataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataStore.swift; sourceTree = "<group>"; };
@@ -235,6 +237,7 @@
 				B6A747FC868B6580A9F01237 /* RoomCode.swift */,
 				B1A47AAF55C9B6293CA2D36B /* SnapshotBuilder.swift */,
 				C9E25E8C4E83D2A07682AB3C /* TCPBridge.swift */,
+				D1E2F3A4B5C6D7E8F9A0B1C2 /* NSDServiceBrowserDelegate.swift */,
 			);
 			path = Networking;
 			sourceTree = "<group>";
@@ -613,6 +616,7 @@
 				FDFF1A72F1F584C02AB0C599 /* SnapshotBuilder.swift in Sources */,
 				C1E73997A799A823C9AB45C5 /* SpectatorView.swift in Sources */,
 				301E3BE57D70933A4E015915 /* TCPBridge.swift in Sources */,
+				A1B2C3D4E5F6A7B8C9D0E1F2 /* NSDServiceBrowserDelegate.swift in Sources */,
 				3F2509A5DF8AE904EC3A7CC4 /* SwipeToDelete.swift in Sources */,
 				AFB924047FD1B565C8B3C8BD /* Theme.swift in Sources */,
 				A2E8C862C7C3D2EC69B06042 /* ThemeEnvironment.swift in Sources */,

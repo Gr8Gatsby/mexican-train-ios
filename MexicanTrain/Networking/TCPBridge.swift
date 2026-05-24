@@ -12,6 +12,7 @@ final class TCPBridge: @unchecked Sendable {
     private var listener: NWListener?
     private var connections: [NWConnection] = []
     private var buffers: [ObjectIdentifier: Data] = [:]
+    private var lastBroadcastData: Data?
 
     var onClaimReceived: ((PlayerClaim) -> Void)?
     var onScoreSubmissionReceived: ((ScoreSubmission) -> Void)?
@@ -64,6 +65,8 @@ final class TCPBridge: @unchecked Sendable {
         let line = jsonString + "\n"
         guard let lineData = line.data(using: .utf8) else { return }
 
+        lastBroadcastData = lineData
+
         var dead: [Int] = []
         for (index, conn) in connections.enumerated() {
             if conn.state == .ready {
@@ -102,6 +105,10 @@ final class TCPBridge: @unchecked Sendable {
         connection.stateUpdateHandler = { [weak self] state in
             Task { @MainActor in
                 switch state {
+                case .ready:
+                    if let data = self?.lastBroadcastData {
+                        connection.send(content: data, completion: .contentProcessed { _ in })
+                    }
                 case .failed, .cancelled:
                     self?.removeConnection(connection)
                 default:

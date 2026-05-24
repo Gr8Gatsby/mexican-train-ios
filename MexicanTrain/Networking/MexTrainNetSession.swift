@@ -1,5 +1,6 @@
 import Foundation
 import MultipeerConnectivity
+import Network
 import UIKit
 
 /// Bonjour service type — ≤15 chars, lowercase + hyphens + digits.
@@ -15,12 +16,18 @@ final class MexTrainNetSession: NSObject {
     enum JoinState { case browsing, connecting, connected, disconnected, hostEnded }
 
     struct DiscoveredHost: Identifiable, Equatable {
-        let peerID: MCPeerID
+        let peerID: MCPeerID?
         let roomCode: String
         let gameName: String
         let playerCount: Int
         let hostName: String
-        var id: String { peerID.displayName + roomCode }
+        let nsdEndpoint: NWEndpoint?
+        var isTCP: Bool { nsdEndpoint != nil }
+        var id: String { (peerID?.displayName ?? "tcp") + roomCode }
+
+        static func == (lhs: DiscoveredHost, rhs: DiscoveredHost) -> Bool {
+            lhs.id == rhs.id
+        }
     }
 
     private(set) var role: Role = .idle
@@ -54,6 +61,14 @@ final class MexTrainNetSession: NSObject {
     private var browser: MCNearbyServiceBrowser?
     private var lastSentSeq: Int = 0
     private let tcpBridge = TCPBridge()
+    private var hostPeerID: MCPeerID?
+
+    // NSD/TCP joiner support
+    private var nsdBrowserDelegate: NSDServiceBrowserDelegate?
+    private var tcpJoinerConnection: NWConnection?
+    private var tcpJoinerInputStream: InputStream?
+    private var tcpJoinerOutputStream: OutputStream?
+    private var tcpJoinerBuffer = Data()
 
     override init() {
         let trimmed = String(UIDevice.current.name.prefix(63))
@@ -157,50 +172,234 @@ final class MexTrainNetSession: NSObject {
         browser.delegate = self
         browser.startBrowsingForPeers()
         self.browser = browser
+
+        startNSDBrowsing()
     }
 
     func stopBrowsing() {
         browser?.stopBrowsingForPeers()
         browser = nil
+        nsdBrowserDelegate?.stop()
+        nsdBrowserDelegate = nil
     }
 
     func connect(to host: DiscoveredHost, timeout: TimeInterval = 15) {
-        guard role == .joiner, let session, let browser else { return }
+        guard role == .joiner else { return }
         joinState = .connecting
-        browser.invitePeer(host.peerID, to: session, withContext: nil, timeout: timeout)
+
+        // Re-fetch in case NSD resolved a TCP endpoint after the UI rendered.
+        let resolved = availableHosts.first(where: { $0.roomCode == host.roomCode }) ?? host
+
+        if resolved.isTCP, let endpoint = resolved.nsdEndpoint {
+            hostPeerID = nil
+            connectViaTCP(endpoint: endpoint)
+        } else if let peerID = resolved.peerID, let session, let browser {
+            hostPeerID = peerID
+            browser.invitePeer(peerID, to: session, withContext: nil, timeout: timeout)
+        } else {
+            joinState = .disconnected
+        }
     }
 
     func sendClaim(_ claim: PlayerClaim) {
-        guard role == .joiner, let session else { return }
+        guard role == .joiner else { return }
         myPlayerID = claim.playerID
-        do {
-            let data = try JSONEncoder().encode(MultipeerMessage.claim(claim))
-            try session.send(data, toPeers: session.connectedPeers, with: .reliable)
-        } catch {
-            // Log only.
+
+        if tcpJoinerOutputStream != nil {
+            sendTCPMessage(MultipeerMessage.claim(claim))
+        } else if let session {
+            do {
+                let data = try JSONEncoder().encode(MultipeerMessage.claim(claim))
+                try session.send(data, toPeers: session.connectedPeers, with: .reliable)
+            } catch {
+                // Log only.
+            }
         }
     }
 
     /// Joiner → host. Send a pip count for the joiner's own slot. The host
     /// records the submission and rebroadcasts the resulting snapshot.
     func sendScoreSubmission(_ submission: ScoreSubmission) {
-        guard role == .joiner, let session else { return }
-        do {
-            let data = try JSONEncoder().encode(MultipeerMessage.scoreSubmission(submission))
-            try session.send(data, toPeers: session.connectedPeers, with: .reliable)
-        } catch {
-            // Log only.
+        guard role == .joiner else { return }
+
+        if tcpJoinerOutputStream != nil {
+            sendTCPMessage(MultipeerMessage.scoreSubmission(submission))
+        } else if let session {
+            do {
+                let data = try JSONEncoder().encode(MultipeerMessage.scoreSubmission(submission))
+                try session.send(data, toPeers: session.connectedPeers, with: .reliable)
+            } catch {
+                // Log only.
+            }
         }
     }
 
     func leave() {
         session?.disconnect()
         stopBrowsing()
+        closeTCPJoiner()
         role = .idle
         joinState = .disconnected
         latestSnapshot = nil
         connectedPeerCount = 0
         myPlayerID = nil
+        hostPeerID = nil
+    }
+
+    private func closeTCPJoiner() {
+        tcpJoinerConnection?.cancel()
+        tcpJoinerConnection = nil
+        tcpJoinerInputStream?.close()
+        tcpJoinerInputStream = nil
+        tcpJoinerOutputStream?.close()
+        tcpJoinerOutputStream = nil
+        tcpJoinerBuffer = Data()
+    }
+
+    // MARK: - NSD/TCP Joiner (Android host support)
+
+    private func startNSDBrowsing() {
+        let delegate = NSDServiceBrowserDelegate { [weak self] host in
+            Task { @MainActor in
+                guard let self, self.role == .joiner else { return }
+                if let idx = self.availableHosts.firstIndex(where: { $0.roomCode == host.roomCode }) {
+                    // MPC may have found this host first without TCP endpoint — upgrade it
+                    self.availableHosts[idx] = host
+                } else {
+                    self.availableHosts.append(host)
+                }
+            }
+        } onLost: { [weak self] roomCode in
+            Task { @MainActor in
+                self?.availableHosts.removeAll { $0.isTCP && $0.roomCode == roomCode }
+            }
+        }
+        delegate.start()
+        self.nsdBrowserDelegate = delegate
+    }
+
+    private func connectViaTCP(endpoint: NWEndpoint) {
+        guard case .hostPort(let host, let port) = endpoint else {
+            print("TCP joiner: endpoint is not hostPort: \(endpoint)")
+            joinState = .disconnected
+            return
+        }
+
+        let hostStr = "\(host)"
+        let portInt = Int(port.rawValue)
+        print("TCP joiner: connecting to \(hostStr):\(portInt)")
+
+        closeTCPJoiner()
+        tcpJoinerBuffer = Data()
+
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            var readStream: Unmanaged<CFReadStream>?
+            var writeStream: Unmanaged<CFWriteStream>?
+            CFStreamCreatePairWithSocketToHost(nil, hostStr as CFString, UInt32(portInt), &readStream, &writeStream)
+
+            guard let inputCF = readStream?.takeRetainedValue(),
+                  let outputCF = writeStream?.takeRetainedValue() else {
+                Task { @MainActor in self?.joinState = .disconnected }
+                return
+            }
+
+            let input = inputCF as InputStream
+            let output = outputCF as OutputStream
+
+            input.open()
+            output.open()
+
+            // Wait for the connection to establish
+            for _ in 0..<100 {
+                let s = input.streamStatus
+                if s == .open || s == .reading { break }
+                if s == .error || s == .closed { break }
+                Thread.sleep(forTimeInterval: 0.05)
+            }
+
+            guard input.streamStatus == .open || input.streamStatus == .reading else {
+                print("TCP joiner: stream failed to open - status \(input.streamStatus.rawValue)")
+                input.close()
+                output.close()
+                Task { @MainActor in self?.joinState = .disconnected }
+                return
+            }
+
+            print("TCP joiner: connected!")
+            Task { @MainActor in
+                self?.tcpJoinerInputStream = input
+                self?.tcpJoinerOutputStream = output
+                self?.joinState = .connected
+            }
+
+            // Read loop on background thread
+            let bufSize = 65536
+            let buf = UnsafeMutablePointer<UInt8>.allocate(capacity: bufSize)
+            defer { buf.deallocate() }
+
+            while true {
+                let status = input.streamStatus
+                if status == .closed || status == .error || status == .atEnd {
+                    print("TCP joiner: read loop exiting, stream status = \(status.rawValue), error = \(String(describing: input.streamError))")
+                    break
+                }
+
+                if input.hasBytesAvailable {
+                    let bytesRead = input.read(buf, maxLength: bufSize)
+                    if bytesRead > 0 {
+                        let chunk = Data(bytes: buf, count: bytesRead)
+                        Task { @MainActor in
+                            self?.handleTCPJoinerData(chunk)
+                        }
+                    } else if bytesRead < 0 {
+                        print("TCP joiner: read returned \(bytesRead), error = \(String(describing: input.streamError))")
+                        break
+                    }
+                } else {
+                    Thread.sleep(forTimeInterval: 0.05)
+                }
+            }
+
+            print("TCP joiner: read loop ended")
+            Task { @MainActor in
+                if self?.joinState == .connected {
+                    self?.joinState = .hostEnded
+                }
+            }
+        }
+    }
+
+    private func handleTCPJoinerData(_ data: Data) {
+        tcpJoinerBuffer.append(data)
+
+        while let newlineIndex = tcpJoinerBuffer.firstIndex(of: UInt8(ascii: "\n")) {
+            let lineData = tcpJoinerBuffer[tcpJoinerBuffer.startIndex..<newlineIndex]
+            tcpJoinerBuffer = Data(tcpJoinerBuffer[tcpJoinerBuffer.index(after: newlineIndex)...])
+            guard !lineData.isEmpty else { continue }
+
+            do {
+                let message = try JSONDecoder().decode(MultipeerMessage.self, from: Data(lineData))
+                if case .snapshot(let snap) = message {
+                    if let cur = latestSnapshot, snap.seq < cur.seq { continue }
+                    latestSnapshot = snap
+                }
+            } catch {
+                print("TCP joiner: failed to decode: \(error)")
+            }
+        }
+    }
+
+    private func sendTCPMessage(_ message: MultipeerMessage) {
+        guard let output = tcpJoinerOutputStream,
+              let data = try? JSONEncoder().encode(message),
+              let jsonString = String(data: data, encoding: .utf8) else { return }
+        let line = jsonString + "\n"
+        guard let lineData = line.data(using: .utf8) else { return }
+
+        lineData.withUnsafeBytes { ptr in
+            guard let base = ptr.baseAddress?.assumingMemoryBound(to: UInt8.self) else { return }
+            output.write(base, maxLength: lineData.count)
+        }
     }
 }
 
@@ -212,7 +411,7 @@ extension MexTrainNetSession: @preconcurrency MCSessionDelegate {
             case .connected:
                 if role == .joiner { joinState = .connected }
             case .notConnected:
-                if role == .joiner {
+                if role == .joiner, peerID == hostPeerID {
                     if joinState == .connected { joinState = .hostEnded }
                     else { joinState = .disconnected }
                 }
@@ -268,7 +467,8 @@ extension MexTrainNetSession: @preconcurrency MCNearbyServiceBrowserDelegate {
             roomCode: info?["code"] ?? "",
             gameName: info?["game"] ?? "Mexican Train",
             playerCount: Int(info?["players"] ?? "0") ?? 0,
-            hostName: info?["host"] ?? peerID.displayName
+            hostName: info?["host"] ?? peerID.displayName,
+            nsdEndpoint: nil
         )
         Task { @MainActor in
             if !availableHosts.contains(where: { $0.id == host.id }) {

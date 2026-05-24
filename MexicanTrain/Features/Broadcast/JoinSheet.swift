@@ -324,19 +324,13 @@ struct JoinSheet: View {
     private var slotPicker: some View {
         if coordinator.netSession.latestSnapshot != nil {
             VStack(alignment: .leading, spacing: 6) {
-                Text("ROLE")
+                Text("You'll join as a player with the name above.")
                     .font(theme.monoFont(size: 12))
-                    .tracking(2)
                     .foregroundStyle(theme.muted)
-                HStack {
-                    rolePill(.player, label: "JOIN AS PLAYER")
-                    rolePill(.spectator, label: "SPECTATE")
-                }
-                if roleChoice == .player {
-                    Text("You'll be added to the conductor's player list with the name above.")
-                        .font(theme.monoFont(size: 12))
+                Button { roleChoice = .spectator } label: {
+                    Text("Watch as spectator instead")
+                        .font(theme.monoFont(size: 11))
                         .foregroundStyle(theme.muted)
-                        .padding(.top, 4)
                 }
             }
         }
@@ -375,7 +369,7 @@ struct JoinSheet: View {
                 joinButtonLabel(text: "CONNECTING…", enabled: false)
             case .connected:
                 Button(action: confirm) {
-                    joinButtonLabel(text: "JOIN", enabled: canConfirm)
+                    joinButtonLabel(text: roleChoice == .player ? "JOIN AS PLAYER" : "SPECTATE", enabled: canConfirm)
                 }
                 .disabled(!canConfirm)
             case .hostEnded:
@@ -415,9 +409,10 @@ struct JoinSheet: View {
         // Settings-saved name wins over the device-derived name when
         // present — it's the user's explicit identity choice.
         if editedName.isEmpty {
-            if !settings.defaultYouName.isEmpty {
-                editedName = settings.defaultYouName
-            } else if let n = p.displayName {
+            let saved = settings.defaultYouName
+            if !saved.isEmpty && saved != "Conductor" {
+                editedName = saved
+            } else if let n = p.displayName, !n.isEmpty {
                 editedName = n
             }
         }

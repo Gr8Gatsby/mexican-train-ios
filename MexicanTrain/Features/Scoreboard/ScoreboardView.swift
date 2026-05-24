@@ -180,7 +180,6 @@ struct ScoreboardView: View {
             )
             switch outcome {
             case .created, .overrodeConductor:
-                try? GamePersistence.maybeAdvanceStop(in: context, game: game)
                 if let p = game.players.first(where: { $0.id == submission.playerID }) {
                     withAnimation(.easeOut(duration: 0.25)) {
                         toast = "\(p.name) submitted \(submission.pips)"

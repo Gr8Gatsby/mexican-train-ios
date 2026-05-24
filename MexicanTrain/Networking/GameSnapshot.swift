@@ -22,13 +22,78 @@ struct GameSnapshot: Codable, Equatable {
         StartingEngine(rawValue: startingEngineRaw) ?? .traditional
     }
     var isFinished: Bool { endedAt != nil }
+
+    init(seq: Int, roomCode: String, hostName: String, gameID: UUID,
+         gameName: String, length: Int, startingEngineRaw: String,
+         currentStop: Int, players: [PlayerSnapshot], scores: [ScoreSnapshot],
+         recentCaptures: [CaptureSnapshot], endedAt: Date? = nil,
+         winnerPlayerID: UUID? = nil, claims: [PlayerClaim] = []) {
+        self.seq = seq; self.roomCode = roomCode; self.hostName = hostName
+        self.gameID = gameID; self.gameName = gameName; self.length = length
+        self.startingEngineRaw = startingEngineRaw; self.currentStop = currentStop
+        self.players = players; self.scores = scores
+        self.recentCaptures = recentCaptures; self.endedAt = endedAt
+        self.winnerPlayerID = winnerPlayerID; self.claims = claims
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.seq = try c.decode(Int.self, forKey: .seq)
+        self.roomCode = try c.decode(String.self, forKey: .roomCode)
+        self.hostName = try c.decode(String.self, forKey: .hostName)
+        // Android sends gameID as a String; accept either UUID or String
+        if let uuid = try? c.decode(UUID.self, forKey: .gameID) {
+            self.gameID = uuid
+        } else {
+            let str = (try? c.decode(String.self, forKey: .gameID)) ?? ""
+            self.gameID = UUID(uuidString: str) ?? UUID()
+        }
+        self.gameName = (try? c.decode(String.self, forKey: .gameName)) ?? ""
+        self.length = try c.decode(Int.self, forKey: .length)
+        self.startingEngineRaw = try c.decode(String.self, forKey: .startingEngineRaw)
+        self.currentStop = try c.decode(Int.self, forKey: .currentStop)
+        self.players = try c.decode([PlayerSnapshot].self, forKey: .players)
+        self.scores = (try? c.decode([ScoreSnapshot].self, forKey: .scores)) ?? []
+        self.recentCaptures = (try? c.decode([CaptureSnapshot].self, forKey: .recentCaptures)) ?? []
+        // Android sends endedAt as Unix millis Long; iOS uses Date
+        if let millis = try? c.decode(Int64.self, forKey: .endedAt) {
+            self.endedAt = Date(timeIntervalSince1970: Double(millis) / 1000.0)
+        } else {
+            self.endedAt = try? c.decode(Date.self, forKey: .endedAt)
+        }
+        if let uuid = try? c.decode(UUID.self, forKey: .winnerPlayerID) {
+            self.winnerPlayerID = uuid
+        } else if let str = try? c.decode(String.self, forKey: .winnerPlayerID) {
+            self.winnerPlayerID = UUID(uuidString: str)
+        } else {
+            self.winnerPlayerID = nil
+        }
+        self.claims = (try? c.decode([PlayerClaim].self, forKey: .claims)) ?? []
+    }
 }
 
 struct PlayerSnapshot: Codable, Equatable, Identifiable {
     var id: UUID
     var name: String
     var seat: Int
-    var isYou: Bool                         // host's view of "you"; joiners apply their own claim
+    var isYou: Bool
+
+    init(id: UUID, name: String, seat: Int, isYou: Bool = false) {
+        self.id = id; self.name = name; self.seat = seat; self.isYou = isYou
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        if let uuid = try? c.decode(UUID.self, forKey: .id) {
+            self.id = uuid
+        } else {
+            let str = (try? c.decode(String.self, forKey: .id)) ?? ""
+            self.id = UUID(uuidString: str) ?? UUID()
+        }
+        self.name = try c.decode(String.self, forKey: .name)
+        self.seat = try c.decode(Int.self, forKey: .seat)
+        self.isYou = (try c.decodeIfPresent(Bool.self, forKey: .isYou)) ?? false
+    }
 }
 
 struct ScoreSnapshot: Codable, Equatable {
@@ -128,4 +193,32 @@ enum MultipeerMessage: Codable {
     case snapshot(GameSnapshot)
     case claim(PlayerClaim)
     case scoreSubmission(ScoreSubmission)
+
+    private enum CodingKeys: String, CodingKey {
+        case snapshot, claim, scoreSubmission
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        switch self {
+        case .snapshot(let v): try container.encode(v, forKey: .snapshot)
+        case .claim(let v): try container.encode(v, forKey: .claim)
+        case .scoreSubmission(let v): try container.encode(v, forKey: .scoreSubmission)
+        }
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        if let v = try container.decodeIfPresent(GameSnapshot.self, forKey: .snapshot) {
+            self = .snapshot(v)
+        } else if let v = try container.decodeIfPresent(PlayerClaim.self, forKey: .claim) {
+            self = .claim(v)
+        } else if let v = try container.decodeIfPresent(ScoreSubmission.self, forKey: .scoreSubmission) {
+            self = .scoreSubmission(v)
+        } else {
+            throw DecodingError.dataCorrupted(
+                DecodingError.Context(codingPath: decoder.codingPath,
+                                      debugDescription: "No recognized MultipeerMessage key found"))
+        }
+    }
 }
