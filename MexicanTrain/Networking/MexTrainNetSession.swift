@@ -179,17 +179,21 @@ final class MexTrainNetSession: NSObject {
         copy.claims = Array(playerClaims.values)
         latestSnapshot = copy
 
-        // Send to MPC peers.
+        // Send to MPC peers — MCSession.send has a ~100KB practical limit,
+        // so trim captures to the current + previous stop to stay under it.
         if !session.connectedPeers.isEmpty {
             do {
-                let data = try JSONEncoder().encode(MultipeerMessage.snapshot(copy))
+                var mpcCopy = copy
+                let recentStops = Set([copy.currentStop, max(1, copy.currentStop - 1)])
+                mpcCopy.recentCaptures = copy.recentCaptures.filter { recentStops.contains($0.stop) }
+                let data = try JSONEncoder().encode(MultipeerMessage.snapshot(mpcCopy))
                 try session.send(data, toPeers: session.connectedPeers, with: .reliable)
             } catch {
-                // Log-only — broadcast errors aren't user-visible in v1.
+                print("[MexTrainNet] MPC broadcast failed: \(error)")
             }
         }
 
-        // Send to TCP (Android) clients.
+        // Send to TCP (Android) clients — no size limit, include all captures.
         tcpBridge.broadcast(copy)
     }
 
@@ -505,9 +509,16 @@ extension MexTrainNetSession: @preconcurrency MCSessionDelegate {
         guard let message = try? JSONDecoder().decode(MultipeerMessage.self, from: data) else { return }
         Task { @MainActor in
             switch message {
-            case .snapshot(let snap):
+            case .snapshot(var snap):
                 if role == .joiner {
                     if let cur = latestSnapshot, snap.seq < cur.seq { return }
+                    // MPC snapshots may only include recent captures due to size limits.
+                    // Merge with previously accumulated captures so we don't lose old photos.
+                    if let cur = latestSnapshot {
+                        let existingIDs = Set(snap.recentCaptures.map(\.id))
+                        let oldCaptures = cur.recentCaptures.filter { !existingIDs.contains($0.id) }
+                        snap.recentCaptures = oldCaptures + snap.recentCaptures
+                    }
                     latestSnapshot = snap
                     lastHeartbeatDate = Date()
                 }
