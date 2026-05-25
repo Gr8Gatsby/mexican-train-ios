@@ -20,7 +20,7 @@ final class JoinedGamePersistenceTests: XCTestCase {
         gameID: UUID = UUID(),
         currentStop: Int = 2,
         scores: [ScoreSnapshot] = [],
-        captures: [CaptureSnapshot] = [],
+        captures: [CaptureManifestEntry] = [],
         ended: Bool = false
     ) -> GameSnapshot {
         GameSnapshot(
@@ -67,22 +67,30 @@ final class JoinedGamePersistenceTests: XCTestCase {
         let ctx = container.mainContext
         let gameID = UUID()
         let p1 = UUID(), p2 = UUID()
-        let cap1 = CaptureSnapshot(id: UUID(), playerID: p1, stop: 1, thumbJPEG: Data([0x01]))
-        let cap2 = CaptureSnapshot(id: UUID(), playerID: p2, stop: 1, thumbJPEG: Data([0x02]))
-        let cap3 = CaptureSnapshot(id: UUID(), playerID: p1, stop: 2, thumbJPEG: Data([0x03]))
+        let cap1ID = UUID(), cap2ID = UUID(), cap3ID = UUID()
+        let entry1 = CaptureManifestEntry(id: cap1ID, playerID: p1, stop: 1)
+        let entry2 = CaptureManifestEntry(id: cap2ID, playerID: p2, stop: 1)
+        let entry3 = CaptureManifestEntry(id: cap3ID, playerID: p1, stop: 2)
 
-        let snapA = makeSnapshot(gameID: gameID, currentStop: 2, captures: [cap1, cap2])
-        let r = try JoinedGamePersistence.upsert(in: ctx, snapshot: snapA, myPlayerID: nil)
+        // Simulate a photo cache as if the joiner fetched photos on demand.
+        let photoCache: [UUID: Data] = [
+            cap1ID: Data([0x01]),
+            cap2ID: Data([0x02]),
+            cap3ID: Data([0x03])
+        ]
+
+        let snapA = makeSnapshot(gameID: gameID, currentStop: 2, captures: [entry1, entry2])
+        let r = try JoinedGamePersistence.upsert(in: ctx, snapshot: snapA, myPlayerID: nil, photoCache: photoCache)
         XCTAssertEqual(r.captures.count, 2)
 
         // Same captures again — should be deduped, not re-added.
-        let snapB = makeSnapshot(gameID: gameID, currentStop: 2, captures: [cap1, cap2])
-        _ = try JoinedGamePersistence.upsert(in: ctx, snapshot: snapB, myPlayerID: nil)
+        let snapB = makeSnapshot(gameID: gameID, currentStop: 2, captures: [entry1, entry2])
+        _ = try JoinedGamePersistence.upsert(in: ctx, snapshot: snapB, myPlayerID: nil, photoCache: photoCache)
         XCTAssertEqual(r.captures.count, 2)
 
         // New capture in a later stop's gallery — accumulates.
-        let snapC = makeSnapshot(gameID: gameID, currentStop: 3, captures: [cap3])
-        _ = try JoinedGamePersistence.upsert(in: ctx, snapshot: snapC, myPlayerID: nil)
+        let snapC = makeSnapshot(gameID: gameID, currentStop: 3, captures: [entry3])
+        _ = try JoinedGamePersistence.upsert(in: ctx, snapshot: snapC, myPlayerID: nil, photoCache: photoCache)
         XCTAssertEqual(r.captures.count, 3)
     }
 

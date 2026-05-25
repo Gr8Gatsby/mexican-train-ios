@@ -74,6 +74,14 @@ final class MexTrainNetSession: NSObject {
     private var heartbeatTask: Task<Void, Never>?
     private(set) var lastHeartbeatDate: Date?
 
+    // Photo cache: filled progressively as host pushes photoPush messages (joiner), or locally on push (host).
+    private(set) var photoCache: [UUID: Data] = [:]
+    /// Incremented each time a photo arrives so SwiftUI views can react.
+    private(set) var photoCacheVersion: Int = 0
+
+    /// Host-side: IDs of captures already pushed to ALL peers.
+    private var pushedCaptureIDs: Set<UUID> = []
+
     enum ConnectionHealth { case good, degraded, lost }
     var connectionHealth: ConnectionHealth {
         guard let last = lastHeartbeatDate else { return .good }
@@ -82,6 +90,15 @@ final class MexTrainNetSession: NSObject {
         if elapsed < 15 { return .degraded }
         return .lost
     }
+
+    /// Look up a cached photo for the given capture ID.
+    /// Returns nil if the photo hasn't been fetched yet.
+    func cachedPhoto(for captureID: UUID) -> Data? {
+        photoCache[captureID]
+    }
+
+    /// All currently cached photos. Used by persistence to store captures.
+    var allCachedPhotos: [UUID: Data] { photoCache }
 
     override init() {
         let trimmed = String(UIDevice.current.name.prefix(63))
@@ -96,6 +113,7 @@ final class MexTrainNetSession: NSObject {
         roomCode = initialSnapshot.roomCode
         lastSentSeq = 0
         latestSnapshot = initialSnapshot
+        pushedCaptureIDs.removeAll()
 
         let session = MCSession(peer: myPeerID, securityIdentity: nil, encryptionPreference: .required)
         session.delegate = self
@@ -126,6 +144,13 @@ final class MexTrainNetSession: NSObject {
             Task { @MainActor in
                 guard let self, self.role == .host else { return }
                 self.onScoreSubmissionReceived?(submission)
+            }
+        }
+        tcpBridge.onNewClientConnected = { [weak self] connection in
+            Task { @MainActor in
+                guard let self, self.role == .host else { return }
+                // Stream all existing photos to the new TCP client.
+                self.pushAllPhotosToTCPClient(connection)
             }
         }
 
@@ -169,6 +194,7 @@ final class MexTrainNetSession: NSObject {
         playerClaims.removeAll()
         latestSnapshot = nil
         connectedPeerCount = 0
+        pushedCaptureIDs.removeAll()
     }
 
     func broadcast(snapshot: GameSnapshot) {
@@ -179,21 +205,17 @@ final class MexTrainNetSession: NSObject {
         copy.claims = Array(playerClaims.values)
         latestSnapshot = copy
 
-        // Send to MPC peers — MCSession.send has a ~100KB practical limit,
-        // so trim captures to the current + previous stop to stay under it.
+        // Snapshots are now metadata-only (no photo bytes), so they're tiny.
         if !session.connectedPeers.isEmpty {
             do {
-                var mpcCopy = copy
-                let recentStops = Set([copy.currentStop, max(1, copy.currentStop - 1)])
-                mpcCopy.recentCaptures = copy.recentCaptures.filter { recentStops.contains($0.stop) }
-                let data = try JSONEncoder().encode(MultipeerMessage.snapshot(mpcCopy))
+                let data = try JSONEncoder().encode(MultipeerMessage.snapshot(copy))
                 try session.send(data, toPeers: session.connectedPeers, with: .reliable)
             } catch {
                 print("[MexTrainNet] MPC broadcast failed: \(error)")
             }
         }
 
-        // Send to TCP (Android) clients — no size limit, include all captures.
+        // Send to TCP (Android) clients.
         tcpBridge.broadcast(copy)
     }
 
@@ -277,6 +299,57 @@ final class MexTrainNetSession: NSObject {
         }
     }
 
+    /// Host: push a single photo to ALL connected peers (MPC + TCP).
+    /// Called when a new capture is created (camera capture or joiner submission).
+    func pushPhoto(captureID: UUID, playerID: UUID, stop: Int, thumbJPEG: Data) {
+        guard role == .host else { return }
+        pushedCaptureIDs.insert(captureID)
+        // Also keep in local photoCache so host-side replay works
+        photoCache[captureID] = thumbJPEG
+        photoCacheVersion += 1
+
+        let push = PhotoPush(captureID: captureID, playerID: playerID, stop: stop, thumbJPEG: thumbJPEG)
+        let msg = MultipeerMessage.photoPush(push)
+
+        // Send to MPC peers
+        if let session, !session.connectedPeers.isEmpty {
+            if let data = try? JSONEncoder().encode(msg) {
+                try? session.send(data, toPeers: session.connectedPeers, with: .reliable)
+            }
+        }
+
+        // Send to TCP clients
+        tcpBridge.sendMessageToAll(msg)
+    }
+
+    /// Host: stream all existing photos to a specific MPC peer (new joiner).
+    private func pushAllPhotos(to peerID: MCPeerID) {
+        guard role == .host, let session else { return }
+        guard let manifest = latestSnapshot?.recentCaptures else { return }
+
+        for entry in manifest {
+            guard let data = photoCache[entry.id] else { continue }
+            let push = PhotoPush(captureID: entry.id, playerID: entry.playerID, stop: entry.stop, thumbJPEG: data)
+            let msg = MultipeerMessage.photoPush(push)
+            if let encoded = try? JSONEncoder().encode(msg) {
+                try? session.send(encoded, toPeers: [peerID], with: .reliable)
+            }
+        }
+    }
+
+    /// Host: stream all existing photos to a specific TCP client (new joiner).
+    private func pushAllPhotosToTCPClient(_ connection: NWConnection) {
+        guard role == .host else { return }
+        guard let manifest = latestSnapshot?.recentCaptures else { return }
+
+        for entry in manifest {
+            guard let data = photoCache[entry.id] else { continue }
+            let push = PhotoPush(captureID: entry.id, playerID: entry.playerID, stop: entry.stop, thumbJPEG: data)
+            let msg = MultipeerMessage.photoPush(push)
+            tcpBridge.sendMessage(msg, to: connection)
+        }
+    }
+
     /// Connect directly to a host via IP address and port (bypasses discovery).
     func connectDirect(host: String, port: UInt16) {
         guard role == .joiner else { return }
@@ -296,6 +369,8 @@ final class MexTrainNetSession: NSObject {
         connectedPeerCount = 0
         myPlayerID = nil
         hostPeerID = nil
+        photoCache.removeAll()
+        photoCacheVersion = 0
     }
 
     private func closeTCPJoiner() {
@@ -455,11 +530,20 @@ final class MexTrainNetSession: NSObject {
             do {
                 let message = try JSONDecoder().decode(MultipeerMessage.self, from: Data(lineData))
                 switch message {
-                case .snapshot(let snap):
+                case .snapshot(var snap):
                     if let cur = latestSnapshot, snap.seq < cur.seq { continue }
-                    print("[TCP joiner] snapshot received: \(snap.recentCaptures.count) captures, sizes: \(snap.recentCaptures.map { $0.thumbJPEG.count })")
+                    // Merge manifest entries so we don't lose old ones.
+                    if let cur = latestSnapshot {
+                        let existingIDs = Set(snap.recentCaptures.map(\.id))
+                        let oldEntries = cur.recentCaptures.filter { !existingIDs.contains($0.id) }
+                        snap.recentCaptures = oldEntries + snap.recentCaptures
+                    }
+                    print("[TCP joiner] snapshot received: \(snap.recentCaptures.count) manifest entries")
                     latestSnapshot = snap
                     lastHeartbeatDate = Date()
+                case .photoPush(let push):
+                    photoCache[push.captureID] = push.thumbJPEG
+                    photoCacheVersion += 1
                 case .heartbeat:
                     lastHeartbeatDate = Date()
                 default:
@@ -492,6 +576,10 @@ extension MexTrainNetSession: @preconcurrency MCSessionDelegate {
             switch state {
             case .connected:
                 if role == .joiner { joinState = .connected }
+                if role == .host {
+                    // New joiner connected — stream all existing photos to them.
+                    self.pushAllPhotos(to: peerID)
+                }
             case .notConnected:
                 if role == .joiner, peerID == hostPeerID {
                     if joinState == .connected { joinState = .hostEnded }
@@ -512,12 +600,11 @@ extension MexTrainNetSession: @preconcurrency MCSessionDelegate {
             case .snapshot(var snap):
                 if role == .joiner {
                     if let cur = latestSnapshot, snap.seq < cur.seq { return }
-                    // MPC snapshots may only include recent captures due to size limits.
-                    // Merge with previously accumulated captures so we don't lose old photos.
+                    // Merge manifest entries so we don't lose old ones.
                     if let cur = latestSnapshot {
                         let existingIDs = Set(snap.recentCaptures.map(\.id))
-                        let oldCaptures = cur.recentCaptures.filter { !existingIDs.contains($0.id) }
-                        snap.recentCaptures = oldCaptures + snap.recentCaptures
+                        let oldEntries = cur.recentCaptures.filter { !existingIDs.contains($0.id) }
+                        snap.recentCaptures = oldEntries + snap.recentCaptures
                     }
                     latestSnapshot = snap
                     lastHeartbeatDate = Date()
@@ -535,6 +622,11 @@ extension MexTrainNetSession: @preconcurrency MCSessionDelegate {
             case .heartbeat:
                 if role == .joiner {
                     lastHeartbeatDate = Date()
+                }
+            case .photoPush(let push):
+                if role == .joiner {
+                    photoCache[push.captureID] = push.thumbJPEG
+                    photoCacheVersion += 1
                 }
             }
         }

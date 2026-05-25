@@ -280,6 +280,16 @@ struct ScoreboardView: View {
             )
             switch outcome {
             case .created, .overrodeConductor:
+                // Push the joiner's thumbnail to all connected peers.
+                if let thumbData = thumb {
+                    coordinator.netSession.pushPhoto(
+                        captureID: game.captures
+                            .first(where: { $0.playerID == submission.playerID && $0.stopIndex == submission.stopIndex })?.id ?? UUID(),
+                        playerID: submission.playerID,
+                        stop: submission.stopIndex,
+                        thumbJPEG: thumbData
+                    )
+                }
                 if let p = game.players.first(where: { $0.id == submission.playerID }) {
                     // Find the just-saved score for undo support
                     if let savedScore = game.scores.first(where: {

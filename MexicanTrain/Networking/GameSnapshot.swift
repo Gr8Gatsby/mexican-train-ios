@@ -13,7 +13,7 @@ struct GameSnapshot: Codable, Equatable {
     var currentStop: Int
     var players: [PlayerSnapshot]
     var scores: [ScoreSnapshot]
-    var recentCaptures: [CaptureSnapshot]   // previous stop's gallery (most recent N)
+    var recentCaptures: [CaptureManifestEntry]   // metadata-only; photos fetched on demand
     var endedAt: Date?
     var winnerPlayerID: UUID?
     var claims: [PlayerClaim]
@@ -26,7 +26,7 @@ struct GameSnapshot: Codable, Equatable {
     init(seq: Int, roomCode: String, hostName: String, gameID: UUID,
          gameName: String, length: Int, startingEngineRaw: String,
          currentStop: Int, players: [PlayerSnapshot], scores: [ScoreSnapshot],
-         recentCaptures: [CaptureSnapshot], endedAt: Date? = nil,
+         recentCaptures: [CaptureManifestEntry], endedAt: Date? = nil,
          winnerPlayerID: UUID? = nil, claims: [PlayerClaim] = []) {
         self.seq = seq; self.roomCode = roomCode; self.hostName = hostName
         self.gameID = gameID; self.gameName = gameName; self.length = length
@@ -54,7 +54,14 @@ struct GameSnapshot: Codable, Equatable {
         self.currentStop = try c.decode(Int.self, forKey: .currentStop)
         self.players = try c.decode([PlayerSnapshot].self, forKey: .players)
         self.scores = (try? c.decode([ScoreSnapshot].self, forKey: .scores)) ?? []
-        self.recentCaptures = (try? c.decode([CaptureSnapshot].self, forKey: .recentCaptures)) ?? []
+        // Prefer manifest entries; fall back to decoding legacy CaptureSnapshot (back-compat).
+        if let entries = try? c.decode([CaptureManifestEntry].self, forKey: .recentCaptures) {
+            self.recentCaptures = entries
+        } else if let legacy = try? c.decode([CaptureSnapshot].self, forKey: .recentCaptures) {
+            self.recentCaptures = legacy.map { CaptureManifestEntry(id: $0.id, playerID: $0.playerID, stop: $0.stop) }
+        } else {
+            self.recentCaptures = []
+        }
         // Android sends endedAt as Unix millis Long; iOS uses Date
         if let millis = try? c.decode(Int64.self, forKey: .endedAt) {
             self.endedAt = Date(timeIntervalSince1970: Double(millis) / 1000.0)
@@ -173,6 +180,35 @@ struct CaptureSnapshot: Codable, Equatable, Identifiable {
     }
 }
 
+/// Lightweight metadata-only entry sent inside snapshots instead of full photo
+/// bytes. Joiners use the `id` to request the actual JPEG on demand.
+struct CaptureManifestEntry: Codable, Equatable, Identifiable {
+    var id: UUID
+    var playerID: UUID
+    var stop: Int
+
+    init(id: UUID, playerID: UUID, stop: Int) {
+        self.id = id; self.playerID = playerID; self.stop = stop
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        if let uuid = try? c.decode(UUID.self, forKey: .id) {
+            self.id = uuid
+        } else {
+            let str = (try? c.decode(String.self, forKey: .id)) ?? UUID().uuidString
+            self.id = UUID(uuidString: str) ?? UUID()
+        }
+        if let uuid = try? c.decode(UUID.self, forKey: .playerID) {
+            self.playerID = uuid
+        } else {
+            let str = (try? c.decode(String.self, forKey: .playerID)) ?? UUID().uuidString
+            self.playerID = UUID(uuidString: str) ?? UUID()
+        }
+        self.stop = try c.decode(Int.self, forKey: .stop)
+    }
+}
+
 /// Joiner-supplied identity for one slot. Photo is resized + JPEG-compressed
 /// to fit comfortably in the reliable multipeer envelope.
 struct PlayerClaim: Codable, Equatable, Identifiable {
@@ -247,14 +283,25 @@ struct ScoreSubmission: Codable, Equatable {
     }
 }
 
+/// Photo push payload (host → all joiners). The host sends one of these
+/// for every capture immediately after creation, and replays all existing
+/// photos to newly-connected joiners.
+struct PhotoPush: Codable, Equatable {
+    var captureID: UUID
+    var playerID: UUID
+    var stop: Int
+    var thumbJPEG: Data
+}
+
 enum MultipeerMessage: Codable {
     case snapshot(GameSnapshot)
     case claim(PlayerClaim)
     case scoreSubmission(ScoreSubmission)
     case heartbeat(timestamp: TimeInterval)
+    case photoPush(PhotoPush)
 
     private enum CodingKeys: String, CodingKey {
-        case snapshot, claim, scoreSubmission, heartbeat
+        case snapshot, claim, scoreSubmission, heartbeat, photoPush
     }
 
     func encode(to encoder: Encoder) throws {
@@ -264,6 +311,7 @@ enum MultipeerMessage: Codable {
         case .claim(let v): try container.encode(v, forKey: .claim)
         case .scoreSubmission(let v): try container.encode(v, forKey: .scoreSubmission)
         case .heartbeat(let ts): try container.encode(ts, forKey: .heartbeat)
+        case .photoPush(let v): try container.encode(v, forKey: .photoPush)
         }
     }
 
@@ -277,6 +325,8 @@ enum MultipeerMessage: Codable {
             self = .scoreSubmission(v)
         } else if let v = try container.decodeIfPresent(TimeInterval.self, forKey: .heartbeat) {
             self = .heartbeat(timestamp: v)
+        } else if let v = try container.decodeIfPresent(PhotoPush.self, forKey: .photoPush) {
+            self = .photoPush(v)
         } else {
             throw DecodingError.dataCorrupted(
                 DecodingError.Context(codingPath: decoder.codingPath,

@@ -2,22 +2,12 @@ import Foundation
 import UIKit
 
 enum SnapshotBuilder {
-    @MainActor private static var thumbCache: [UUID: Data] = [:]
-
     @MainActor
-    static func build(game: Game, photoStore: PhotoStore, roomCode: String) -> GameSnapshot {
-        var caps: [CaptureSnapshot] = []
-        for c in game.captures {
-            if let cached = thumbCache[c.id] {
-                caps.append(CaptureSnapshot(id: c.id, playerID: c.playerID, stop: c.stopIndex, thumbJPEG: cached))
-            } else if let img = photoStore.thumbnail(filename: c.filename, gameID: game.id, maxEdge: PlayerPhoto.targetEdge),
-                      let data = img.jpegData(compressionQuality: 0.6),
-                      data.count <= PlayerPhoto.maxJPEGBytes {
-                thumbCache[c.id] = data
-                caps.append(CaptureSnapshot(id: c.id, playerID: c.playerID, stop: c.stopIndex, thumbJPEG: data))
-            }
+    static func build(game: Game, roomCode: String) -> GameSnapshot {
+        let entries = game.captures.map {
+            CaptureManifestEntry(id: $0.id, playerID: $0.playerID, stop: $0.stopIndex)
         }
-        print("[SnapshotBuilder] \(game.captures.count) captures on disk, \(caps.count) with thumbnails (\(caps.reduce(0) { $0 + $1.thumbJPEG.count }) bytes total)")
+        print("[SnapshotBuilder] \(game.captures.count) captures on disk, \(entries.count) manifest entries (0 bytes in snapshot)")
         return GameSnapshot(
             seq: 0, // session overwrites
             roomCode: roomCode,
@@ -39,7 +29,7 @@ enum SnapshotBuilder {
                     excluded: $0.excluded
                 )
             },
-            recentCaptures: caps,
+            recentCaptures: entries,
             endedAt: game.finishedAt,
             winnerPlayerID: Scoring.standings(for: game).first?.playerID,
             claims: []

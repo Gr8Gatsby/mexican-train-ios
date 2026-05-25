@@ -27,9 +27,32 @@ struct HostBroadcasterModifier: ViewModifier {
     private func broadcastIfHosting() {
         guard coordinator.netSession.role == .host else { return }
         let snap = SnapshotBuilder.build(game: game,
-                                         photoStore: coordinator.photoStore,
                                          roomCode: coordinator.netSession.roomCode)
         coordinator.netSession.broadcast(snapshot: snap)
+        // Pre-warm photo cache for any captures not yet pushed, so they're
+        // available when new joiners connect.
+        prewarmPhotoCache()
+    }
+
+    /// Load thumbnails for any captures that aren't yet in the net session's
+    /// photo cache. This ensures the host can replay all photos when a new
+    /// joiner connects.
+    private func prewarmPhotoCache() {
+        let session = coordinator.netSession
+        let photoStore = coordinator.photoStore
+        for capture in game.captures {
+            guard session.cachedPhoto(for: capture.id) == nil else { continue }
+            if let img = photoStore.thumbnail(filename: capture.filename, gameID: game.id, maxEdge: PlayerPhoto.targetEdge),
+               let data = img.jpegData(compressionQuality: 0.6),
+               data.count <= PlayerPhoto.maxJPEGBytes {
+                session.pushPhoto(
+                    captureID: capture.id,
+                    playerID: capture.playerID,
+                    stop: capture.stopIndex,
+                    thumbJPEG: data
+                )
+            }
+        }
     }
 }
 
