@@ -139,6 +139,28 @@ struct CaptureSnapshot: Codable, Equatable, Identifiable {
     var playerID: UUID
     var stop: Int
     var thumbJPEG: Data
+
+    init(id: UUID, playerID: UUID, stop: Int, thumbJPEG: Data) {
+        self.id = id; self.playerID = playerID; self.stop = stop; self.thumbJPEG = thumbJPEG
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        if let uuid = try? c.decode(UUID.self, forKey: .id) {
+            self.id = uuid
+        } else {
+            let str = (try? c.decode(String.self, forKey: .id)) ?? UUID().uuidString
+            self.id = UUID(uuidString: str) ?? UUID()
+        }
+        if let uuid = try? c.decode(UUID.self, forKey: .playerID) {
+            self.playerID = uuid
+        } else {
+            let str = (try? c.decode(String.self, forKey: .playerID)) ?? UUID().uuidString
+            self.playerID = UUID(uuidString: str) ?? UUID()
+        }
+        self.stop = try c.decode(Int.self, forKey: .stop)
+        self.thumbJPEG = (try? c.decode(Data.self, forKey: .thumbJPEG)) ?? Data()
+    }
 }
 
 /// Joiner-supplied identity for one slot. Photo is resized + JPEG-compressed
