@@ -77,9 +77,10 @@ struct PlayerSnapshot: Codable, Equatable, Identifiable {
     var name: String
     var seat: Int
     var isYou: Bool
+    var isActive: Bool
 
-    init(id: UUID, name: String, seat: Int, isYou: Bool = false) {
-        self.id = id; self.name = name; self.seat = seat; self.isYou = isYou
+    init(id: UUID, name: String, seat: Int, isYou: Bool = false, isActive: Bool = true) {
+        self.id = id; self.name = name; self.seat = seat; self.isYou = isYou; self.isActive = isActive
     }
 
     init(from decoder: Decoder) throws {
@@ -93,6 +94,7 @@ struct PlayerSnapshot: Codable, Equatable, Identifiable {
         self.name = try c.decode(String.self, forKey: .name)
         self.seat = try c.decode(Int.self, forKey: .seat)
         self.isYou = (try c.decodeIfPresent(Bool.self, forKey: .isYou)) ?? false
+        self.isActive = (try c.decodeIfPresent(Bool.self, forKey: .isActive)) ?? true
     }
 }
 
@@ -193,9 +195,10 @@ enum MultipeerMessage: Codable {
     case snapshot(GameSnapshot)
     case claim(PlayerClaim)
     case scoreSubmission(ScoreSubmission)
+    case heartbeat(timestamp: TimeInterval)
 
     private enum CodingKeys: String, CodingKey {
-        case snapshot, claim, scoreSubmission
+        case snapshot, claim, scoreSubmission, heartbeat
     }
 
     func encode(to encoder: Encoder) throws {
@@ -204,6 +207,7 @@ enum MultipeerMessage: Codable {
         case .snapshot(let v): try container.encode(v, forKey: .snapshot)
         case .claim(let v): try container.encode(v, forKey: .claim)
         case .scoreSubmission(let v): try container.encode(v, forKey: .scoreSubmission)
+        case .heartbeat(let ts): try container.encode(ts, forKey: .heartbeat)
         }
     }
 
@@ -215,6 +219,8 @@ enum MultipeerMessage: Codable {
             self = .claim(v)
         } else if let v = try container.decodeIfPresent(ScoreSubmission.self, forKey: .scoreSubmission) {
             self = .scoreSubmission(v)
+        } else if let v = try container.decodeIfPresent(TimeInterval.self, forKey: .heartbeat) {
+            self = .heartbeat(timestamp: v)
         } else {
             throw DecodingError.dataCorrupted(
                 DecodingError.Context(codingPath: decoder.codingPath,

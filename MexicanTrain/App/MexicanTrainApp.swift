@@ -13,7 +13,18 @@ struct MexicanTrainApp: App {
         DebugSeed.seedIfRequested(container: container, photoStore: coord.photoStore)
         DebugRoute.applyIfRequested(to: coord, container: container)
         #endif
+        // Clean orphaned photo directories on launch
+        Self.cleanOrphanedPhotos(container: container, photoStore: coord.photoStore)
         _coordinator = State(initialValue: coord)
+    }
+
+    @MainActor
+    private static func cleanOrphanedPhotos(container: ModelContainer, photoStore: PhotoStore) {
+        let context = container.mainContext
+        let descriptor = FetchDescriptor<Game>()
+        guard let games = try? context.fetch(descriptor) else { return }
+        let validIDs = Set(games.map(\.id))
+        photoStore.cleanOrphaned(validGameIDs: validIDs)
     }
 
     var body: some Scene {

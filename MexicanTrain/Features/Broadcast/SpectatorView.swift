@@ -48,6 +48,9 @@ struct SpectatorView: View {
                 }
                 footer
             }
+            if session.joinState == .reconnecting {
+                reconnectingOverlay
+            }
             if session.joinState == .hostEnded {
                 hostEndedOverlay
             }
@@ -222,6 +225,14 @@ struct SpectatorView: View {
         let n = Scoring.engineTile(stop: min(snap.currentStop, snap.length),
                                    rules: snap.startingEngine,
                                    length: snap.length)
+        let health = coordinator.netSession.connectionHealth
+        let healthColor: Color = {
+            switch health {
+            case .good: return .green
+            case .degraded: return .yellow
+            case .lost: return .red
+            }
+        }()
         return HStack(spacing: 8) {
             Text("ENGINE")
                 .font(theme.monoFont(size: 9))
@@ -229,6 +240,17 @@ struct SpectatorView: View {
                 .foregroundStyle(theme.muted)
             DominoGlyph(value: n, width: 32, color: theme.ink)
             Spacer()
+            HStack(spacing: 5) {
+                Circle()
+                    .fill(healthColor)
+                    .frame(width: 8, height: 8)
+                if health == .lost {
+                    Text("CONNECTION LOST")
+                        .font(theme.monoFont(size: 9))
+                        .tracking(1.0)
+                        .foregroundStyle(.red)
+                }
+            }
             Text("STOP \(min(snap.currentStop, snap.length))/\(snap.length)")
                 .font(theme.monoFont(size: 10))
                 .tracking(1.4)
@@ -249,6 +271,24 @@ struct SpectatorView: View {
             .padding(.horizontal, 16).padding(.bottom, 14).padding(.top, 10)
             .background(theme.subBg)
             .overlay(alignment: .top) { Rectangle().fill(theme.border).frame(height: 1) }
+    }
+
+    private var reconnectingOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.5).ignoresSafeArea()
+            VStack(spacing: 12) {
+                ProgressView()
+                    .scaleEffect(1.2)
+                    .tint(theme.brand)
+                Text("Reconnecting...")
+                    .font(theme.monoFont(size: 14))
+                    .tracking(1.4)
+                    .foregroundStyle(theme.ink)
+            }
+            .padding(24)
+            .background(theme.bg, in: RoundedRectangle(cornerRadius: 14))
+            .padding(.horizontal, 28)
+        }
     }
 
     private var hostEndedOverlay: some View {

@@ -52,6 +52,28 @@ struct PhotoStore {
         try? FileManager.default.removeItem(at: gameDir(gameID: gameID))
     }
 
+    /// Remove photo directories that don't correspond to any known game ID.
+    /// Call on launch to reclaim disk space from deleted games whose photos
+    /// weren't cleaned up (e.g. crash during deletion).
+    func cleanOrphaned(validGameIDs: Set<UUID>) {
+        let fm = FileManager.default
+        guard let contents = try? fm.contentsOfDirectory(
+            at: rootDirectory,
+            includingPropertiesForKeys: [.isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ) else { return }
+
+        for url in contents {
+            let isDir = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+            guard isDir else { continue }
+            let dirName = url.lastPathComponent
+            guard let dirUUID = UUID(uuidString: dirName) else { continue }
+            if !validGameIDs.contains(dirUUID) {
+                try? fm.removeItem(at: url)
+            }
+        }
+    }
+
     private func gameDir(gameID: UUID) -> URL {
         rootDirectory.appendingPathComponent(gameID.uuidString, isDirectory: true)
     }
