@@ -37,6 +37,7 @@ struct ScoreCardTable: View {
                     isLeader: p.id == leaderID,
                     isLast: i == players.count - 1
                 )
+                .opacity(p.isActive ? 1.0 : 0.4)
             }
         }
         .background(theme.cardBg)

@@ -17,6 +17,8 @@ struct ScoreboardView: View {
     @State private var overrideConfirm: OverrideTarget?
     @State private var pendingClaim: PlayerClaim?
     @State private var showAssignDialog = false
+    @State private var showRemovePlayerDialog = false
+    @State private var undoableScore: Score?
 
     struct OverrideTarget: Identifiable, Equatable {
         let player: Player
@@ -137,6 +139,59 @@ struct ScoreboardView: View {
             coordinator.netSession.onScoreSubmissionReceived = nil
             coordinator.netSession.onClaimReceived = nil
         }
+        .confirmationDialog(
+            "Remove a player",
+            isPresented: $showRemovePlayerDialog
+        ) {
+            ForEach(game.players.filter { $0.isActive && !$0.isYou }) { player in
+                Button("Remove \(player.name)", role: .destructive) {
+                    player.isActive = false
+                    try? context.save()
+                }
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Removed players are dimmed on the scoreboard and excluded from future stops.")
+        }
+        .task(id: pendingClaim?.playerID) {
+            guard pendingClaim != nil else { return }
+            try? await Task.sleep(nanoseconds: 30_000_000_000)
+            guard !Task.isCancelled else { return }
+            pendingClaim = nil
+            showAssignDialog = false
+        }
+        .overlay(alignment: .top) {
+            if undoableScore != nil {
+                HStack(spacing: 10) {
+                    Text("Score saved")
+                        .font(theme.monoFont(size: 11))
+                        .foregroundStyle(theme.ink)
+                    Button("Undo") {
+                        if let score = undoableScore {
+                            context.delete(score)
+                            try? context.save()
+                        }
+                        undoableScore = nil
+                    }
+                    .font(theme.monoFont(size: 11))
+                    .fontWeight(.bold)
+                    .foregroundStyle(theme.brand)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(theme.cardBg, in: Capsule())
+                .overlay(Capsule().stroke(theme.border, lineWidth: 1))
+                .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
+                .padding(.top, 60)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .task(id: undoableScore?.id) {
+            guard undoableScore != nil else { return }
+            try? await Task.sleep(nanoseconds: 5_000_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation { undoableScore = nil }
+        }
     }
 
     /// Handle a `PlayerClaim` from a joiner while the game is already in
@@ -226,6 +281,14 @@ struct ScoreboardView: View {
             switch outcome {
             case .created, .overrodeConductor:
                 if let p = game.players.first(where: { $0.id == submission.playerID }) {
+                    // Find the just-saved score for undo support
+                    if let savedScore = game.scores.first(where: {
+                        $0.playerID == submission.playerID && $0.stopIndex == submission.stopIndex
+                    }) {
+                        withAnimation(.easeOut(duration: 0.25)) {
+                            undoableScore = savedScore
+                        }
+                    }
                     withAnimation(.easeOut(duration: 0.25)) {
                         toast = "\(p.name) submitted \(submission.pips)"
                     }
@@ -252,6 +315,11 @@ struct ScoreboardView: View {
                 Button("Rename game") {
                     renamingTo = game.displayName
                     renaming = true
+                }
+                if game.players.filter({ $0.isActive && !$0.isYou }).count > 0 {
+                    Button("Remove player") {
+                        showRemovePlayerDialog = true
+                    }
                 }
                 Button("End game early") {
                     try? GamePersistence.endGameEarly(game, in: context)

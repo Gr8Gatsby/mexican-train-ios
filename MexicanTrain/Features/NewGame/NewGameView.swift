@@ -237,6 +237,9 @@ struct NewGameView: View {
                     RoundedRectangle(cornerRadius: 10)
                         .stroke(theme.borderLight, lineWidth: 1)
                 )
+                .onChange(of: manualName) { _, new in
+                    if new.count > 20 { manualName = String(new.prefix(20)) }
+                }
             Button {
                 addManualPlayer()
             } label: {

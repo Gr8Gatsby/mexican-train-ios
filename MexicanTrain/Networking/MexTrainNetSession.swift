@@ -13,7 +13,7 @@ private let kServiceType = "mextrain-game"
 @Observable
 final class MexTrainNetSession: NSObject {
     enum Role { case idle, host, joiner }
-    enum JoinState { case browsing, connecting, connected, disconnected, hostEnded }
+    enum JoinState { case browsing, connecting, connected, disconnected, hostEnded, reconnecting }
 
     struct DiscoveredHost: Identifiable, Equatable {
         let peerID: MCPeerID?
@@ -70,6 +70,19 @@ final class MexTrainNetSession: NSObject {
     private var tcpJoinerOutputStream: OutputStream?
     private var tcpJoinerBuffer = Data()
 
+    // Heartbeat (host sends, joiner tracks)
+    private var heartbeatTask: Task<Void, Never>?
+    private(set) var lastHeartbeatDate: Date?
+
+    enum ConnectionHealth { case good, degraded, lost }
+    var connectionHealth: ConnectionHealth {
+        guard let last = lastHeartbeatDate else { return .good }
+        let elapsed = Date().timeIntervalSince(last)
+        if elapsed < 5 { return .good }
+        if elapsed < 15 { return .degraded }
+        return .lost
+    }
+
     override init() {
         let trimmed = String(UIDevice.current.name.prefix(63))
         self.myPeerID = MCPeerID(displayName: trimmed.isEmpty ? "Mex-Train player" : trimmed)
@@ -117,9 +130,35 @@ final class MexTrainNetSession: NSObject {
         }
 
         broadcast(snapshot: initialSnapshot)
+
+        // Start periodic heartbeat for joiners
+        heartbeatTask?.cancel()
+        heartbeatTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 5_000_000_000)
+                guard !Task.isCancelled, let self, self.role == .host else { break }
+                let msg = MultipeerMessage.heartbeat(timestamp: Date().timeIntervalSince1970)
+                // Send to MPC peers
+                if let session = self.session, !session.connectedPeers.isEmpty {
+                    if let data = try? JSONEncoder().encode(msg) {
+                        try? session.send(data, toPeers: session.connectedPeers, with: .reliable)
+                    }
+                }
+                // Send to TCP clients
+                if let data = try? JSONEncoder().encode(msg),
+                   let jsonString = String(data: data, encoding: .utf8) {
+                    let line = jsonString + "\n"
+                    if let lineData = line.data(using: .utf8) {
+                        self.tcpBridge.sendRawToAll(lineData)
+                    }
+                }
+            }
+        }
     }
 
     func stopHosting() {
+        heartbeatTask?.cancel()
+        heartbeatTask = nil
         advertiser?.stopAdvertisingPeer()
         advertiser = nil
         session?.disconnect()
@@ -302,34 +341,57 @@ final class MexTrainNetSession: NSObject {
         tcpJoinerBuffer = Data()
 
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            var readStream: Unmanaged<CFReadStream>?
-            var writeStream: Unmanaged<CFWriteStream>?
-            CFStreamCreatePairWithSocketToHost(nil, hostStr as CFString, UInt32(portInt), &readStream, &writeStream)
+            let retryDelays: [TimeInterval] = [2, 4, 8]
+            var attempt = 0
+            var input: InputStream?
+            var output: OutputStream?
 
-            guard let inputCF = readStream?.takeRetainedValue(),
-                  let outputCF = writeStream?.takeRetainedValue() else {
-                Task { @MainActor in self?.joinState = .disconnected }
-                return
+            while attempt <= retryDelays.count {
+                if attempt > 0 {
+                    let delay = retryDelays[attempt - 1]
+                    print("TCP joiner: retry attempt \(attempt), waiting \(delay)s")
+                    Task { @MainActor in self?.joinState = .reconnecting }
+                    Thread.sleep(forTimeInterval: delay)
+                }
+
+                var readStream: Unmanaged<CFReadStream>?
+                var writeStream: Unmanaged<CFWriteStream>?
+                CFStreamCreatePairWithSocketToHost(nil, hostStr as CFString, UInt32(portInt), &readStream, &writeStream)
+
+                guard let inputCF = readStream?.takeRetainedValue(),
+                      let outputCF = writeStream?.takeRetainedValue() else {
+                    attempt += 1
+                    continue
+                }
+
+                let inp = inputCF as InputStream
+                let out = outputCF as OutputStream
+
+                inp.open()
+                out.open()
+
+                // Wait for the connection to establish
+                for _ in 0..<100 {
+                    let s = inp.streamStatus
+                    if s == .open || s == .reading { break }
+                    if s == .error || s == .closed { break }
+                    Thread.sleep(forTimeInterval: 0.05)
+                }
+
+                if inp.streamStatus == .open || inp.streamStatus == .reading {
+                    input = inp
+                    output = out
+                    break
+                } else {
+                    print("TCP joiner: stream failed to open on attempt \(attempt) - status \(inp.streamStatus.rawValue)")
+                    inp.close()
+                    out.close()
+                    attempt += 1
+                }
             }
 
-            let input = inputCF as InputStream
-            let output = outputCF as OutputStream
-
-            input.open()
-            output.open()
-
-            // Wait for the connection to establish
-            for _ in 0..<100 {
-                let s = input.streamStatus
-                if s == .open || s == .reading { break }
-                if s == .error || s == .closed { break }
-                Thread.sleep(forTimeInterval: 0.05)
-            }
-
-            guard input.streamStatus == .open || input.streamStatus == .reading else {
-                print("TCP joiner: stream failed to open - status \(input.streamStatus.rawValue)")
-                input.close()
-                output.close()
+            guard let input, let output else {
+                print("TCP joiner: all connection attempts failed")
                 Task { @MainActor in self?.joinState = .disconnected }
                 return
             }
@@ -388,9 +450,15 @@ final class MexTrainNetSession: NSObject {
 
             do {
                 let message = try JSONDecoder().decode(MultipeerMessage.self, from: Data(lineData))
-                if case .snapshot(let snap) = message {
+                switch message {
+                case .snapshot(let snap):
                     if let cur = latestSnapshot, snap.seq < cur.seq { continue }
                     latestSnapshot = snap
+                    lastHeartbeatDate = Date()
+                case .heartbeat:
+                    lastHeartbeatDate = Date()
+                default:
+                    break
                 }
             } catch {
                 print("TCP joiner: failed to decode: \(error)")
@@ -440,6 +508,7 @@ extension MexTrainNetSession: @preconcurrency MCSessionDelegate {
                 if role == .joiner {
                     if let cur = latestSnapshot, snap.seq < cur.seq { return }
                     latestSnapshot = snap
+                    lastHeartbeatDate = Date()
                 }
             case .claim(let claim):
                 if role == .host {
@@ -450,6 +519,10 @@ extension MexTrainNetSession: @preconcurrency MCSessionDelegate {
             case .scoreSubmission(let submission):
                 if role == .host {
                     onScoreSubmissionReceived?(submission)
+                }
+            case .heartbeat:
+                if role == .joiner {
+                    lastHeartbeatDate = Date()
                 }
             }
         }

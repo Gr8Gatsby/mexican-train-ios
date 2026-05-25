@@ -1,3 +1,4 @@
+import AVFoundation
 import SwiftUI
 
 struct CameraView: View {
@@ -33,7 +34,11 @@ struct CameraView: View {
             return .confirm
         }
         #endif
-        return .aim
+        let status = AVCaptureDevice.authorizationStatus(for: .video)
+        if status == .authorized {
+            return .aim
+        }
+        return .permission
     }()
     @State private var captured: UIImage? = {
         #if DEBUG
@@ -66,22 +71,99 @@ struct CameraView: View {
     }()
     @State private var error: String?
 
-    enum Phase: Equatable { case aim, scanning, confirm }
+    enum Phase: Equatable { case permission, aim, scanning, confirm }
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
-            VStack(spacing: 0) {
-                topBar
-                viewfinder
-                bottomBar
+            if phase == .permission {
+                permissionView
+            } else {
+                VStack(spacing: 0) {
+                    topBar
+                    viewfinder
+                    bottomBar
+                }
             }
         }
         .task {
-            await camera.prepare()
+            if phase != .permission {
+                await camera.prepare()
+            }
         }
         .onDisappear {
             camera.stop()
+        }
+    }
+
+    @ViewBuilder
+    private var permissionView: some View {
+        let status = AVCaptureDevice.authorizationStatus(for: .video)
+        VStack(spacing: 24) {
+            Spacer()
+            if status == .denied || status == .restricted {
+                Text("Camera access denied")
+                    .font(theme.monoFont(size: 16))
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+                Button {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                } label: {
+                    Text("Open Settings")
+                        .font(theme.displayFont(size: 14))
+                        .tracking(1.4)
+                        .frame(maxWidth: 260, minHeight: 50)
+                        .foregroundStyle(theme.ctaText)
+                        .background(theme.cta, in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
+                }
+            } else {
+                Text("Camera access needed to scan dominoes")
+                    .font(theme.monoFont(size: 16))
+                    .foregroundStyle(.white)
+                    .multilineTextAlignment(.center)
+                Button {
+                    Task {
+                        let granted = await AVCaptureDevice.requestAccess(for: .video)
+                        if granted {
+                            await camera.prepare()
+                            withAnimation(.easeInOut(duration: 0.25)) { phase = .aim }
+                        } else {
+                            // Refresh the view so it shows the denied state
+                            phase = .permission
+                        }
+                    }
+                } label: {
+                    Text("Grant Permission")
+                        .font(theme.displayFont(size: 14))
+                        .tracking(1.4)
+                        .frame(maxWidth: 260, minHeight: 50)
+                        .foregroundStyle(theme.ctaText)
+                        .background(theme.cta, in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
+                }
+            }
+            if shouldShowManualButton {
+                Button {
+                    manual()
+                } label: {
+                    Text("Enter manually instead")
+                        .font(theme.monoFont(size: 12))
+                        .foregroundStyle(theme.accent)
+                }
+            }
+            Spacer()
+        }
+        .padding(.horizontal, 32)
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            // Re-check permission when returning from Settings
+            let updated = AVCaptureDevice.authorizationStatus(for: .video)
+            if updated == .authorized {
+                Task {
+                    await camera.prepare()
+                    withAnimation(.easeInOut(duration: 0.25)) { phase = .aim }
+                }
+            }
         }
     }
 
@@ -179,6 +261,8 @@ struct CameraView: View {
             }
 
             switch phase {
+            case .permission:
+                EmptyView()
             case .aim:
                 AimBrackets(color: theme.accent)
                 statusPill
@@ -268,6 +352,8 @@ struct CameraView: View {
                     .foregroundStyle(.red)
             }
             switch phase {
+            case .permission:
+                EmptyView()
             case .aim:
                 aimControls
             case .scanning:

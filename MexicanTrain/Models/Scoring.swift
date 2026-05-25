@@ -48,17 +48,18 @@ enum Scoring {
         return result
     }
 
-    /// Whether every player has a score recorded for the given stop.
+    /// Whether every active player has a score recorded for the given stop.
     static func isStopComplete(_ stop: Int, in game: Game) -> Bool {
-        guard !game.players.isEmpty else { return false }
-        return game.players.allSatisfy { p in
+        let activePlayers = game.players.filter { $0.isActive }
+        guard !activePlayers.isEmpty else { return false }
+        return activePlayers.allSatisfy { p in
             game.scores.contains { $0.playerID == p.id && $0.stopIndex == stop }
         }
     }
 
-    /// First player (in seat order) who has not yet entered the current stop.
+    /// First active player (in seat order) who has not yet entered the current stop.
     static func nextUnenteredPlayer(stop: Int, in game: Game) -> Player? {
-        for p in game.sortedPlayers {
+        for p in game.sortedPlayers where p.isActive {
             if !game.scores.contains(where: { $0.playerID == p.id && $0.stopIndex == stop }) {
                 return p
             }

@@ -312,6 +312,9 @@ struct JoinSheet: View {
                     RoundedRectangle(cornerRadius: 8)
                         .stroke(theme.borderLight, lineWidth: 1)
                 )
+                .onChange(of: editedName) { _, new in
+                    if new.count > 20 { editedName = String(new.prefix(20)) }
+                }
 
             Text("Name is prefilled from this device — edit before joining if you like. Photo is optional; tap PICK PHOTO to choose one (iCloud Photo Library is surfaced automatically), or pick a train below.")
                 .font(theme.monoFont(size: 12))
@@ -398,7 +401,7 @@ struct JoinSheet: View {
                     joinButtonLabel(text: "CONNECT", enabled: connectEnabled)
                 }
                 .disabled(!connectEnabled)
-            case .connecting:
+            case .connecting, .reconnecting:
                 joinButtonLabel(text: "CONNECTING…", enabled: false)
             case .connected:
                 Button(action: confirm) {

@@ -86,6 +86,13 @@ final class TCPBridge: @unchecked Sendable {
         }
     }
 
+    /// Send raw data to all connected TCP clients (used for heartbeats).
+    func sendRawToAll(_ data: Data) {
+        for conn in connections where conn.state == .ready {
+            conn.send(content: data, completion: .contentProcessed { _ in })
+        }
+    }
+
     /// Tear down the listener and all connections.
     func stop() {
         listener?.cancel()
@@ -159,6 +166,8 @@ final class TCPBridge: @unchecked Sendable {
                     onScoreSubmissionReceived?(submission)
                 case .snapshot:
                     break // Host doesn't process inbound snapshots.
+                case .heartbeat:
+                    break // Host doesn't process inbound heartbeats.
                 }
             } catch {
                 print("TCPBridge: Failed to decode message: \(error)")

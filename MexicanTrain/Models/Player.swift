@@ -8,6 +8,7 @@ final class Player {
     var name: String
     var seat: Int
     var isYou: Bool
+    var isActive: Bool
     var avatarFilename: String?
 
     init(
@@ -15,12 +16,14 @@ final class Player {
         name: String,
         seat: Int,
         isYou: Bool = false,
+        isActive: Bool = true,
         avatarFilename: String? = nil
     ) {
         self.id = id
         self.name = name
         self.seat = seat
         self.isYou = isYou
+        self.isActive = isActive
         self.avatarFilename = avatarFilename
     }
 }

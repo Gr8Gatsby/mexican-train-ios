@@ -27,7 +27,7 @@ enum SnapshotBuilder {
             startingEngineRaw: game.startingEngineRaw,
             currentStop: game.currentStopIndex,
             players: game.sortedPlayers.map {
-                PlayerSnapshot(id: $0.id, name: $0.name, seat: $0.seat, isYou: $0.isYou)
+                PlayerSnapshot(id: $0.id, name: $0.name, seat: $0.seat, isYou: $0.isYou, isActive: $0.isActive)
             },
             scores: game.scores.map {
                 ScoreSnapshot(
