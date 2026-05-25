@@ -14,6 +14,8 @@ import UIKit
 ///   followed by 13 class scores (one per pip value).
 /// - Total pip count = Σ (class_index of each surviving detection).
 struct VisionPipCounter: PipCounter {
+    static let modelVersion = "yolo11n-v1"
+
     let model: VNCoreMLModel
     var confidenceThreshold: Float = 0.30
     var iouThreshold: Float = 0.45
@@ -25,6 +27,7 @@ struct VisionPipCounter: PipCounter {
                 ?? Bundle.main.url(forResource: name, withExtension: "mlpackage") {
                 if let mlModel = try? MLModel(contentsOf: url),
                    let vnModel = try? VNCoreMLModel(for: mlModel) {
+                    print("[VisionPipCounter] Loaded model version: \(modelVersion)")
                     return VisionPipCounter(model: vnModel)
                 }
             }
