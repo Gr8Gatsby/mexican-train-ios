@@ -39,10 +39,15 @@ struct JoinerCameraHost: View {
     }
 
     private func send(image: UIImage, result: PipCountResult) {
-        let thumb = image
-            .resized(toMaxEdge: PlayerPhoto.targetEdge)
-            .jpegData(compressionQuality: 0.7)
-            .flatMap { $0.count <= PlayerPhoto.maxJPEGBytes ? $0 : nil }
+        let resized = image.resized(toMaxEdge: PlayerPhoto.targetEdge)
+        var thumb: Data?
+        for q in [0.7, 0.5, 0.3] as [CGFloat] {
+            if let data = resized.jpegData(compressionQuality: q),
+               data.count <= PlayerPhoto.maxJPEGBytes {
+                thumb = data
+                break
+            }
+        }
 
         // Save the captured photo locally on the joiner device.
         if let gameID = coordinator.netSession.latestSnapshot?.gameID {

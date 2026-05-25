@@ -10,6 +10,8 @@ struct SpectatorView: View {
     @Environment(AppCoordinator.self) private var coordinator
     @Environment(\.modelContext) private var modelContext
 
+    @State private var confettiID = UUID()
+
     var body: some View {
         let session = coordinator.netSession
         return ZStack {
@@ -17,15 +19,20 @@ struct SpectatorView: View {
             VStack(spacing: 0) {
                 header
                 if let snap = session.latestSnapshot {
-                    engineStrip(snap: snap)
-                    ScrollView {
-                        SnapshotTable(snap: snap, myPlayerID: session.myPlayerID)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 8)
-                        snapshotPhotoGallery(snap: snap)
-                            .padding(.horizontal, 8)
+                    if snap.isFinished, let winnerID = snap.winnerPlayerID {
+                        celebrationView(snap: snap, winnerID: winnerID)
+                    } else {
+                        engineStrip(snap: snap)
+                        ScrollView {
+                            SnapshotTable(snap: snap, myPlayerID: session.myPlayerID)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 8)
+                            snapshotPhotoGallery(snap: snap)
+                                .padding(.horizontal, 8)
+                        }
+                        addMyScoreCTA(snap: snap, myID: session.myPlayerID)
+                        footer
                     }
-                    addMyScoreCTA(snap: snap, myID: session.myPlayerID)
                 } else {
                     Spacer()
                     VStack(spacing: 14) {
@@ -45,8 +52,8 @@ struct SpectatorView: View {
                         }
                     }
                     Spacer()
+                    footer
                 }
-                footer
             }
             if session.joinState == .reconnecting {
                 reconnectingOverlay
@@ -314,6 +321,111 @@ struct SpectatorView: View {
             .padding(24)
             .background(theme.bg, in: RoundedRectangle(cornerRadius: 14))
             .padding(.horizontal, 28)
+        }
+    }
+
+    @ViewBuilder
+    private func celebrationView(snap: GameSnapshot, winnerID: UUID) -> some View {
+        let winner = snap.players.first(where: { $0.id == winnerID })
+        let scoresByPlayer = Dictionary(grouping: snap.scores, by: { $0.playerID })
+        let totals = Dictionary(uniqueKeysWithValues: snap.players.map { p in
+            (p.id, (scoresByPlayer[p.id] ?? []).reduce(0) { $0 + $1.pips })
+        })
+        let winnerPips = totals[winnerID] ?? 0
+        let sorted = snap.players
+            .map { ($0, totals[$0.id] ?? 0) }
+            .sorted { $0.1 < $1.1 }
+        // Pre-compute places with tie handling
+        let standings: [(player: PlayerSnapshot, total: Int, place: Int)] = {
+            var result: [(PlayerSnapshot, Int, Int)] = []
+            var lastTotal: Int? = nil
+            var lastPlace = 0
+            for (index, pair) in sorted.enumerated() {
+                let (p, t) = pair
+                if lastTotal == nil || lastTotal != t {
+                    lastPlace = index + 1
+                    lastTotal = t
+                }
+                result.append((p, t, lastPlace))
+            }
+            return result
+        }()
+
+        ZStack {
+            ScrollView {
+                VStack(spacing: 0) {
+                    Spacer().frame(height: 48)
+
+                    Image(systemName: "trophy.fill")
+                        .font(.system(size: 72, weight: .bold))
+                        .foregroundStyle(theme.brand)
+                        .shadow(color: .black.opacity(0.2), radius: 8, y: 4)
+
+                    Spacer().frame(height: 16)
+
+                    Text(winner?.name ?? "Winner")
+                        .font(theme.displayFont(size: 44))
+                        .foregroundStyle(theme.brand)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .padding(.horizontal, 24)
+
+                    Spacer().frame(height: 4)
+
+                    Text("\(winnerPips) pips")
+                        .font(theme.monoFont(size: 14))
+                        .foregroundStyle(theme.muted)
+
+                    Spacer().frame(height: 32)
+
+                    VStack(spacing: 0) {
+                        ForEach(standings.indices, id: \.self) { i in
+                            let s = standings[i]
+                            HStack {
+                                Text("\(s.place).")
+                                    .font(theme.displayFont(size: 18))
+                                    .foregroundStyle(theme.ink)
+                                    .frame(width: 36, alignment: .leading)
+                                Text(s.player.name)
+                                    .font(theme.displayFont(size: 18))
+                                    .foregroundStyle(theme.ink)
+                                Spacer()
+                                Text("\(s.total)")
+                                    .font(theme.displayFont(size: 22))
+                                    .foregroundStyle(theme.ink)
+                            }
+                            .padding(.horizontal, 14).padding(.vertical, 10)
+                            if i < standings.count - 1 {
+                                Rectangle().fill(theme.borderLight).frame(height: 1)
+                            }
+                        }
+                    }
+                    .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(theme.border, lineWidth: 1)
+                    )
+                    .padding(.horizontal, 24)
+
+                    Spacer().frame(height: 32)
+
+                    Button {
+                        coordinator.settings.clearActiveJoin()
+                        coordinator.netSession.leave()
+                        coordinator.goHome()
+                    } label: {
+                        Text("BACK TO HOME")
+                    }
+                    .appPrimaryStyle()
+                    .padding(.horizontal, 24)
+
+                    Spacer().frame(height: 24)
+                }
+            }
+            ConfettiView()
+                .id(confettiID)
+                .ignoresSafeArea()
+                .onAppear { confettiID = UUID() }
         }
     }
 }

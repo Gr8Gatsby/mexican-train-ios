@@ -152,7 +152,7 @@ struct PlayerClaim: Codable, Equatable, Identifiable {
 }
 
 enum PlayerPhoto {
-    static let maxJPEGBytes = 32 * 1024
+    static let maxJPEGBytes = 64 * 1024
     static let targetEdge: CGFloat = 256
 }
 
