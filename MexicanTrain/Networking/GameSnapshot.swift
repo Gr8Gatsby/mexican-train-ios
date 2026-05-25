@@ -159,7 +159,17 @@ struct CaptureSnapshot: Codable, Equatable, Identifiable {
             self.playerID = UUID(uuidString: str) ?? UUID()
         }
         self.stop = try c.decode(Int.self, forKey: .stop)
-        self.thumbJPEG = (try? c.decode(Data.self, forKey: .thumbJPEG)) ?? Data()
+        if let data = try? c.decode(Data.self, forKey: .thumbJPEG), !data.isEmpty {
+            self.thumbJPEG = data
+        } else if let b64 = try? c.decode(String.self, forKey: .thumbJPEG),
+                  let data = Data(base64Encoded: b64, options: .ignoreUnknownCharacters),
+                  !data.isEmpty {
+            print("[CaptureSnapshot] base64 string fallback used, decoded \(data.count) bytes")
+            self.thumbJPEG = data
+        } else {
+            print("[CaptureSnapshot] thumbJPEG decode failed — empty")
+            self.thumbJPEG = Data()
+        }
     }
 }
 
@@ -171,6 +181,30 @@ struct PlayerClaim: Codable, Equatable, Identifiable {
     var photoJPEG: Data?
 
     var id: UUID { playerID }
+
+    init(playerID: UUID, displayName: String, photoJPEG: Data? = nil) {
+        self.playerID = playerID; self.displayName = displayName; self.photoJPEG = photoJPEG
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        if let uuid = try? c.decode(UUID.self, forKey: .playerID) {
+            self.playerID = uuid
+        } else {
+            let str = (try? c.decode(String.self, forKey: .playerID)) ?? UUID().uuidString
+            self.playerID = UUID(uuidString: str) ?? UUID()
+        }
+        self.displayName = try c.decode(String.self, forKey: .displayName)
+        if let data = try? c.decode(Data.self, forKey: .photoJPEG), !data.isEmpty {
+            self.photoJPEG = data
+        } else if let b64 = try? c.decode(String.self, forKey: .photoJPEG),
+                  let data = Data(base64Encoded: b64, options: .ignoreUnknownCharacters),
+                  !data.isEmpty {
+            self.photoJPEG = data
+        } else {
+            self.photoJPEG = nil
+        }
+    }
 }
 
 enum PlayerPhoto {
