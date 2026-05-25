@@ -1,9 +1,10 @@
 import SwiftUI
 
 /// Lightweight one-shot confetti overlay. No external dependencies; uses
-/// timeline-driven SwiftUI animation. Particles fall from the top of the
-/// frame, rotating, and fade out near the bottom. The whole burst lasts
-/// `duration` seconds, after which the view stops drawing.
+/// timeline-driven SwiftUI animation. Particles explode upward from 2-3
+/// random burst points in the bottom half of the screen, arc up then fall
+/// back down with gravity. The whole burst lasts `duration` seconds, after
+/// which the view stops drawing.
 struct ConfettiView: View {
     var duration: Double = 3.5
     var particleCount: Int = 80
@@ -17,11 +18,21 @@ struct ConfettiView: View {
 
     @State private var startedAt = Date()
     private let particles: [Particle]
+    private let burstOrigins: [BurstOrigin]
 
     init(duration: Double = 3.5, particleCount: Int = 80) {
         self.duration = duration
         self.particleCount = particleCount
-        self.particles = (0..<particleCount).map { _ in Particle.random() }
+        self.burstOrigins = [
+            BurstOrigin(xFraction: .random(in: 0.2...0.8), yFraction: .random(in: 0.55...0.75), delay: 0),
+            BurstOrigin(xFraction: .random(in: 0.2...0.8), yFraction: .random(in: 0.55...0.75), delay: 0.2),
+            BurstOrigin(xFraction: .random(in: 0.2...0.8), yFraction: .random(in: 0.55...0.75), delay: 0.4),
+        ]
+        let perBurst = particleCount / 3
+        self.particles = (0..<particleCount).map { i in
+            let burstIdx = min(i / perBurst, 2)
+            return Particle.random(burstIndex: burstIdx)
+        }
     }
 
     var body: some View {
@@ -30,14 +41,33 @@ struct ConfettiView: View {
             let progress = min(1.0, elapsed / duration)
             Canvas { ctx, size in
                 guard progress < 1 else { return }
+                let gravity: CGFloat = 1200 // points/sec^2
+
                 for p in particles {
-                    let t = max(0, min(1, (elapsed - p.delay) / (duration - p.delay)))
-                    if t <= 0 { continue }
-                    let x = p.startX * size.width + p.driftX * t * size.width
-                    // ease-in fall: starts above the frame, falls past bottom
-                    let y = -40 + (size.height + 80) * pow(t, 1.4)
-                    let rot = Angle.degrees(p.rotationStart + p.rotationRate * t * 360)
-                    let opacity = 1.0 - max(0, (t - 0.85) / 0.15)
+                    let burst = burstOrigins[p.burstIndex]
+                    let particleElapsed = elapsed - burst.delay
+                    guard particleElapsed > 0 else { continue }
+
+                    let t = CGFloat(particleElapsed)
+                    let totalTime = CGFloat(duration - burst.delay)
+
+                    let angleRad = p.angleDeg * .pi / 180.0
+                    let vx = cos(angleRad) * p.velocity * 0.5
+                    let vy = -sin(angleRad) * p.velocity // negative = upward
+
+                    let originX = burst.xFraction * size.width
+                    let originY = burst.yFraction * size.height
+
+                    let x = originX + vx * t
+                    let y = originY + vy * t + 0.5 * gravity * t * t
+
+                    // Skip if off screen
+                    guard y <= size.height + 50, x >= -50, x <= size.width + 50 else { continue }
+
+                    let localProgress = min(1.0, t / totalTime)
+                    let opacity = localProgress > 0.8 ? 1.0 - ((localProgress - 0.8) / 0.2) : 1.0
+                    let rot = Angle.degrees(Double(p.rotationStart) + Double(p.rotationRate) * localProgress * 360)
+
                     let rect = CGRect(x: x - p.size.width/2, y: y - p.size.height/2,
                                       width: p.size.width, height: p.size.height)
                     var path = Path(roundedRect: rect, cornerRadius: 1.5)
@@ -54,20 +84,26 @@ struct ConfettiView: View {
         .onAppear { startedAt = Date() }
     }
 
+    private struct BurstOrigin {
+        var xFraction: CGFloat
+        var yFraction: CGFloat
+        var delay: Double
+    }
+
     private struct Particle {
-        var startX: CGFloat          // 0…1
-        var driftX: CGFloat          // -0.3…0.3
-        var delay: Double            // 0…0.6 staggered start
-        var rotationStart: Double    // 0…360
-        var rotationRate: Double     // 0.5…3 rotations/sec
+        var burstIndex: Int
+        var angleDeg: CGFloat        // launch angle 0-360
+        var velocity: CGFloat        // initial speed
+        var rotationStart: Double
+        var rotationRate: Double
         var size: CGSize
         var colorIndex: Int
 
-        static func random() -> Particle {
+        static func random(burstIndex: Int) -> Particle {
             Particle(
-                startX: .random(in: 0...1),
-                driftX: .random(in: -0.25...0.25),
-                delay: .random(in: 0...0.6),
+                burstIndex: burstIndex,
+                angleDeg: .random(in: 0...360),
+                velocity: .random(in: 600...1100),
                 rotationStart: .random(in: 0...360),
                 rotationRate: .random(in: 0.5...3),
                 size: CGSize(width: .random(in: 6...10), height: .random(in: 8...14)),
