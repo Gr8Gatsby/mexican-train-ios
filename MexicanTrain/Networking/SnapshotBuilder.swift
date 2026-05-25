@@ -17,6 +17,7 @@ enum SnapshotBuilder {
                 caps.append(CaptureSnapshot(id: c.id, playerID: c.playerID, stop: c.stopIndex, thumbJPEG: data))
             }
         }
+        print("[SnapshotBuilder] \(game.captures.count) captures on disk, \(caps.count) with thumbnails (\(caps.reduce(0) { $0 + $1.thumbJPEG.count }) bytes total)")
         return GameSnapshot(
             seq: 0, // session overwrites
             roomCode: roomCode,

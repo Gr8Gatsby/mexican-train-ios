@@ -453,6 +453,7 @@ final class MexTrainNetSession: NSObject {
                 switch message {
                 case .snapshot(let snap):
                     if let cur = latestSnapshot, snap.seq < cur.seq { continue }
+                    print("[TCP joiner] snapshot received: \(snap.recentCaptures.count) captures, sizes: \(snap.recentCaptures.map { $0.thumbJPEG.count })")
                     latestSnapshot = snap
                     lastHeartbeatDate = Date()
                 case .heartbeat:
