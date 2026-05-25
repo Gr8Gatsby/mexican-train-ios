@@ -154,7 +154,7 @@ struct ShareGameSheet: View {
     private func start() {
         let code = RoomCode.generate()
         roomCode = code
-        let snap = SnapshotBuilder.build(game: game, photoStore: coordinator.photoStore, roomCode: code)
+        let snap = SnapshotBuilder.build(game: game, roomCode: code)
         coordinator.netSession.startHosting(initialSnapshot: snap)
     }
 }

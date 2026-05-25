@@ -21,6 +21,7 @@
 		25F31180001FAEA8BFFF7DA3 /* ScoringTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = B349A99B53A4356034456F37 /* ScoringTests.swift */; };
 		2A5AA18A0AED4CA6167C0950 /* AppHeaderBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4ED1FD058A586471963373EC /* AppHeaderBar.swift */; };
 		2C47A0FEF3E44AE46CFB12A8 /* JoinedGameRecord.swift in Sources */ = {isa = PBXBuildFile; fileRef = 00C60CDE91D787A92EFB1B8C /* JoinedGameRecord.swift */; };
+		301E3BE57D70933A4E015915 /* TCPBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9E25E8C4E83D2A07682AB3C /* TCPBridge.swift */; };
 		36253401299023E5027DEEEA /* TrainingDataExporterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F03B3E7756576BB27BC3D3DF /* TrainingDataExporterTests.swift */; };
 		37D1DACF125479E280746A46 /* DominoGlyph.swift in Sources */ = {isa = PBXBuildFile; fileRef = C213CD19D031BEB200E5703D /* DominoGlyph.swift */; };
 		3F2509A5DF8AE904EC3A7CC4 /* SwipeToDelete.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2FD5D56211BE592BA9EB0BD2 /* SwipeToDelete.swift */; };
@@ -50,6 +51,7 @@
 		939AEFD2B65AF8FF8F5EF299 /* Score.swift in Sources */ = {isa = PBXBuildFile; fileRef = 79C6904F8700EFE698F3A7F5 /* Score.swift */; };
 		9A307F45D3A0C25E84C12D20 /* PhotoStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6909D9519FCD9433CDE46344 /* PhotoStore.swift */; };
 		A0E2C6D0239E5B9803DBFBAA /* DebugRoute.swift in Sources */ = {isa = PBXBuildFile; fileRef = 32F4F6F16E67BDE262310C51 /* DebugRoute.swift */; };
+		A1B2C3D4E5F6A7B8C9D0E1F2 /* NSDServiceBrowserDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1E2F3A4B5C6D7E8F9A0B1C2 /* NSDServiceBrowserDelegate.swift */; };
 		A2E8C862C7C3D2EC69B06042 /* ThemeEnvironment.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4F46A8DC2126AF95B10C13E9 /* ThemeEnvironment.swift */; };
 		A51F0BE4B7FD13F48F1F0E5D /* EndGameView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F4F4F713E996CB0B193C43B5 /* EndGameView.swift */; };
 		A82E05A0B3870259E211B861 /* JoinURL.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8969B81A3C44EC44ED0EF361 /* JoinURL.swift */; };
@@ -79,8 +81,6 @@
 		E7B795E9E7847B2ACF7EF702 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A397F54474BA553D0CCD821 /* HomeView.swift */; };
 		E9C0FC056D5AB031A0062E5A /* ScoreboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7E747CB2D4D49CBE4BE654AC /* ScoreboardView.swift */; };
 		EAC945BB099E2C0975877839 /* GameSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = F416DCFCC6FDDF33431E57D8 /* GameSnapshot.swift */; };
-		301E3BE57D70933A4E015915 /* TCPBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = C9E25E8C4E83D2A07682AB3C /* TCPBridge.swift */; };
-		A1B2C3D4E5F6A7B8C9D0E1F2 /* NSDServiceBrowserDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = D1E2F3A4B5C6D7E8F9A0B1C2 /* NSDServiceBrowserDelegate.swift */; };
 		ECD49E228929C9A0579CD4B6 /* JoinerManualEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA7E4CACAB54D6C67E5A0513 /* JoinerManualEntryView.swift */; };
 		F00D43E89878B150B417D3AE /* CameraView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FEC9F87CC1BA3D6DC8C1591 /* CameraView.swift */; };
 		F08DE00481B2E72D787B4817 /* Player.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9AB39A036DB952613ECC34D /* Player.swift */; };
@@ -140,7 +140,7 @@
 		6E99B05150FB74E0702C8EE1 /* PhotoGalleryStrip.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PhotoGalleryStrip.swift; sourceTree = "<group>"; };
 		725441B21444BDA5EFF7B758 /* JoinSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinSheet.swift; sourceTree = "<group>"; };
 		7314EF58B8DDAA5F01B25695 /* MexicanTrainApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MexicanTrainApp.swift; sourceTree = "<group>"; };
-		775F7791CC46A315600EC49F /* MexicanTrain.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = MexicanTrain.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		775F7791CC46A315600EC49F /* MexicanTrain.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MexicanTrain.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		79C6904F8700EFE698F3A7F5 /* Score.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Score.swift; sourceTree = "<group>"; };
 		7CACA22D3CDA3F21AE328D14 /* JoinedGameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = JoinedGameView.swift; sourceTree = "<group>"; };
 		7E747CB2D4D49CBE4BE654AC /* ScoreboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScoreboardView.swift; sourceTree = "<group>"; };
@@ -162,24 +162,24 @@
 		B349A99B53A4356034456F37 /* ScoringTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScoringTests.swift; sourceTree = "<group>"; };
 		B6A39CF4E85F2D8F538120B4 /* NewGameView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NewGameView.swift; sourceTree = "<group>"; };
 		B6A747FC868B6580A9F01237 /* RoomCode.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RoomCode.swift; sourceTree = "<group>"; };
-		B84B0DDE80AB3C299FAF24F5 /* .gitkeep */ = {isa = PBXFileReference; path = .gitkeep; sourceTree = "<group>"; };
+		B84B0DDE80AB3C299FAF24F5 /* .gitkeep */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitkeep; sourceTree = "<group>"; };
 		B8DBCD40962C2D7D38EF7B7E /* CapturePersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CapturePersistence.swift; sourceTree = "<group>"; };
 		BA5BA2BB5E726C1BE0DCC335 /* EndToEndFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EndToEndFlowTests.swift; sourceTree = "<group>"; };
 		BFD9B51499AFAD35490FC4F4 /* Scoring.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Scoring.swift; sourceTree = "<group>"; };
 		C1D699D15E7EF75F449B6AC5 /* GameReport.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameReport.swift; sourceTree = "<group>"; };
 		C213CD19D031BEB200E5703D /* DominoGlyph.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DominoGlyph.swift; sourceTree = "<group>"; };
 		C3ED41C35BD47CF4FF38E035 /* PipCounter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PipCounter.swift; sourceTree = "<group>"; };
+		C9E25E8C4E83D2A07682AB3C /* TCPBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TCPBridge.swift; sourceTree = "<group>"; };
 		CD56E9F2413E34227D224E51 /* Fonts.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Fonts.swift; sourceTree = "<group>"; };
 		CEF7A1974A3F7463A44E9D13 /* DebugSeed.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DebugSeed.swift; sourceTree = "<group>"; };
 		D1684BD9259826B81E131C16 /* RYE_OFL.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = RYE_OFL.txt; sourceTree = "<group>"; };
+		D1E2F3A4B5C6D7E8F9A0B1C2 /* NSDServiceBrowserDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NSDServiceBrowserDelegate.swift; sourceTree = "<group>"; };
 		D488EEA6C81BAFECD3BD734F /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
-		D934B1AD918B56456D2121F6 /* MexicanTrainTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = MexicanTrainTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D934B1AD918B56456D2121F6 /* MexicanTrainTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = MexicanTrainTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		DAB2D81705B411EFDDAA0C9B /* TileObservation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TileObservation.swift; sourceTree = "<group>"; };
 		DCBDBEDA3A3696980758CA16 /* LICENSE.fonts.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE.fonts.txt; sourceTree = "<group>"; };
-		DD448005F7BE93B07B0B2814 /* DominoDetector.mlpackage */ = {isa = PBXFileReference; path = DominoDetector.mlpackage; sourceTree = "<group>"; };
+		DD448005F7BE93B07B0B2814 /* DominoDetector.mlpackage */ = {isa = PBXFileReference; lastKnownFileType = folder.mlpackage; path = DominoDetector.mlpackage; sourceTree = "<group>"; };
 		E10604A76B6860DFE12B0213 /* MexTrainNetSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MexTrainNetSession.swift; sourceTree = "<group>"; };
-		C9E25E8C4E83D2A07682AB3C /* TCPBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TCPBridge.swift; sourceTree = "<group>"; };
-		D1E2F3A4B5C6D7E8F9A0B1C2 /* NSDServiceBrowserDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NSDServiceBrowserDelegate.swift; sourceTree = "<group>"; };
 		E8E662B62C184EF266FECD74 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		E9AB39A036DB952613ECC34D /* Player.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Player.swift; sourceTree = "<group>"; };
 		ED64A16FE8E809AB51B69608 /* DataStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DataStore.swift; sourceTree = "<group>"; };
@@ -513,9 +513,7 @@
 			isa = PBXProject;
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 1430;
-				TargetAttributes = {
-				};
+				LastUpgradeCheck = 2640;
 			};
 			buildConfigurationList = 4BABB9B003D7652C5CC1FA26 /* Build configuration list for PBXProject "MexicanTrain" */;
 			developmentRegion = en;
@@ -716,6 +714,7 @@
 				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.10;
@@ -808,6 +807,7 @@
 				MTL_FAST_MATH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = iphoneos;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OPTIMIZATION_LEVEL = "-O";
 				SWIFT_VERSION = 5.10;
@@ -820,6 +820,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = B5J28L8ARB;
 				INFOPLIST_FILE = MexicanTrain/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -837,6 +838,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = B5J28L8ARB;
 				INFOPLIST_FILE = MexicanTrain/Resources/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

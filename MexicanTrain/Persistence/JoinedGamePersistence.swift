@@ -13,7 +13,8 @@ enum JoinedGamePersistence {
     static func upsert(
         in context: ModelContext,
         snapshot: GameSnapshot,
-        myPlayerID: UUID?
+        myPlayerID: UUID?,
+        photoCache: [UUID: Data] = [:]
     ) throws -> JoinedGameRecord {
         let snapshotData = try JSONEncoder().encode(snapshot)
         let gameID = snapshot.gameID
@@ -45,24 +46,30 @@ enum JoinedGamePersistence {
             context.insert(record)
         }
 
-        try mergeCaptures(into: record, from: snapshot, context: context)
+        try mergeCaptures(into: record, from: snapshot, context: context, photoCache: photoCache)
         try context.save()
         return record
     }
 
+    /// Merge photos from the net session's photo cache into the persisted
+    /// `JoinedCapture` records. Called on every snapshot; only inserts captures
+    /// whose photo bytes have actually arrived (from the on-demand fetch).
     private static func mergeCaptures(
         into record: JoinedGameRecord,
         from snapshot: GameSnapshot,
-        context: ModelContext
+        context: ModelContext,
+        photoCache: [UUID: Data] = [:]
     ) throws {
         guard !snapshot.recentCaptures.isEmpty else { return }
         let known = Set(record.captures.map(\.captureID))
-        for capture in snapshot.recentCaptures where !known.contains(capture.id) {
+        for entry in snapshot.recentCaptures where !known.contains(entry.id) {
+            // Only persist if we actually have the photo bytes.
+            guard let thumbData = photoCache[entry.id], !thumbData.isEmpty else { continue }
             let cap = JoinedCapture(
-                captureID: capture.id,
-                playerID: capture.playerID,
-                stopIndex: capture.stop,
-                thumbJPEG: capture.thumbJPEG
+                captureID: entry.id,
+                playerID: entry.playerID,
+                stopIndex: entry.stop,
+                thumbJPEG: thumbData
             )
             cap.game = record
             context.insert(cap)

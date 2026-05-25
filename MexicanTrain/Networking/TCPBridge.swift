@@ -16,6 +16,9 @@ final class TCPBridge: @unchecked Sendable {
 
     var onClaimReceived: ((PlayerClaim) -> Void)?
     var onScoreSubmissionReceived: ((ScoreSubmission) -> Void)?
+    /// Called when a new TCP client connects and is ready. The host uses this
+    /// to push all existing photos to the new joiner.
+    var onNewClientConnected: ((NWConnection) -> Void)?
 
     var connectedClientCount: Int { connections.count }
 
@@ -93,6 +96,27 @@ final class TCPBridge: @unchecked Sendable {
         }
     }
 
+    /// Send an encoded `MultipeerMessage` to every connected TCP client.
+    func sendMessageToAll(_ message: MultipeerMessage) {
+        guard let data = try? JSONEncoder().encode(message),
+              let jsonString = String(data: data, encoding: .utf8) else { return }
+        let line = jsonString + "\n"
+        guard let lineData = line.data(using: .utf8) else { return }
+        sendRawToAll(lineData)
+    }
+
+    /// Send an encoded `MultipeerMessage` to a specific TCP client.
+    func sendMessage(_ message: MultipeerMessage, to connection: NWConnection) {
+        guard let data = try? JSONEncoder().encode(message),
+              let jsonString = String(data: data, encoding: .utf8) else { return }
+        let line = jsonString + "\n"
+        guard let lineData = line.data(using: .utf8) else { return }
+        guard connection.state == .ready else { return }
+        connection.send(content: lineData, completion: .contentProcessed { error in
+            if let error { print("TCPBridge send error: \(error)") }
+        })
+    }
+
     /// Tear down the listener and all connections.
     func stop() {
         listener?.cancel()
@@ -113,9 +137,12 @@ final class TCPBridge: @unchecked Sendable {
             Task { @MainActor in
                 switch state {
                 case .ready:
+                    // Send the latest snapshot to the new client.
                     if let data = self?.lastBroadcastData {
                         connection.send(content: data, completion: .contentProcessed { _ in })
                     }
+                    // Notify the host to push all existing photos.
+                    self?.onNewClientConnected?(connection)
                 case .failed, .cancelled:
                     self?.removeConnection(connection)
                 default:
@@ -168,6 +195,8 @@ final class TCPBridge: @unchecked Sendable {
                     break // Host doesn't process inbound snapshots.
                 case .heartbeat:
                     break // Host doesn't process inbound heartbeats.
+                case .photoPush:
+                    break // Host doesn't process inbound photo pushes.
                 }
             } catch {
                 print("TCPBridge: Failed to decode message: \(error)")

@@ -65,6 +65,9 @@ struct SpectatorView: View {
         .onChange(of: session.latestSnapshot?.seq) { _, _ in
             persistLatestSnapshot()
         }
+        .onChange(of: session.photoCacheVersion) { _, _ in
+            persistLatestSnapshot()
+        }
         .onAppear { persistLatestSnapshot() }
     }
 
@@ -73,7 +76,8 @@ struct SpectatorView: View {
         _ = try? JoinedGamePersistence.upsert(
             in: modelContext,
             snapshot: snap,
-            myPlayerID: coordinator.netSession.myPlayerID
+            myPlayerID: coordinator.netSession.myPlayerID,
+            photoCache: coordinator.netSession.allCachedPhotos
         )
     }
 
@@ -141,7 +145,7 @@ struct SpectatorView: View {
                 let capsForStop = snap.recentCaptures.filter { $0.stop == stop }
                 if !capsForStop.isEmpty {
                     VStack(alignment: .leading, spacing: 6) {
-                        Text("📷 STOP \(stop) · CAMERA ROLL")
+                        Text("STOP \(stop) · CAMERA ROLL")
                             .font(theme.monoFont(size: 9))
                             .tracking(1.4)
                             .foregroundStyle(theme.muted)
@@ -163,20 +167,21 @@ struct SpectatorView: View {
         }
     }
 
-    private func snapshotPhotoTile(cap: CaptureSnapshot, snap: GameSnapshot) -> some View {
+    private func snapshotPhotoTile(cap: CaptureManifestEntry, snap: GameSnapshot) -> some View {
         let playerName = snap.players.first(where: { $0.id == cap.playerID })?.name ?? ""
         let score = snap.scores.first(where: { $0.playerID == cap.playerID && $0.stop == cap.stop })
+        let photoData = coordinator.netSession.cachedPhoto(for: cap.id)
         return ZStack(alignment: .bottomTrailing) {
-            if let img = UIImage(data: cap.thumbJPEG) {
+            if let photoData, let img = UIImage(data: photoData) {
                 Image(uiImage: img)
                     .resizable()
                     .scaledToFill()
             } else {
                 ZStack {
                     theme.cardBg
-                    Image(systemName: "camera")
-                        .font(.system(size: 18))
-                        .foregroundStyle(theme.muted.opacity(0.45))
+                    ProgressView()
+                        .scaleEffect(0.7)
+                        .tint(theme.muted.opacity(0.6))
                 }
             }
             VStack(alignment: .leading) {

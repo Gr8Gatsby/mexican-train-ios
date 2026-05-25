@@ -375,7 +375,7 @@ struct NewGameView: View {
             // Begin hosting and surface the room code so the QR can render.
             let code = RoomCode.generate()
             roomCode = code
-            let snap = SnapshotBuilder.build(game: g, photoStore: coordinator.photoStore, roomCode: code)
+            let snap = SnapshotBuilder.build(game: g, roomCode: code)
             coordinator.netSession.onClaimReceived = { claim in
                 handleClaim(claim)
             }
