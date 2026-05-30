@@ -47,6 +47,11 @@ struct CameraView: View {
     /// this app launch, skip the permission view on subsequent opens even
     /// if `authorizationStatus` momentarily returns something else.
     private static var didGrantInSession = false
+    /// Process-wide latch: once the user has tapped "Enter manually
+    /// instead" on the permission gate, treat that as a session-wide
+    /// preference — AppCoordinator.openCamera routes straight to manual
+    /// entry instead of re-showing the permission wall every score.
+    static var preferManualInSession = false
     @State private var captured: UIImage? = {
         #if DEBUG
         if ProcessInfo.processInfo.environment["MEXTRAIN_DEBUG_CAMERA_PHASE"] == "confirm" {
@@ -250,6 +255,9 @@ struct CameraView: View {
     }
 
     private func manual() {
+        // Latch the conductor's choice so subsequent ADD SCORE taps in this
+        // session skip the camera/permission view and go straight to manual.
+        CameraView.preferManualInSession = true
         if let onManual { onManual(); return }
         if let game, let player {
             coordinator.openManualEntry(game: game, player: player, stop: stop)

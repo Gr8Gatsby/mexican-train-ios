@@ -63,9 +63,22 @@ final class AppCoordinator {
     func openNewGame() { route = .newGame }
     func openScoreboard(_ game: Game) { route = .scoreboard(gameID: game.id) }
     func openCamera(game: Game, player: Player, stop: Int, topBarSubject: String? = nil) {
+        // If the conductor has already opted into manual entry once this
+        // session (via "Enter manually instead" on the camera permission
+        // gate), skip the camera entirely and route straight to manual.
+        // Otherwise they hit the permission wall on every single score.
+        if CameraView.preferManualInSession {
+            openManualEntry(game: game, player: player, stop: stop, topBarSubject: topBarSubject)
+            return
+        }
         route = .camera(gameID: game.id, playerID: player.id, stop: stop, topBarSubject: topBarSubject)
     }
     func openJoinerCamera(playerID: UUID, playerName: String, stop: Int, lengthStops: Int) {
+        if CameraView.preferManualInSession {
+            openJoinerManualEntry(playerID: playerID, playerName: playerName,
+                                  stop: stop, lengthStops: lengthStops)
+            return
+        }
         route = .joinerCamera(playerID: playerID, playerName: playerName, stop: stop, lengthStops: lengthStops)
     }
     func openJoinerManualEntry(playerID: UUID, playerName: String, stop: Int, lengthStops: Int) {

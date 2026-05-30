@@ -176,7 +176,7 @@ struct JoinSheet: View {
                     } label: {
                         HStack {
                             VStack(alignment: .leading, spacing: 4) {
-                                Text(host.hostName)
+                                Text(host.displayLabel)
                                     .font(theme.displayFont(size: 18))
                                     .foregroundStyle(theme.ink)
                                 Text("\(host.playerCount) players · code \(host.roomCode)")
@@ -512,6 +512,18 @@ struct JoinSheet: View {
                         coordinator.openSpectator()
                     }
                 }
+                .task {
+                    // .onChange only fires on *changes*. If the snapshot
+                    // already reflects an in-progress game when this view
+                    // first appears (late joiner — host departed before us),
+                    // there's no change to fire. Mirror the same dismissal
+                    // logic here so the late joiner doesn't get stuck.
+                    if let snap = coordinator.netSession.latestSnapshot,
+                       snap.currentStop > 0 || !snap.scores.isEmpty {
+                        coordinator.dismissSheet()
+                        coordinator.openSpectator()
+                    }
+                }
             } else {
                 VStack(alignment: .leading, spacing: 6) {
                     Text("You'll join as a player with the name above.")
@@ -624,9 +636,20 @@ struct JoinSheet: View {
         coordinator.settings.activeJoinPlayerName = claim.displayName
         coordinator.settings.activeJoinRoomCode = code.isEmpty ? coordinator.netSession.latestSnapshot?.roomCode ?? "" : code
         coordinator.settings.activeJoinGameID = snapshotGameID
+        // Persist as the user's default identity so the joiner doesn't have
+        // to retype after a cancel-and-rejoin. Mirrors what the conductor
+        // does on DEPART (NewGameView.start).
+        coordinator.settings.defaultYouName = claim.displayName
+        if let photo, !photo.isEmpty {
+            coordinator.settings.defaultYouPhotoJPEG = photo
+        }
 
         let snap = coordinator.netSession.latestSnapshot
-        let gameStarted = snap != nil && !snap!.scores.isEmpty
+        // Game has already started if scoring has produced any rows OR the
+        // host has advanced past stop 0 (i.e. tapped DEPART). The latter
+        // catches the "late joiner" case where the host departed before
+        // anyone submitted a score.
+        let gameStarted = snap != nil && (snap!.currentStop > 0 || !snap!.scores.isEmpty)
 
         if gameStarted {
             coordinator.dismissSheet()

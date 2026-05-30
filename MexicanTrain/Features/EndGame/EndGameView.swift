@@ -15,7 +15,7 @@ struct EndGameView: View {
                 AppHeaderBar(
                     style: .push,
                     title: game.displayName,
-                    subtitle: "FINAL · \(endDateText)",
+                    subtitle: headerSubtitle,
                     onLeading: { coordinator.goHome() }
                 )
                 ScrollView {
@@ -45,6 +45,14 @@ struct EndGameView: View {
         f.dateStyle = .medium
         f.timeStyle = .none
         return f.string(from: date)
+    }
+
+    /// When the game has no custom name, `displayName` is already the date,
+    /// so dropping the date from the subtitle avoids "May 30, 2026 / FINAL ·
+    /// May 30, 2026" duplication.
+    private var headerSubtitle: String {
+        let hasCustomName = (game.name?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false)
+        return hasCustomName ? "FINAL · \(endDateText)" : "FINAL"
     }
 
     private func winnerCard(_ s: Standing) -> some View {

@@ -44,25 +44,35 @@ struct NewGameView: View {
                     title: phase == .rules ? "Set the rules" : "Call for boarding",
                     onLeading: { onBack() }
                 )
-                ScrollView {
-                    Group {
-                        if let g = game {
-                            switch phase {
-                            case .rules: rulesContent(game: g)
-                            case .lobby: lobbyContent(game: g)
+                ScrollViewReader { proxy in
+                    ScrollView {
+                        // Anchor target so we can reset to top when the
+                        // conductor flips back from lobby → rules (otherwise
+                        // SwiftUI preserves the lobby's scroll offset and
+                        // the STEP intro stays scrolled off-screen).
+                        Color.clear.frame(height: 0).id("top")
+                        Group {
+                            if let g = game {
+                                switch phase {
+                                case .rules: rulesContent(game: g)
+                                case .lobby: lobbyContent(game: g)
+                                }
+                            } else {
+                                ProgressView()
+                                    .padding(40)
+                                    .frame(maxWidth: .infinity)
                             }
-                        } else {
-                            ProgressView()
-                                .padding(40)
-                                .frame(maxWidth: .infinity)
                         }
+                        .padding(16)
+                        .padding(.bottom, 160)
+                        .frame(maxWidth: .infinity, alignment: .top)
                     }
-                    .padding(16)
-                    .padding(.bottom, 160)
-                    .frame(maxWidth: .infinity, alignment: .top)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .scrollDismissesKeyboard(.interactively)
+                    .onChange(of: phase) { _, _ in
+                        withAnimation { proxy.scrollTo("top", anchor: .top) }
+                    }
                 }
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .scrollDismissesKeyboard(.interactively)
                 footer
             }
         }
@@ -237,8 +247,9 @@ struct NewGameView: View {
                 rulesSummary(game: game)
                     .font(theme.monoFont(size: 10))
                     .foregroundStyle(theme.muted)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.trailing)
+                    .frame(maxWidth: 200, alignment: .trailing)
             }
             .foregroundStyle(theme.brand)
             .padding(.horizontal, 14)
@@ -257,6 +268,9 @@ struct NewGameView: View {
         var parts: [String] = ["\(game.lengthStops) stops", game.startingEngine.displayName]
         if game.goingOutBonus != .none { parts.append("bonus \(game.goingOutBonus.displayName)") }
         if game.doublesPenaltyPips > 0 { parts.append("+\(game.doublesPenaltyPips) dbl") }
+        if game.doubleBlankPenaltyPips > 0 { parts.append("+\(game.doubleBlankPenaltyPips) 0|0") }
+        if game.doublesCountDouble { parts.append("dbl×2") }
+        if game.anyBlankPenaltyPips > 0 { parts.append("+\(game.anyBlankPenaltyPips) blank") }
         if let d = game.drawCountOverride { parts.append("draw \(d)") }
         if game.blockedRoundCapEnabled { parts.append("blocked cap") }
         return Text(parts.joined(separator: " · "))
@@ -583,7 +597,14 @@ struct NewGameView: View {
         // Persist current selections as defaults for next time.
         settings.defaultLengthStops = g.lengthStops
         settings.lastStartingEngine = g.startingEngine
-        // Begin hosting and surface the room code so the QR can render.
+        // Idempotent: if we're already hosting (the conductor came back from
+        // EDIT RULES), just flip the phase. The room code, peer connections,
+        // and any joiners-in-lobby remain intact. Rule changes have already
+        // been re-broadcast via the host fingerprint.
+        if coordinator.netSession.role == .host, !roomCode.isEmpty {
+            withAnimation { phase = .lobby }
+            return
+        }
         let code = RoomCode.generate()
         roomCode = code
         let snap = SnapshotBuilder.build(game: g, roomCode: code)
@@ -723,17 +744,12 @@ struct HouseRulesSection: View {
                 )
             }
             divider
-            rule(title: "Doubles count double",
-                 description: "Doubles left in hand count 2× their pip value (a 6|6 counts as 24, not 12).") {
-                Toggle(isOn: Binding(
-                    get: { game.doublesCountDouble },
-                    set: { game.doublesCountDouble = $0; onChange() }
-                )) {
-                    EmptyView()
-                }
-                .labelsHidden()
-                .tint(theme.accent)
-            }
+            toggleRule(title: "Doubles count double",
+                       description: "Doubles left in hand count 2× their pip value (a 6|6 counts as 24, not 12).",
+                       isOn: Binding(
+                           get: { game.doublesCountDouble },
+                           set: { game.doublesCountDouble = $0; onChange() }
+                       ))
             divider
             rule(title: "Any-blank penalty",
                  description: "Each blank tile half left in hand counts as the chosen value instead of 0.") {
@@ -746,17 +762,12 @@ struct HouseRulesSection: View {
                 )
             }
             divider
-            rule(title: "Blocked-round cap",
-                 description: "When nobody goes out, set the lowest hand to 0 instead.") {
-                Toggle(isOn: Binding(
-                    get: { game.blockedRoundCapEnabled },
-                    set: { game.blockedRoundCapEnabled = $0; onChange() }
-                )) {
-                    EmptyView()
-                }
-                .labelsHidden()
-                .tint(theme.accent)
-            }
+            toggleRule(title: "Blocked-round cap",
+                       description: "When nobody goes out, set the lowest hand to 0 instead.",
+                       isOn: Binding(
+                           get: { game.blockedRoundCapEnabled },
+                           set: { game.blockedRoundCapEnabled = $0; onChange() }
+                       ))
         }
         .padding(14)
         .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 12))
@@ -812,6 +823,27 @@ struct HouseRulesSection: View {
                 .foregroundStyle(theme.muted)
                 .fixedSize(horizontal: false, vertical: true)
         }
+    }
+
+    /// Toggle-style rule whose entire row is tappable — the iOS Switch's
+    /// own hit area is small (~60×30), so wrap the row in a Button that
+    /// flips the bound bool from anywhere on the title/description/row.
+    /// `allowsHitTesting(false)` on the Toggle hands the tap to the
+    /// surrounding Button (the Toggle still renders the visual state).
+    @ViewBuilder
+    private func toggleRule(title: String, description: String, isOn: Binding<Bool>) -> some View {
+        Button {
+            isOn.wrappedValue.toggle()
+        } label: {
+            rule(title: title, description: description) {
+                Toggle(isOn: isOn) { EmptyView() }
+                    .labelsHidden()
+                    .tint(theme.accent)
+                    .allowsHitTesting(false)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
     }
 
     @ViewBuilder
