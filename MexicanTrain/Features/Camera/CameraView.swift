@@ -35,11 +35,18 @@ struct CameraView: View {
         }
         #endif
         let status = AVCaptureDevice.authorizationStatus(for: .video)
-        if status == .authorized {
+        // Treat a prior grant within this process as still-granted so we
+        // never re-show the permission gate between captures (the system
+        // status occasionally lags on simulator and on cold-warm transitions).
+        if status == .authorized || CameraView.didGrantInSession {
             return .aim
         }
         return .permission
     }()
+    /// Process-wide latch: once the user has granted camera permission in
+    /// this app launch, skip the permission view on subsequent opens even
+    /// if `authorizationStatus` momentarily returns something else.
+    private static var didGrantInSession = false
     @State private var captured: UIImage? = {
         #if DEBUG
         if ProcessInfo.processInfo.environment["MEXTRAIN_DEBUG_CAMERA_PHASE"] == "confirm" {
@@ -127,6 +134,7 @@ struct CameraView: View {
                     Task {
                         let granted = await AVCaptureDevice.requestAccess(for: .video)
                         if granted {
+                            CameraView.didGrantInSession = true
                             await camera.prepare()
                             withAnimation(.easeInOut(duration: 0.25)) { phase = .aim }
                         } else {
@@ -148,9 +156,14 @@ struct CameraView: View {
                     manual()
                 } label: {
                     Text("Enter manually instead")
-                        .font(theme.monoFont(size: 12))
+                        .font(theme.monoFont(size: 14))
+                        .fontWeight(.semibold)
+                        .tracking(1.2)
                         .foregroundStyle(theme.accent)
+                        .frame(maxWidth: 260, minHeight: 44)
+                        .contentShape(Rectangle())
                 }
+                .accessibilityLabel("Enter manually instead")
             }
             Spacer()
         }
@@ -159,6 +172,7 @@ struct CameraView: View {
             // Re-check permission when returning from Settings
             let updated = AVCaptureDevice.authorizationStatus(for: .video)
             if updated == .authorized {
+                CameraView.didGrantInSession = true
                 Task {
                     await camera.prepare()
                     withAnimation(.easeInOut(duration: 0.25)) { phase = .aim }
