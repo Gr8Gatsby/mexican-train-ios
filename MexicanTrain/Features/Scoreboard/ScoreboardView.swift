@@ -25,6 +25,9 @@ struct ScoreboardView: View {
     @State private var didShowBroadcastCue = false
     @State private var broadcastCue: String?
     @State private var claimSecondsLeft: Int?
+    /// Set to the just-completed stop when the conductor taps ADVANCE and
+    /// the blocked-round-cap rule applies. Drives the confirmation dialog.
+    @State private var blockedCapPrompt: Int?
 
     struct OverrideTarget: Identifiable, Equatable {
         let player: Player
@@ -210,6 +213,17 @@ struct ScoreboardView: View {
             coordinator.netSession.onScoreSubmissionReceived = nil
             coordinator.netSession.onClaimReceived = nil
         }
+        .modifier(BlockedCapPromptModifier(
+            game: game,
+            prompt: $blockedCapPrompt,
+            onAdvance: { stop in advanceStop(closed: stop) },
+            onCapped: { name in
+                withAnimation(.easeOut(duration: 0.25)) {
+                    toast = "Blocked cap → \(name) = 0"
+                }
+                scheduleToastClear()
+            }
+        ))
         .confirmationDialog(
             "Remove a player",
             isPresented: $showRemovePlayerDialog
@@ -543,7 +557,7 @@ struct ScoreboardView: View {
         let allDone = Scoring.nextUnenteredPlayer(stop: stop, in: game) == nil
         let standings = Scoring.standings(for: game)
         let activeCount = game.players.filter(\.isActive).count
-        let drawCount = activeCount <= 4 ? 15 : (activeCount <= 6 ? 12 : 10)
+        let drawCount = game.effectiveDrawCount(activeCount: activeCount)
         let engineN = Scoring.engineTile(stop: min(stop, game.lengthStops),
                                          rules: game.startingEngine,
                                          length: game.lengthStops)
@@ -744,11 +758,14 @@ struct ScoreboardView: View {
             if game.scoringOpen || allDone {
                 Button {
                     if allDone {
-                        try? GamePersistence.maybeAdvanceStop(in: context, game: game)
-                        withAnimation(.easeOut(duration: 0.25)) {
-                            toast = (game.currentStopIndex > stop) ? "Stop \(stop) closed" : "Game complete"
+                        // Offer the blocked-round cap when the rule is on AND
+                        // no one went out this stop. Otherwise advance directly.
+                        if game.blockedRoundCapEnabled,
+                           GamePersistence.wasStopBlocked(stop, in: game) {
+                            blockedCapPrompt = stop
+                        } else {
+                            advanceStop(closed: stop)
                         }
-                        scheduleToastClear()
                     } else if let p = nextPlayer {
                         coordinator.openCamera(game: game, player: p, stop: stop)
                     }
@@ -839,6 +856,16 @@ struct ScoreboardView: View {
                             : "Share game")
     }
 
+    /// Common close-stop path used by ADVANCE and by both branches of the
+    /// blocked-round-cap confirmation.
+    private func advanceStop(closed stop: Int) {
+        try? GamePersistence.maybeAdvanceStop(in: context, game: game)
+        withAnimation(.easeOut(duration: 0.25)) {
+            toast = (game.currentStopIndex > stop) ? "Stop \(stop) closed" : "Game complete"
+        }
+        scheduleToastClear()
+    }
+
     private func scheduleToastClear() {
         Task { @MainActor in
             try? await Task.sleep(nanoseconds: 1_800_000_000)
@@ -857,25 +884,17 @@ struct ScoreboardView: View {
 }
 
 private struct EditRulesSheet: View {
-    let game: Game
+    @Bindable var game: Game
     @Environment(\.theme) private var theme
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
-    @State private var length: Int
-    @State private var engine: StartingEngine
-
-    init(game: Game) {
-        self.game = game
-        _length = State(initialValue: game.lengthStops)
-        _engine = State(initialValue: game.startingEngine)
-    }
 
     var body: some View {
         ZStack {
             theme.bg.ignoresSafeArea()
             VStack(spacing: 0) {
                 AppHeaderBar(style: .modal, title: "Edit rules", onLeading: nil) {
-                    Button("Done") { save(); dismiss() }
+                    Button("Done") { dismiss() }
                         .appLinkStyle()
                 }
                 ScrollView {
@@ -883,16 +902,19 @@ private struct EditRulesSheet: View {
                         section("GAME LENGTH") {
                             HStack(spacing: 8) {
                                 ForEach([7, 10, 13], id: \.self) { n in
-                                    Button { length = n } label: {
+                                    Button {
+                                        game.lengthStops = n
+                                        try? context.save()
+                                    } label: {
                                         Text("\(n)")
                                             .font(theme.displayFont(size: 22))
-                                            .foregroundStyle(length == n ? theme.ctaText : theme.ink)
+                                            .foregroundStyle(game.lengthStops == n ? theme.ctaText : theme.ink)
                                             .frame(maxWidth: .infinity, minHeight: 52)
-                                            .background(length == n ? theme.cta : theme.cardBg,
+                                            .background(game.lengthStops == n ? theme.cta : theme.cardBg,
                                                         in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
                                             .overlay(
                                                 RoundedRectangle(cornerRadius: theme.buttonCornerRadius)
-                                                    .stroke(length == n ? theme.brand : theme.borderLight, lineWidth: 1)
+                                                    .stroke(game.lengthStops == n ? theme.brand : theme.borderLight, lineWidth: 1)
                                             )
                                     }
                                     .buttonStyle(.plain)
@@ -901,10 +923,13 @@ private struct EditRulesSheet: View {
                         }
                         section("STARTING ENGINE") {
                             ForEach(StartingEngine.allCases) { option in
-                                Button { engine = option } label: {
+                                Button {
+                                    game.startingEngineRaw = option.rawValue
+                                    try? context.save()
+                                } label: {
                                     HStack(spacing: 10) {
-                                        Image(systemName: engine == option ? "largecircle.fill.circle" : "circle")
-                                            .foregroundStyle(engine == option ? theme.brand : theme.muted)
+                                        Image(systemName: game.startingEngine == option ? "largecircle.fill.circle" : "circle")
+                                            .foregroundStyle(game.startingEngine == option ? theme.brand : theme.muted)
                                         VStack(alignment: .leading, spacing: 2) {
                                             Text(option.displayName)
                                                 .font(theme.monoFont(size: 13))
@@ -919,12 +944,15 @@ private struct EditRulesSheet: View {
                                     .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 10))
                                     .overlay(
                                         RoundedRectangle(cornerRadius: 10)
-                                            .stroke(engine == option ? theme.brand : theme.borderLight,
-                                                    lineWidth: engine == option ? 1.5 : 1)
+                                            .stroke(game.startingEngine == option ? theme.brand : theme.borderLight,
+                                                    lineWidth: game.startingEngine == option ? 1.5 : 1)
                                     )
                                 }
                                 .buttonStyle(.plain)
                             }
+                        }
+                        section("HOUSE RULES") {
+                            HouseRulesSection(game: game) { try? context.save() }
                         }
                     }
                     .padding(.horizontal, 16)
@@ -943,12 +971,6 @@ private struct EditRulesSheet: View {
                 .foregroundStyle(theme.muted)
             content()
         }
-    }
-
-    private func save() {
-        game.lengthStops = length
-        game.startingEngineRaw = engine.rawValue
-        try? context.save()
     }
 }
 
@@ -1077,6 +1099,44 @@ private struct PlayerDetailSheet: View {
                     .padding(14)
                 }
             }
+        }
+    }
+}
+
+/// Pulled out of `ScoreboardView.body` because the surrounding view had
+/// outgrown the SwiftUI type-checker's expression budget.
+private struct BlockedCapPromptModifier: ViewModifier {
+    let game: Game
+    @Binding var prompt: Int?
+    var onAdvance: (Int) -> Void
+    var onCapped: (String) -> Void
+
+    @Environment(\.modelContext) private var context
+
+    func body(content: Content) -> some View {
+        content.confirmationDialog(
+            prompt.map { "Round \($0) was blocked" } ?? "",
+            isPresented: Binding(
+                get: { prompt != nil },
+                set: { if !$0 { prompt = nil } }
+            ),
+            presenting: prompt
+        ) { stop in
+            Button("Set lowest hand to 0 and advance") {
+                let capped = try? GamePersistence.applyBlockedRoundCap(stop, in: game, context: context)
+                if let capped, let name = game.players.first(where: { $0.id == capped.playerID })?.name {
+                    onCapped(name)
+                }
+                onAdvance(stop)
+                prompt = nil
+            }
+            Button("Advance without capping") {
+                onAdvance(stop)
+                prompt = nil
+            }
+            Button("Cancel", role: .cancel) { prompt = nil }
+        } message: { _ in
+            Text("Nobody went out this round. The blocked-round-cap rule lets the lowest hand count as 0 instead.")
         }
     }
 }

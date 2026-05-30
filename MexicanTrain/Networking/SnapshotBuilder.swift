@@ -33,7 +33,11 @@ enum SnapshotBuilder {
             recentCaptures: entries,
             endedAt: game.finishedAt,
             winnerPlayerID: Scoring.standings(for: game).first?.playerID,
-            claims: []
+            claims: [],
+            goingOutBonusRaw: game.goingOutBonusRaw,
+            blockedRoundCapEnabled: game.blockedRoundCapEnabled,
+            drawCountOverride: game.drawCountOverride,
+            doublesPenaltyPips: game.doublesPenaltyPips
         )
     }
 }
