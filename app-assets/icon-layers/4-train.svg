@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!--
+    LAYER 4 — STEAM LOCOMOTIVE
+    Small classic steam engine perched on the domino, smoke trailing upward
+    and toward the back. Dark ink silhouette with brass details; cream smoke
+    so it reads against both the cream domino face and the oxblood field.
+    Transparent background.
+  -->
+  <defs>
+    <linearGradient id="trainBody" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#3A2818"/>
+      <stop offset="100%" stop-color="#1F1409"/>
+    </linearGradient>
+    <linearGradient id="brassDome" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#F0DCA8"/>
+      <stop offset="60%" stop-color="#C2A778"/>
+      <stop offset="100%" stop-color="#7B6035"/>
+    </linearGradient>
+    <radialGradient id="smokePuff" cx="40%" cy="35%" r="65%">
+      <stop offset="0%" stop-color="#FFFBEE" stop-opacity="0.96"/>
+      <stop offset="70%" stop-color="#F4EAD5" stop-opacity="0.78"/>
+      <stop offset="100%" stop-color="#EAD5A8" stop-opacity="0.30"/>
+    </radialGradient>
+    <filter id="trainShadow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="6"/>
+      <feOffset dx="0" dy="6"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.55"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+  </defs>
+
+  <!-- Smoke trail — drawn first so it sits behind the locomotive -->
+  <g>
+    <circle cx="370" cy="180" r="48" fill="url(#smokePuff)"/>
+    <circle cx="305" cy="135" r="58" fill="url(#smokePuff)"/>
+    <circle cx="225" cy="105" r="48" fill="url(#smokePuff)"/>
+    <circle cx="160" cy="135" r="38" fill="url(#smokePuff)"/>
+    <circle cx="110" cy="175" r="28" fill="url(#smokePuff)" opacity="0.7"/>
+  </g>
+
+  <!-- Locomotive — centered roughly at (560, 360), facing right -->
+  <g transform="translate(560 360) rotate(-8)" filter="url(#trainShadow)">
+    <!-- Smokestack -->
+    <path d="M -10 -180 L -10 -110 L -38 -100 L -38 -90 L 42 -90 L 42 -100 L 14 -110 L 14 -180 Z"
+          fill="url(#trainBody)"/>
+    <!-- Top brass rim on smokestack -->
+    <rect x="-12" y="-186" width="28" height="10" rx="2" fill="url(#brassDome)"/>
+
+    <!-- Steam dome -->
+    <path d="M 60 -110 Q 60 -135 80 -135 Q 100 -135 100 -110 L 100 -90 L 60 -90 Z"
+          fill="url(#brassDome)"/>
+
+    <!-- Boiler -->
+    <rect x="-50" y="-90" width="180" height="80" rx="10" fill="url(#trainBody)"/>
+    <!-- Brass band on boiler -->
+    <rect x="-50" y="-55" width="180" height="6" fill="url(#brassDome)" opacity="0.85"/>
+    <rect x="-50" y="-32" width="180" height="3" fill="url(#brassDome)" opacity="0.65"/>
+
+    <!-- Smokebox face (front circle) -->
+    <circle cx="130" cy="-50" r="46" fill="url(#trainBody)"/>
+    <circle cx="130" cy="-50" r="46" fill="none" stroke="#5A4028" stroke-width="3"/>
+    <!-- Headlight -->
+    <circle cx="150" cy="-65" r="11" fill="url(#brassDome)"/>
+    <circle cx="150" cy="-65" r="6" fill="#FFF6D5"/>
+
+    <!-- Cab -->
+    <path d="M -120 -90 L -120 -10 L -50 -10 L -50 -90 Z" fill="url(#trainBody)"/>
+    <!-- Cab roof overhang -->
+    <rect x="-128" y="-100" width="86" height="12" rx="3" fill="url(#trainBody)"/>
+    <!-- Cab window -->
+    <rect x="-108" y="-78" width="42" height="38" rx="4" fill="#EAD5A8" opacity="0.85"/>
+
+    <!-- Frame / running board -->
+    <rect x="-130" y="-10" width="320" height="20" rx="3" fill="url(#trainBody)"/>
+
+    <!-- Cowcatcher (pilot) — angled wedge at the front -->
+    <path d="M 175 10 L 210 10 L 200 56 L 168 56 Z" fill="url(#trainBody)"/>
+    <!-- Cowcatcher slats -->
+    <line x1="180" y1="14" x2="174" y2="52" stroke="#7B6035" stroke-width="2"/>
+    <line x1="188" y1="14" x2="184" y2="52" stroke="#7B6035" stroke-width="2"/>
+    <line x1="196" y1="14" x2="194" y2="52" stroke="#7B6035" stroke-width="2"/>
+
+    <!-- Wheels: 1 large drive + 1 trailing + 1 leading -->
+    <!-- Large drive wheel -->
+    <circle cx="50" cy="40" r="48" fill="url(#trainBody)"/>
+    <circle cx="50" cy="40" r="48" fill="none" stroke="#5A4028" stroke-width="3"/>
+    <circle cx="50" cy="40" r="14" fill="url(#brassDome)"/>
+    <!-- Spokes -->
+    <line x1="50" y1="40" x2="50" y2="-2" stroke="#7B6035" stroke-width="3"/>
+    <line x1="50" y1="40" x2="50" y2="82" stroke="#7B6035" stroke-width="3"/>
+    <line x1="50" y1="40" x2="8" y2="40" stroke="#7B6035" stroke-width="3"/>
+    <line x1="50" y1="40" x2="92" y2="40" stroke="#7B6035" stroke-width="3"/>
+    <line x1="50" y1="40" x2="20" y2="10" stroke="#7B6035" stroke-width="3"/>
+    <line x1="50" y1="40" x2="80" y2="70" stroke="#7B6035" stroke-width="3"/>
+    <line x1="50" y1="40" x2="20" y2="70" stroke="#7B6035" stroke-width="3"/>
+    <line x1="50" y1="40" x2="80" y2="10" stroke="#7B6035" stroke-width="3"/>
+
+    <!-- Smaller leading wheel (rear / under cab) -->
+    <circle cx="-90" cy="50" r="30" fill="url(#trainBody)"/>
+    <circle cx="-90" cy="50" r="30" fill="none" stroke="#5A4028" stroke-width="3"/>
+    <circle cx="-90" cy="50" r="9" fill="url(#brassDome)"/>
+
+    <!-- Smaller front wheel (under smokebox) -->
+    <circle cx="150" cy="50" r="26" fill="url(#trainBody)"/>
+    <circle cx="150" cy="50" r="26" fill="none" stroke="#5A4028" stroke-width="3"/>
+    <circle cx="150" cy="50" r="8" fill="url(#brassDome)"/>
+  </g>
+</svg>

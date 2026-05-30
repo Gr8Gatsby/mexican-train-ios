@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!--
+    LAYER 5 — HIGHLIGHT / SPECULAR
+    Top sheen across the icon, soft highlights along the tops of the
+    three tiles, sparkles on the brass dome/headlight, and a warm
+    glow projecting forward from the headlight.
+    Sits topmost; subtle so parallax feels light, not glossy.
+    Transparent background.
+  -->
+  <defs>
+    <linearGradient id="topSheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.16"/>
+      <stop offset="60%" stop-color="#FFFFFF" stop-opacity="0.02"/>
+      <stop offset="100%" stop-color="#FFFFFF" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="sparkle" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFFFFF" stop-opacity="0.95"/>
+      <stop offset="60%" stop-color="#FFF6D5" stop-opacity="0.45"/>
+      <stop offset="100%" stop-color="#FFF6D5" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="headlightGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#FFF6D5" stop-opacity="0.85"/>
+      <stop offset="50%" stop-color="#FFE6A0" stop-opacity="0.40"/>
+      <stop offset="100%" stop-color="#FFE6A0" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Top sheen across the icon -->
+  <rect x="0" y="0" width="1024" height="500" fill="url(#topSheen)"/>
+
+  <!-- Highlight along top edges of the three tiles -->
+  <g opacity="0.55">
+    <path d="M 96 497 Q 180 488 264 497" fill="none" stroke="#FFFBEE" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M 362 487 Q 445 478 528 487" fill="none" stroke="#FFFBEE" stroke-width="2.5" stroke-linecap="round"/>
+    <path d="M 610 472 Q 720 462 830 472" fill="none" stroke="#FFFBEE" stroke-width="3" stroke-linecap="round"/>
+  </g>
+
+  <!-- Sparkle on the locomotive's brass steam dome -->
+  <g>
+    <circle cx="725" cy="440" r="10" fill="url(#sparkle)"/>
+    <path d="M 725 432 L 725 448 M 717 440 L 733 440"
+          stroke="#FFFFFF" stroke-width="1.3" opacity="0.85"/>
+  </g>
+
+  <!-- Sparkle on the caboose cupola brass trim -->
+  <circle cx="180" cy="483" r="6" fill="url(#sparkle)" opacity="0.7"/>
+
+  <!-- Headlight glow + forward beam -->
+  <circle cx="852" cy="500" r="34" fill="url(#headlightGlow)"/>
+  <ellipse cx="905" cy="500" rx="56" ry="14" fill="url(#headlightGlow)" opacity="0.45"/>
+</svg>
