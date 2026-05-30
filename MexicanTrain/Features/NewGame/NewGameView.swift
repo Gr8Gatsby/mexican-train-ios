@@ -1,12 +1,19 @@
 import SwiftUI
 import SwiftData
 
-/// New-game "lobby": creates a draft Game immediately, broadcasts it on the
-/// local network so people at the table can scan a QR / type a code to join
-/// as players (their names/photos populate the slot list live), and lets the
-/// conductor manually add players for anyone without a phone. Tapping Start
-/// flips the game live and routes to the scoreboard. Backing out deletes the
-/// draft.
+/// New-game flow. Two explicit phases:
+///
+/// 1. **Rules** — conductor sets game length, starting engine, and family
+///    house rules. Nothing is broadcast yet; the table can't see the room
+///    code. Tapping "CALL FOR BOARDING" starts hosting and advances to
+///    phase 2.
+/// 2. **Lobby** — QR + room code are visible, joiners can claim slots, the
+///    conductor can add phone-less players. "Edit rules" sends the
+///    conductor back to phase 1 *without* stopping hosting, so any tweak
+///    is re-pushed to peers via the snapshot fingerprint.
+///
+/// Back from .rules deletes the draft and exits. Back from .lobby returns
+/// to .rules (host keeps running, room code stays put).
 struct NewGameView: View {
     @Environment(\.theme) private var theme
     @Environment(AppCoordinator.self) private var coordinator
@@ -14,39 +21,44 @@ struct NewGameView: View {
     @Environment(\.modelContext) private var context
 
     @State private var game: Game?
-    @State private var length: Int = 13
-    @State private var engine: StartingEngine = .traditional
+    @State private var phase: Phase = .rules
     @State private var roomCode: String = ""
     @State private var manualName: String = ""
     @State private var error: String?
     @State private var renamingPlayer: Player?
     @State private var renameDraft: String = ""
 
+    enum Phase { case rules, lobby }
+
     var body: some View {
         ZStack {
             theme.bg.ignoresSafeArea()
             if let g = game {
+                // Broadcaster only fires when the net session is actually
+                // hosting, so leaving it mounted across phases is safe.
                 Color.clear.hostBroadcaster(game: g)
             }
             VStack(spacing: 0) {
                 AppHeaderBar(
                     style: .push,
-                    title: "New game",
-                    onLeading: { cancelAndExit() }
+                    title: phase == .rules ? "Set the rules" : "Call for boarding",
+                    onLeading: { onBack() }
                 )
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 18) {
-                        broadcastBlock
-                        section("PLAYERS · TAP TO REMOVE") { playerList }
-                        section("ADD PLAYER (NO PHONE)") { manualAdd }
-                        section("GAME LENGTH") { lengthPicker }
-                        section("STARTING ENGINE") { enginePicker }
+                    Group {
+                        if let g = game {
+                            switch phase {
+                            case .rules: rulesContent(game: g)
+                            case .lobby: lobbyContent(game: g)
+                            }
+                        } else {
+                            ProgressView()
+                                .padding(40)
+                                .frame(maxWidth: .infinity)
+                        }
                     }
                     .padding(16)
-                    // Leave room for the sticky footer (DEPART + helper text)
-                    // so the last engine option and the manual-add field can
-                    // always be scrolled fully into view.
-                    .padding(.bottom, 140)
+                    .padding(.bottom, 160)
                     .frame(maxWidth: .infinity, alignment: .top)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -54,18 +66,108 @@ struct NewGameView: View {
                 footer
             }
         }
-        .task {
-            await setup()
-        }
+        .task { await setup() }
         .onDisappear {
-            // If the user navigated away without starting (back button),
-            // clean up. Guard: only if still in setup (stop 0) AND not
-            // transitioning to scoreboard.
+            // If the user navigated away without departing, clean up.
+            // Guard: only if still in setup (stop 0) AND not transitioning
+            // to scoreboard (which sets currentStopIndex = 1).
             if let g = game, g.currentStopIndex == 0, g.finishedAt == nil,
                coordinator.netSession.role == .host {
                 coordinator.netSession.stopHosting()
                 try? GamePersistence.delete(game: g, in: context, photoStore: coordinator.photoStore)
             }
+        }
+    }
+
+    // MARK: - Phase: rules
+
+    @ViewBuilder
+    private func rulesContent(game: Game) -> some View {
+        VStack(alignment: .leading, spacing: 18) {
+            stepIntro(
+                step: "STEP 1 OF 2",
+                title: "Set the rules",
+                body: "Pick the game length, starting engine, and any family rules. We'll start broadcasting on the next step."
+            )
+            section("GAME LENGTH") { lengthPicker(game: game) }
+            section("STARTING ENGINE") { enginePicker(game: game) }
+            section("HOUSE RULES") {
+                HouseRulesSection(game: game) { try? context.save() }
+            }
+        }
+    }
+
+    private func lengthPicker(game: Game) -> some View {
+        HStack(spacing: 8) {
+            ForEach([7, 10, 13], id: \.self) { n in
+                Button {
+                    game.lengthStops = n
+                    try? context.save()
+                } label: {
+                    Text("\(n)")
+                        .font(theme.displayFont(size: 22))
+                        .foregroundStyle(game.lengthStops == n ? theme.ctaText : theme.ink)
+                        .frame(maxWidth: .infinity, minHeight: 52)
+                        .background(game.lengthStops == n ? theme.cta : theme.cardBg,
+                                    in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: theme.buttonCornerRadius)
+                                .stroke(theme.border, lineWidth: 1)
+                        )
+                }
+            }
+        }
+    }
+
+    private func enginePicker(game: Game) -> some View {
+        VStack(spacing: 6) {
+            ForEach(StartingEngine.allCases) { option in
+                Button {
+                    game.startingEngineRaw = option.rawValue
+                    try? context.save()
+                } label: {
+                    HStack(alignment: .top) {
+                        Image(systemName: game.startingEngine == option ? "largecircle.fill.circle" : "circle")
+                            .foregroundStyle(game.startingEngine == option ? theme.brand : theme.muted)
+                            .padding(.top, 2)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(option.displayName)
+                                .font(theme.displayFont(size: 16))
+                                .foregroundStyle(theme.ink)
+                            Text(option.description)
+                                .font(theme.monoFont(size: 10))
+                                .tracking(1)
+                                .foregroundStyle(theme.muted)
+                        }
+                        Spacer()
+                    }
+                    .padding(12)
+                    .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(game.startingEngine == option ? theme.brand : theme.borderLight,
+                                    lineWidth: game.startingEngine == option ? 1.5 : 1)
+                    )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    // MARK: - Phase: lobby
+
+    @ViewBuilder
+    private func lobbyContent(game: Game) -> some View {
+        VStack(alignment: .leading, spacing: 18) {
+            stepIntro(
+                step: "STEP 2 OF 2",
+                title: "Call for boarding",
+                body: "Share the room code so the table can join, or add anyone without a phone manually."
+            )
+            broadcastBlock
+            section("PLAYERS · TAP TO RENAME") { playerList }
+            section("ADD PLAYER (NO PHONE)") { manualAdd }
+            editRulesShortcut(game: game)
         }
     }
 
@@ -120,16 +222,47 @@ struct NewGameView: View {
         )
     }
 
-    @ViewBuilder
-    private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(title)
-                .font(theme.monoFont(size: 11))
-                .tracking(2)
-                .foregroundStyle(theme.muted)
-            content()
+    private func editRulesShortcut(game: Game) -> some View {
+        Button {
+            withAnimation { phase = .rules }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: "pencil")
+                    .font(.system(size: 12, weight: .semibold))
+                Text("EDIT RULES")
+                    .font(theme.monoFont(size: 11))
+                    .fontWeight(.semibold)
+                    .tracking(1.4)
+                Spacer()
+                rulesSummary(game: game)
+                    .font(theme.monoFont(size: 10))
+                    .foregroundStyle(theme.muted)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+            }
+            .foregroundStyle(theme.brand)
+            .padding(.horizontal, 14)
+            .frame(maxWidth: .infinity, minHeight: 44)
+            .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 10))
+            .overlay(
+                RoundedRectangle(cornerRadius: 10)
+                    .stroke(theme.borderLight, lineWidth: 1)
+            )
         }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Edit rules")
     }
+
+    private func rulesSummary(game: Game) -> Text {
+        var parts: [String] = ["\(game.lengthStops) stops", game.startingEngine.displayName]
+        if game.goingOutBonus != .none { parts.append("bonus \(game.goingOutBonus.displayName)") }
+        if game.doublesPenaltyPips > 0 { parts.append("+\(game.doublesPenaltyPips) dbl") }
+        if let d = game.drawCountOverride { parts.append("draw \(d)") }
+        if game.blockedRoundCapEnabled { parts.append("blocked cap") }
+        return Text(parts.joined(separator: " · "))
+    }
+
+    // MARK: - Shared list/manual-add pieces
 
     private var playerList: some View {
         let claims = coordinator.netSession.playerClaims
@@ -292,58 +425,74 @@ struct NewGameView: View {
             && (game?.players.count ?? 0) < 8
     }
 
-    private var lengthPicker: some View {
-        HStack(spacing: 8) {
-            ForEach([7, 10, 13], id: \.self) { n in
-                Button { length = n } label: {
-                    Text("\(n)")
-                        .font(theme.displayFont(size: 22))
-                        .foregroundStyle(length == n ? theme.ctaText : theme.ink)
-                        .frame(maxWidth: .infinity, minHeight: 52)
-                        .background(length == n ? theme.cta : theme.cardBg,
-                                    in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: theme.buttonCornerRadius)
-                                .stroke(theme.border, lineWidth: 1)
-                        )
-                }
-            }
+    // MARK: - Layout helpers
+
+    @ViewBuilder
+    private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(theme.monoFont(size: 11))
+                .tracking(2)
+                .foregroundStyle(theme.muted)
+            content()
         }
     }
 
-    private var enginePicker: some View {
-        VStack(spacing: 6) {
-            ForEach(StartingEngine.allCases) { option in
-                Button { engine = option } label: {
-                    HStack(alignment: .top) {
-                        Image(systemName: engine == option ? "largecircle.fill.circle" : "circle")
-                            .foregroundStyle(engine == option ? theme.brand : theme.muted)
-                            .padding(.top, 2)
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(option.displayName)
-                                .font(theme.displayFont(size: 16))
-                                .foregroundStyle(theme.ink)
-                            Text(option.description)
-                                .font(theme.monoFont(size: 10))
-                                .tracking(1)
-                                .foregroundStyle(theme.muted)
-                        }
-                        Spacer()
-                    }
-                    .padding(12)
-                    .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 10))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(engine == option ? theme.brand : theme.borderLight,
-                                    lineWidth: engine == option ? 1.5 : 1)
-                    )
-                }
-                .buttonStyle(.plain)
-            }
+    private func stepIntro(step: String, title: String, body: String) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(step)
+                .font(theme.monoFont(size: 9))
+                .tracking(1.8)
+                .foregroundStyle(theme.accent)
+            Text(title)
+                .font(theme.displayFont(size: 22))
+                .foregroundStyle(theme.brand)
+            Text(body)
+                .font(theme.monoFont(size: 11))
+                .foregroundStyle(theme.muted)
+                .fixedSize(horizontal: false, vertical: true)
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
+    // MARK: - Footer (phase-dependent)
+
+    @ViewBuilder
     private var footer: some View {
+        switch phase {
+        case .rules: rulesFooter
+        case .lobby: lobbyFooter
+        }
+    }
+
+    private var rulesFooter: some View {
+        VStack(spacing: 8) {
+            if let error {
+                Text(error)
+                    .font(theme.monoFont(size: 11))
+                    .foregroundStyle(theme.brand)
+            }
+            Button(action: callForBoarding) {
+                HStack(spacing: 8) {
+                    Image(systemName: "dot.radiowaves.left.and.right")
+                        .font(.system(size: 14, weight: .semibold))
+                    Text("CALL FOR BOARDING")
+                }
+            }
+            .appPrimaryStyle(enabled: game != nil)
+            .disabled(game == nil)
+            Text("Locks in the rules and starts broadcasting so the table can join.")
+                .font(theme.monoFont(size: 10))
+                .foregroundStyle(theme.muted)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: .infinity)
+        }
+        .padding(.horizontal, 16).padding(.bottom, 14).padding(.top, 10)
+        .background(theme.subBg)
+        .overlay(alignment: .top) { Rectangle().fill(theme.border).frame(height: 1) }
+    }
+
+    private var lobbyFooter: some View {
         let lobbyCount = coordinator.netSession.playerClaims.count
         return VStack(spacing: 8) {
             if let error {
@@ -392,13 +541,9 @@ struct NewGameView: View {
     // MARK: - Lifecycle
 
     private func setup() async {
-        // Reuse settings as starting defaults.
-        length = settings.defaultLengthStops
-        engine = settings.lastStartingEngine
-
-        // Identity from device. `loadCurrentIdentity()` now returns nil for
+        // Identity from device. `loadCurrentIdentity()` returns nil for
         // generic strings like "iPhone 17", so we land on "Conductor" by
-        // default — the conductor can tap their row to rename inline.
+        // default — the conductor can tap their row to rename.
         let identity = await DeviceIdentity.loadCurrentIdentity()
         let conductorName: String = {
             if !settings.defaultYouName.isEmpty { return settings.defaultYouName }
@@ -407,17 +552,17 @@ struct NewGameView: View {
         }()
 
         // Create the draft game with the conductor as Player 0. We mark
-        // currentStopIndex = 0 to flag this as still-in-setup; tapping Start
-        // moves it to 1.
+        // currentStopIndex = 0 to flag this as still-in-setup; DEPART moves
+        // it to 1. Defaults come from AppSettings; the conductor can change
+        // them in the rules phase before broadcasting.
         do {
             let g = try GamePersistence.createGame(
-                in: context, length: length, startingEngine: engine,
+                in: context,
+                length: settings.defaultLengthStops,
+                startingEngine: settings.lastStartingEngine,
                 playerNames: [conductorName], youIndex: 0, name: nil
             )
             g.currentStopIndex = 0
-            // Reuse the persisted "you" photo as the conductor's avatar so
-            // the lobby shows their face immediately. Stored once per
-            // game's photoStore namespace alongside captures.
             if let data = settings.defaultYouPhotoJPEG,
                let img = UIImage(data: data),
                let conductor = g.players.first(where: { $0.isYou }),
@@ -427,23 +572,41 @@ struct NewGameView: View {
             }
             try context.save()
             game = g
-
-            // Begin hosting and surface the room code so the QR can render.
-            let code = RoomCode.generate()
-            roomCode = code
-            let snap = SnapshotBuilder.build(game: g, roomCode: code)
-            coordinator.netSession.onClaimReceived = { claim in
-                handleClaim(claim)
-            }
-            coordinator.netSession.startHosting(initialSnapshot: snap)
+            // Do NOT start hosting yet — wait for "Call for boarding".
         } catch {
-            self.error = "Couldn't start lobby: \(error.localizedDescription)"
+            self.error = "Couldn't create draft: \(error.localizedDescription)"
+        }
+    }
+
+    private func callForBoarding() {
+        guard let g = game else { return }
+        // Persist current selections as defaults for next time.
+        settings.defaultLengthStops = g.lengthStops
+        settings.lastStartingEngine = g.startingEngine
+        // Begin hosting and surface the room code so the QR can render.
+        let code = RoomCode.generate()
+        roomCode = code
+        let snap = SnapshotBuilder.build(game: g, roomCode: code)
+        coordinator.netSession.onClaimReceived = { claim in
+            handleClaim(claim)
+        }
+        coordinator.netSession.startHosting(initialSnapshot: snap)
+        withAnimation { phase = .lobby }
+    }
+
+    private func onBack() {
+        switch phase {
+        case .rules:
+            cancelAndExit()
+        case .lobby:
+            // Returning to rules keeps hosting active so the room code
+            // stays valid for joiners already on the radar.
+            withAnimation { phase = .rules }
         }
     }
 
     private func handleClaim(_ claim: PlayerClaim) {
         guard let g = game else { return }
-        // If the claim references an existing player, just update it.
         if let existing = g.players.first(where: { $0.id == claim.playerID }) {
             existing.name = claim.displayName
             if let photo = claim.photoJPEG, let img = UIImage(data: photo) {
@@ -456,7 +619,6 @@ struct NewGameView: View {
             try? context.save()
             return
         }
-        // Otherwise add a new Player slot.
         guard g.players.count < 8 else { return }
         let seat = (g.sortedPlayers.last?.seat ?? -1) + 1
         let player = Player(id: claim.playerID, name: claim.displayName, seat: seat)
@@ -490,12 +652,8 @@ struct NewGameView: View {
 
     private func start() {
         guard let g = game, canStart else { return }
-        g.lengthStops = length
-        g.startingEngineRaw = engine.rawValue
         g.currentStopIndex = 1
         try? context.save()
-        settings.defaultLengthStops = length
-        settings.lastStartingEngine = engine
         if let conductor = g.players.first(where: { $0.isYou }),
            conductor.name != "Conductor" {
             settings.defaultYouName = conductor.name
@@ -511,5 +669,139 @@ struct NewGameView: View {
             try? GamePersistence.delete(game: g, in: context, photoStore: coordinator.photoStore)
         }
         coordinator.goHome()
+    }
+}
+
+// MARK: - House rules picker
+
+/// Reusable rules picker used in the new-game flow's rules phase and in the
+/// mid-game `EditRulesSheet`. Writes directly to the bound `Game`; the
+/// `onChange` closure lets the caller persist + re-broadcast as needed.
+struct HouseRulesSection: View {
+    @Bindable var game: Game
+    var onChange: () -> Void = {}
+
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        VStack(spacing: 16) {
+            rule(title: "Going-out bonus",
+                 description: "Subtract from the round score when a player empties their hand.") {
+                segmented(
+                    options: GoingOutBonus.allCases.map { ($0.rawValue, $0.displayName) },
+                    selection: Binding(
+                        get: { game.goingOutBonusRaw },
+                        set: { game.goingOutBonusRaw = $0; onChange() }
+                    )
+                )
+            }
+            divider
+            rule(title: "Doubles penalty",
+                 description: "Add to your round score if you can't satisfy a double you played.") {
+                segmented(
+                    options: DoublesPenalty.presetOptions.map { ($0, $0 == 0 ? "None" : "+\($0)") },
+                    selection: Binding(
+                        get: { game.doublesPenaltyPips },
+                        set: { game.doublesPenaltyPips = $0; onChange() }
+                    )
+                )
+            }
+            divider
+            rule(title: "Draw count",
+                 description: "Tiles each player draws to start a round.") {
+                drawCountPicker
+            }
+            divider
+            rule(title: "Blocked-round cap",
+                 description: "When nobody goes out, set the lowest hand to 0 instead.") {
+                Toggle(isOn: Binding(
+                    get: { game.blockedRoundCapEnabled },
+                    set: { game.blockedRoundCapEnabled = $0; onChange() }
+                )) {
+                    EmptyView()
+                }
+                .labelsHidden()
+                .tint(theme.accent)
+            }
+        }
+        .padding(14)
+        .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(theme.border, lineWidth: 1)
+        )
+    }
+
+    private var divider: some View {
+        Rectangle().fill(theme.borderLight).frame(height: 1)
+    }
+
+    @ViewBuilder
+    private var drawCountPicker: some View {
+        // Options: Auto, then the four preset draw counts.
+        let options: [(Int?, String)] = [(Optional<Int>.none, "Auto")] +
+            DrawCount.presetOptions.map { (Optional($0), "\($0)") }
+        HStack(spacing: 4) {
+            ForEach(Array(options.enumerated()), id: \.offset) { _, opt in
+                let isSelected = opt.0 == game.drawCountOverride
+                Button {
+                    game.drawCountOverride = opt.0
+                    onChange()
+                } label: {
+                    Text(opt.1)
+                        .font(theme.monoFont(size: 12))
+                        .fontWeight(.semibold)
+                        .frame(minWidth: 32, minHeight: 32)
+                        .padding(.horizontal, 8)
+                        .foregroundStyle(isSelected ? theme.ctaText : theme.ink)
+                        .background(isSelected ? theme.cta : theme.subBg,
+                                    in: Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func rule<Control: View>(title: String, description: String,
+                                     @ViewBuilder control: () -> Control) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(title)
+                    .font(theme.displayFont(size: 15))
+                    .foregroundStyle(theme.ink)
+                Spacer()
+                control()
+            }
+            Text(description)
+                .font(theme.monoFont(size: 10))
+                .foregroundStyle(theme.muted)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    @ViewBuilder
+    private func segmented<T: Hashable>(
+        options: [(T, String)],
+        selection: Binding<T>
+    ) -> some View {
+        HStack(spacing: 4) {
+            ForEach(Array(options.enumerated()), id: \.offset) { _, opt in
+                let isSelected = opt.0 == selection.wrappedValue
+                Button {
+                    selection.wrappedValue = opt.0
+                } label: {
+                    Text(opt.1)
+                        .font(theme.monoFont(size: 12))
+                        .fontWeight(.semibold)
+                        .padding(.horizontal, 10)
+                        .frame(minHeight: 32)
+                        .foregroundStyle(isSelected ? theme.ctaText : theme.ink)
+                        .background(isSelected ? theme.cta : theme.subBg,
+                                    in: Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+        }
     }
 }

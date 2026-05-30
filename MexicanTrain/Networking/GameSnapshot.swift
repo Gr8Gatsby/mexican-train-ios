@@ -18,9 +18,18 @@ struct GameSnapshot: Codable, Equatable {
     var endedAt: Date?
     var winnerPlayerID: UUID?
     var claims: [PlayerClaim]
+    // House rules — added in v0.9, decoded with safe defaults for back-compat
+    // with joiners on older builds (and the Android bridge).
+    var goingOutBonusRaw: Int
+    var blockedRoundCapEnabled: Bool
+    var drawCountOverride: Int?
+    var doublesPenaltyPips: Int
 
     var startingEngine: StartingEngine {
         StartingEngine(rawValue: startingEngineRaw) ?? .traditional
+    }
+    var goingOutBonus: GoingOutBonus {
+        GoingOutBonus(rawValue: goingOutBonusRaw) ?? .none
     }
     var isFinished: Bool { endedAt != nil }
 
@@ -29,7 +38,11 @@ struct GameSnapshot: Codable, Equatable {
          currentStop: Int, scoringOpen: Bool = false,
          players: [PlayerSnapshot], scores: [ScoreSnapshot],
          recentCaptures: [CaptureManifestEntry], endedAt: Date? = nil,
-         winnerPlayerID: UUID? = nil, claims: [PlayerClaim] = []) {
+         winnerPlayerID: UUID? = nil, claims: [PlayerClaim] = [],
+         goingOutBonusRaw: Int = 0,
+         blockedRoundCapEnabled: Bool = false,
+         drawCountOverride: Int? = nil,
+         doublesPenaltyPips: Int = 0) {
         self.seq = seq; self.roomCode = roomCode; self.hostName = hostName
         self.gameID = gameID; self.gameName = gameName; self.length = length
         self.startingEngineRaw = startingEngineRaw; self.currentStop = currentStop
@@ -37,6 +50,10 @@ struct GameSnapshot: Codable, Equatable {
         self.players = players; self.scores = scores
         self.recentCaptures = recentCaptures; self.endedAt = endedAt
         self.winnerPlayerID = winnerPlayerID; self.claims = claims
+        self.goingOutBonusRaw = goingOutBonusRaw
+        self.blockedRoundCapEnabled = blockedRoundCapEnabled
+        self.drawCountOverride = drawCountOverride
+        self.doublesPenaltyPips = doublesPenaltyPips
     }
 
     init(from decoder: Decoder) throws {
@@ -80,6 +97,11 @@ struct GameSnapshot: Codable, Equatable {
             self.winnerPlayerID = nil
         }
         self.claims = (try? c.decode([PlayerClaim].self, forKey: .claims)) ?? []
+        // House rules — older snapshots omit these; default to "no special rules".
+        self.goingOutBonusRaw = (try? c.decodeIfPresent(Int.self, forKey: .goingOutBonusRaw)) ?? 0
+        self.blockedRoundCapEnabled = (try? c.decodeIfPresent(Bool.self, forKey: .blockedRoundCapEnabled)) ?? false
+        self.drawCountOverride = try? c.decodeIfPresent(Int.self, forKey: .drawCountOverride)
+        self.doublesPenaltyPips = (try? c.decodeIfPresent(Int.self, forKey: .doublesPenaltyPips)) ?? 0
     }
 }
 
