@@ -250,8 +250,7 @@ struct HomeView: View {
                         Circle()
                             .fill(Color.green)
                             .frame(width: 10, height: 10)
-                        Text(host.hostName.isEmpty || host.hostName == UIDevice.current.name
-                             ? host.roomCode : host.hostName)
+                        Text(host.displayLabel)
                             .font(theme.displayFont(size: 14))
                             .foregroundStyle(theme.ink)
                             .lineLimit(1)
