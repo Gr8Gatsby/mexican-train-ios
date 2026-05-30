@@ -24,6 +24,7 @@ struct ScoreboardView: View {
     @State private var showInstructions = false
     @State private var didShowBroadcastCue = false
     @State private var broadcastCue: String?
+    @State private var claimSecondsLeft: Int?
 
     struct OverrideTarget: Identifiable, Equatable {
         let player: Player
@@ -77,6 +78,25 @@ struct ScoreboardView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .accessibilityElement(children: .combine)
                     .accessibilityAddTraits(.isStaticText)
+            }
+        }
+        .overlay(alignment: .top) {
+            if let secs = claimSecondsLeft, pendingClaim != nil {
+                HStack(spacing: 6) {
+                    Image(systemName: "clock")
+                        .font(.system(size: 11, weight: .semibold))
+                    Text("Auto-dismiss in \(secs)s")
+                        .font(theme.monoFont(size: 11))
+                        .tracking(1.2)
+                }
+                .foregroundStyle(theme.muted)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(theme.cardBg, in: Capsule())
+                .overlay(Capsule().stroke(theme.borderLight, lineWidth: 1))
+                .padding(.top, 70)
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .accessibilityLabel("Claim dialog auto-dismisses in \(secs) seconds")
             }
         }
         .overlay(alignment: .top) {
@@ -206,11 +226,27 @@ struct ScoreboardView: View {
             Text("Removed players are dimmed on the scoreboard and excluded from future stops.")
         }
         .task(id: pendingClaim?.playerID) {
-            guard pendingClaim != nil else { return }
-            try? await Task.sleep(nanoseconds: 30_000_000_000)
-            guard !Task.isCancelled else { return }
+            guard pendingClaim != nil else {
+                claimSecondsLeft = nil
+                return
+            }
+            // Tick down a visible countdown so the conductor knows the
+            // dialog will auto-dismiss. Bail early if the user dismissed it.
+            for sec in stride(from: 30, through: 1, by: -1) {
+                guard !Task.isCancelled, pendingClaim != nil else {
+                    claimSecondsLeft = nil
+                    return
+                }
+                claimSecondsLeft = sec
+                try? await Task.sleep(nanoseconds: 1_000_000_000)
+            }
+            guard !Task.isCancelled, pendingClaim != nil else {
+                claimSecondsLeft = nil
+                return
+            }
             pendingClaim = nil
             showAssignDialog = false
+            claimSecondsLeft = nil
         }
         .overlay(alignment: .top) {
             if undoableScore != nil {
