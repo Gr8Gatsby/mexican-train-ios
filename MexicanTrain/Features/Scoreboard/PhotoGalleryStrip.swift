@@ -134,6 +134,13 @@ private struct PhotoZoomOverlay: View {
     @Environment(\.theme) private var theme
     @Environment(AppCoordinator.self) private var coordinator
 
+    /// Look up the player this capture belongs to, so we can drop the
+    /// conductor straight into AuditView for the right row/stop instead
+    /// of forcing them to back out and dig through the standings.
+    private var capturePlayer: Player? {
+        game.players.first(where: { $0.id == capture.playerID })
+    }
+
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
@@ -157,6 +164,27 @@ private struct PhotoZoomOverlay: View {
                     .padding(16)
                 }
                 Spacer()
+                if let player = capturePlayer {
+                    Button {
+                        dismiss()
+                        coordinator.openAudit(game: game, player: player, stop: capture.stopIndex)
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "pencil")
+                                .font(.system(size: 14, weight: .semibold))
+                            Text("EDIT SCORE")
+                                .font(theme.displayFont(size: 13))
+                                .tracking(2)
+                        }
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 18)
+                        .frame(minHeight: 48)
+                        .background(theme.accent, in: Capsule())
+                        .shadow(color: .black.opacity(0.4), radius: 6, y: 2)
+                    }
+                    .padding(.bottom, 28)
+                    .accessibilityLabel("Edit \(player.name)'s score for stop \(capture.stopIndex)")
+                }
             }
         }
     }
