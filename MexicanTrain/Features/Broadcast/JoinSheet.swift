@@ -431,6 +431,10 @@ struct JoinSheet: View {
         guard let raw = try? await item.loadTransferable(type: Data.self) else { return }
         let compressed = DeviceIdentity.compressPhoto(raw)
         await MainActor.run {
+            // If REMOVE (or another picker) ran while we were resolving the
+            // image data, the user's later choice should win — drop the
+            // stale result instead of clobbering the cleared state.
+            guard pickerItem == item else { return }
             pickedPhotoData = compressed
             trainIndex = nil  // real photo wins over the train fallback
         }
