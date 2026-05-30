@@ -697,9 +697,14 @@ struct ScoreboardView: View {
                                         .font(theme.displayFont(size: 24))
                                         .foregroundStyle(standing.place == 1 ? theme.brand : theme.ink)
 
-                                    Image(systemName: "chevron.right")
-                                        .font(.system(size: 12, weight: .semibold))
-                                        .foregroundStyle(theme.muted.opacity(0.5))
+                                    VStack(spacing: 1) {
+                                        Image(systemName: "chevron.right")
+                                            .font(.system(size: 13, weight: .bold))
+                                        Text("AUDIT")
+                                            .font(theme.monoFont(size: 7))
+                                            .tracking(0.8)
+                                    }
+                                    .foregroundStyle(theme.muted)
                                 }
                                 .padding(.horizontal, 14)
                                 .padding(.vertical, 14)
