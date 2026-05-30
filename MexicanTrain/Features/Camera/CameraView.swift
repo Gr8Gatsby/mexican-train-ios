@@ -539,10 +539,38 @@ struct CameraView: View {
         }
     }
 
-    /// Solid color image used when running on the simulator with no camera.
-    /// The mock pip counter doesn't care about pixel content; it uses image
-    /// size to vary results, so a 1024-square frame is fine.
+    #if DEBUG
+    /// Round-robin counter so successive simulator scans hit a different
+    /// fixture instead of always returning the same photo.
+    private static var simulatedFixtureCounter: Int = 0
+    /// Bundled HEIC fixtures shot on real dominoes — used by the simulator
+    /// (which has no camera) to exercise the real pip-counter pipeline.
+    /// Order intentionally cycles small → large → close-up so the
+    /// conductor's first taps land on a variety of hands.
+    private static let simulatedFixtures: [String] = [
+        "dominos-stacked-3",
+        "dominos-scattered-6",
+        "dominos-pair-2"
+    ]
+    #endif
+
+    /// Image used when running on the simulator with no camera. In DEBUG we
+    /// rotate through real bundled HEIC fixtures so the vision pipeline
+    /// gets exercised on real photos; if any fixture fails to load we
+    /// fall back to a parchment-gradient placeholder.
     static func simulatedCapture() -> UIImage {
+        #if DEBUG
+        for offset in 0..<simulatedFixtures.count {
+            let idx = (simulatedFixtureCounter + offset) % simulatedFixtures.count
+            let name = simulatedFixtures[idx]
+            if let url = Bundle.main.url(forResource: name, withExtension: "heic"),
+               let data = try? Data(contentsOf: url),
+               let image = UIImage(data: data) {
+                simulatedFixtureCounter = (idx + 1) % simulatedFixtures.count
+                return image
+            }
+        }
+        #endif
         let size = CGSize(width: 1024, height: 1024)
         let renderer = UIGraphicsImageRenderer(size: size)
         return renderer.image { ctx in

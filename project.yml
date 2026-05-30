@@ -26,13 +26,19 @@ targets:
         optional: true
       - path: MexicanTrain/Vision/DominoDetector.mlpackage
         optional: true
+      # DEBUG-only fixtures used by CameraView.simulatedCapture so the
+      # simulator can exercise the real pip-counter on real photos.
+      - path: MexicanTrain/Resources/TestFixtures
+        optional: true
     info:
       path: MexicanTrain/Resources/Info.plist
       properties:
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         UILaunchScreen:
-          UIColorName: AccentColor
+          UIColorName: LaunchBackground
+          UIImageName: LaunchIcon
+          UIImageRespectsSafeAreaInsets: true
         NSCameraUsageDescription: "Photograph tiles to count pips automatically."
         NSLocalNetworkUsageDescription: "Mexican Train uses local networking so friends nearby can join your game live. Nothing leaves your devices."
         NSBonjourServices:
