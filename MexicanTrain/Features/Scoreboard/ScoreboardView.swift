@@ -154,6 +154,10 @@ struct ScoreboardView: View {
                 Button("Remove \(player.name)", role: .destructive) {
                     player.isActive = false
                     try? context.save()
+                    withAnimation(.easeOut(duration: 0.25)) {
+                        toast = "Removed \(player.name)"
+                    }
+                    scheduleToastClear()
                 }
             }
             Button("Cancel", role: .cancel) {}
