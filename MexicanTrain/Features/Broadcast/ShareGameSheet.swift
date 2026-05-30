@@ -6,6 +6,7 @@ struct ShareGameSheet: View {
     @Environment(AppCoordinator.self) private var coordinator
     @Environment(\.dismiss) private var dismiss
     @State private var roomCode: String = ""
+    @State private var confirmStopHosting = false
 
     var body: some View {
         ZStack {
@@ -36,6 +37,19 @@ struct ShareGameSheet: View {
             } else {
                 roomCode = coordinator.netSession.roomCode
             }
+        }
+        .confirmationDialog(
+            "Stop broadcasting?",
+            isPresented: $confirmStopHosting,
+            titleVisibility: .visible
+        ) {
+            Button("Stop broadcasting", role: .destructive) {
+                coordinator.netSession.stopHosting()
+                dismiss()
+            }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("Joiners will disconnect and the room code will stop working. You can share again later, but it'll be a new code.")
         }
     }
 
@@ -145,9 +159,8 @@ struct ShareGameSheet: View {
 
     private var stopButton: some View {
         Button {
-            coordinator.netSession.stopHosting()
-            dismiss()
-        } label: { Text("STOP SHARING") }
+            confirmStopHosting = true
+        } label: { Text("STOP BROADCASTING") }
             .appSecondaryStyle()
     }
 
