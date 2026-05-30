@@ -114,14 +114,21 @@ struct SpectatorView: View {
            snap.currentStop <= snap.length,
            !mySlotHasPlayerScore(snap: snap, myID: myID, stop: snap.currentStop) {
             if !snap.scoringOpen {
-                HStack(spacing: 8) {
-                    Image(systemName: "lock.fill")
-                        .font(.system(size: 12))
+                VStack(spacing: 4) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(theme.muted)
+                        Text("Waiting for tiles down...")
+                            .font(theme.monoFont(size: 11))
+                            .tracking(1.0)
+                            .foregroundStyle(theme.muted)
+                    }
+                    Text("Conductor opens scoring once someone has emptied their hand.")
+                        .font(theme.monoFont(size: 9))
+                        .tracking(0.8)
                         .foregroundStyle(theme.muted)
-                    Text("Waiting for tiles down...")
-                        .font(theme.monoFont(size: 11))
-                        .tracking(1.0)
-                        .foregroundStyle(theme.muted)
+                        .multilineTextAlignment(.center)
                 }
                 .padding(.horizontal, 14).padding(.vertical, 10)
             } else {
