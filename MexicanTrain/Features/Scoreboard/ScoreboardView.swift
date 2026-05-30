@@ -454,10 +454,22 @@ struct ScoreboardView: View {
                     DominoGlyph(value: engineN, width: 44, color: theme.ink)
                         .accessibilityLabel("Engine \(engineN) \(engineN)")
                     if !code.isEmpty {
-                        Text(code)
-                            .font(theme.monoFont(size: 11))
-                            .tracking(1.4)
-                            .foregroundStyle(theme.accent)
+                        Button {
+                            coordinator.openShareSheet(for: game)
+                        } label: {
+                            Text(code)
+                                .font(theme.monoFont(size: 11))
+                                .fontWeight(.semibold)
+                                .tracking(1.4)
+                                .foregroundStyle(theme.accent)
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 4)
+                                .background(theme.accent.opacity(0.12), in: Capsule())
+                                .overlay(Capsule().stroke(theme.accent.opacity(0.35), lineWidth: 1))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Room code \(code)")
+                        .accessibilityHint("Opens the share sheet")
                     }
                 }
                 Spacer()
