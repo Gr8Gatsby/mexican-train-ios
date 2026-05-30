@@ -99,7 +99,7 @@ struct ScoreboardView: View {
                 .accessibilityLabel("Claim dialog auto-dismisses in \(secs) seconds")
             }
         }
-        .overlay(alignment: .top) {
+        .overlay(alignment: .bottom) {
             if let c = broadcastCue {
                 Button {
                     coordinator.openShareSheet(for: game)
@@ -115,10 +115,11 @@ struct ScoreboardView: View {
                     .padding(.horizontal, 14)
                     .padding(.vertical, 8)
                     .background(theme.accent, in: Capsule())
+                    .shadow(color: .black.opacity(0.15), radius: 6, y: 2)
                 }
                 .buttonStyle(.plain)
-                .padding(.top, 70)
-                .transition(.move(edge: .top).combined(with: .opacity))
+                .padding(.bottom, 96)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
                 .accessibilityHint("Tap to open share sheet")
             }
         }
@@ -195,7 +196,9 @@ struct ScoreboardView: View {
                !session.roomCode.isEmpty {
                 didShowBroadcastCue = true
                 withAnimation(.easeOut(duration: 0.3)) {
-                    broadcastCue = "Broadcasting · CODE \(session.roomCode)"
+                    // Room code already shows in the header — keep the cue
+                // generic so we're not repeating it on screen.
+                broadcastCue = "BROADCASTING · TAP TO SHARE"
                 }
                 Task { @MainActor in
                     try? await Task.sleep(nanoseconds: 4_000_000_000)
@@ -419,7 +422,8 @@ struct ScoreboardView: View {
                         .font(theme.monoFont(size: 11))
                         .tracking(1.4)
                         .foregroundStyle(theme.ink)
-                    DominoGlyph(value: engineN, width: 32, color: theme.ink)
+                    DominoGlyph(value: engineN, width: 44, color: theme.ink)
+                        .accessibilityLabel("Engine \(engineN) \(engineN)")
                     if !code.isEmpty {
                         Text(code)
                             .font(theme.monoFont(size: 11))
@@ -615,7 +619,9 @@ struct ScoreboardView: View {
                                     Text(rankLabel(standing.place))
                                         .font(theme.displayFont(size: 22))
                                         .foregroundStyle(standing.place == 1 ? theme.brand : theme.ink)
-                                        .frame(width: 40, alignment: .center)
+                                        .lineLimit(1)
+                                        .minimumScaleFactor(0.7)
+                                        .frame(width: 54, alignment: .center)
 
                                     VStack(alignment: .leading, spacing: 2) {
                                         HStack(spacing: 6) {
