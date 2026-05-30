@@ -194,10 +194,23 @@ struct ScoreboardView: View {
                     handleIncomingClaim(claim)
                 }
             }
+            // If the conductor is reaching this scoreboard for a live game
+            // and the netSession isn't hosting (typical case: app was killed
+            // and they tapped Resume on the home tile), start hosting again
+            // with a fresh room code so the header pill, broadcast cue, and
+            // joiner pipeline all come back. Skip when the game is already
+            // finished — past games don't need a broadcast.
+            let session = coordinator.netSession
+            if session.role != .host,
+               !game.isFinished,
+               game.players.contains(where: { $0.isYou }) {
+                let code = RoomCode.generate()
+                let snap = SnapshotBuilder.build(game: game, roomCode: code)
+                session.startHosting(initialSnapshot: snap)
+            }
             // One-shot cue so the conductor (and anyone glancing at the
             // phone) sees that the table can still join via the room code,
             // even though it's now a small badge in the header.
-            let session = coordinator.netSession
             if !didShowBroadcastCue,
                session.role == .host,
                !session.roomCode.isEmpty {
