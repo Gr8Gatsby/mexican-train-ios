@@ -22,6 +22,8 @@ struct ScoreboardView: View {
     @State private var showEditRules = false
     @State private var selectedPlayer: Player?
     @State private var showInstructions = false
+    @State private var didShowBroadcastCue = false
+    @State private var broadcastCue: String?
 
     struct OverrideTarget: Identifiable, Equatable {
         let player: Player
@@ -75,6 +77,29 @@ struct ScoreboardView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .accessibilityElement(children: .combine)
                     .accessibilityAddTraits(.isStaticText)
+            }
+        }
+        .overlay(alignment: .top) {
+            if let c = broadcastCue {
+                Button {
+                    coordinator.openShareSheet(for: game)
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "dot.radiowaves.left.and.right")
+                            .font(.system(size: 12, weight: .semibold))
+                        Text(c)
+                            .font(theme.monoFont(size: 11))
+                            .tracking(1.4)
+                    }
+                    .foregroundStyle(theme.bg)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 8)
+                    .background(theme.accent, in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 70)
+                .transition(.move(edge: .top).combined(with: .opacity))
+                .accessibilityHint("Tap to open share sheet")
             }
         }
         .onChange(of: game.currentStopIndex) { _, _ in
@@ -139,6 +164,22 @@ struct ScoreboardView: View {
             coordinator.netSession.onClaimReceived = { claim in
                 Task { @MainActor in
                     handleIncomingClaim(claim)
+                }
+            }
+            // One-shot cue so the conductor (and anyone glancing at the
+            // phone) sees that the table can still join via the room code,
+            // even though it's now a small badge in the header.
+            let session = coordinator.netSession
+            if !didShowBroadcastCue,
+               session.role == .host,
+               !session.roomCode.isEmpty {
+                didShowBroadcastCue = true
+                withAnimation(.easeOut(duration: 0.3)) {
+                    broadcastCue = "Broadcasting · CODE \(session.roomCode)"
+                }
+                Task { @MainActor in
+                    try? await Task.sleep(nanoseconds: 4_000_000_000)
+                    withAnimation { broadcastCue = nil }
                 }
             }
         }
