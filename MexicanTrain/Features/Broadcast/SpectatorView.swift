@@ -150,8 +150,8 @@ struct SpectatorView: View {
                         .foregroundStyle(theme.ctaText)
                         .background(theme.cta, in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
                     }
-                    if mySlotHasConductorScore(snap: snap, myID: myID, stop: snap.currentStop) {
-                        Text("Conductor already entered a value — your submission will replace it.")
+                    if let pips = conductorEnteredPips(snap: snap, myID: myID, stop: snap.currentStop) {
+                        Text("Conductor entered \(pips) — your submission will replace it.")
                             .font(theme.monoFont(size: 9))
                             .tracking(1.0)
                             .foregroundStyle(theme.muted)
@@ -168,7 +168,13 @@ struct SpectatorView: View {
     }
 
     private func mySlotHasConductorScore(snap: GameSnapshot, myID: UUID, stop: Int) -> Bool {
-        snap.scores.contains { $0.playerID == myID && $0.stop == stop && $0.submittedBy == .conductor }
+        conductorEnteredPips(snap: snap, myID: myID, stop: stop) != nil
+    }
+
+    private func conductorEnteredPips(snap: GameSnapshot, myID: UUID, stop: Int) -> Int? {
+        snap.scores
+            .first { $0.playerID == myID && $0.stop == stop && $0.submittedBy == .conductor }
+            .map(\.pips)
     }
 
     @ViewBuilder
