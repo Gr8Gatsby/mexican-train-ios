@@ -225,17 +225,28 @@ struct HomeView: View {
     private var cta: some View {
         let hosts = coordinator.netSession.availableHosts
         let nearbyHost = hosts.first
+        // When the Rejoin banner already promotes this same nearby host,
+        // suppress the host-rich variant of the bottom tile so the user
+        // sees a single bright rejoin affordance instead of two competing
+        // ones. The tile reverts to the neutral QR "JOIN GAME" path for
+        // joining a different game.
+        let rejoinBannerShownFor: String? = {
+            guard let code = settings.activeJoinRoomCode,
+                  hosts.contains(where: { $0.roomCode == code }) else { return nil }
+            return code
+        }()
+        let promoteNearby = nearbyHost != nil && nearbyHost?.roomCode != rejoinBannerShownFor
         return HStack(spacing: 0) {
             // Left: Join
             Button {
-                if let host = nearbyHost {
+                if promoteNearby, let host = nearbyHost {
                     coordinator.openJoinSheet(code: host.roomCode)
                 } else {
                     coordinator.openJoinSheet()
                 }
             } label: {
                 VStack(spacing: 8) {
-                    if let host = nearbyHost {
+                    if promoteNearby, let host = nearbyHost {
                         Circle()
                             .fill(Color.green)
                             .frame(width: 10, height: 10)
@@ -269,7 +280,7 @@ struct HomeView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
-                .background(nearbyHost != nil ? theme.cardBg : theme.subBg)
+                .background(promoteNearby ? theme.cardBg : theme.subBg)
                 .overlay(
                     Rectangle().fill(theme.border).frame(width: 0.5),
                     alignment: .trailing
