@@ -22,12 +22,21 @@ struct VisionPipCounter: PipCounter {
 
     static func loadFromBundle() -> VisionPipCounter? {
         let candidates = ["DominoDetector"]
+        let config = MLModelConfiguration()
+        // iOS 26.x simulator throws an Espresso GPU/MpsGraph exception
+        // during inference and silently returns empty MultiArray outputs.
+        // Forcing CPU on simulator keeps the camera pipeline testable;
+        // device builds keep .all so we get NE / GPU acceleration.
+        #if targetEnvironment(simulator)
+        config.computeUnits = .cpuOnly
+        #endif
         for name in candidates {
             if let url = Bundle.main.url(forResource: name, withExtension: "mlmodelc")
                 ?? Bundle.main.url(forResource: name, withExtension: "mlpackage") {
-                if let mlModel = try? MLModel(contentsOf: url),
+                if let mlModel = try? MLModel(contentsOf: url, configuration: config),
                    let vnModel = try? VNCoreMLModel(for: mlModel) {
-                    print("[VisionPipCounter] Loaded model version: \(modelVersion)")
+                    print("[VisionPipCounter] Loaded model version: \(modelVersion) "
+                          + "(computeUnits=\(config.computeUnits.rawValue))")
                     return VisionPipCounter(model: vnModel)
                 }
             }
@@ -75,11 +84,33 @@ struct VisionPipCounter: PipCounter {
         iouThreshold: Float
     ) -> PipCountResult {
         guard let raw = observations.first?.featureValue.multiArrayValue else {
+            #if DEBUG
+            print("[VisionPipCounter] No multiArrayValue in observation")
+            #endif
             return PipCountResult(tiles: [], total: 0, confidence: .low)
         }
         let detections = decodeYOLO(output: raw,
                                     confidenceThreshold: confidenceThreshold)
         let kept = nms(detections: detections, iouThreshold: iouThreshold)
+        #if DEBUG
+        // Re-decode at a very permissive threshold so we can see what the
+        // model was actually scoring on this image — invaluable when a
+        // post-threshold "0 halves" result hides the fact that the model
+        // returned hundreds of low-confidence guesses.
+        let raw010 = decodeYOLO(output: raw, confidenceThreshold: 0.10)
+        let raw005 = decodeYOLO(output: raw, confidenceThreshold: 0.05)
+        let top5 = raw005.sorted { $0.confidence > $1.confidence }.prefix(5)
+        print("[VisionPipCounter] raw decode — "
+              + "≥0.05: \(raw005.count), ≥0.10: \(raw010.count), "
+              + "≥\(confidenceThreshold): \(detections.count), "
+              + "after NMS: \(kept.count)")
+        for (i, d) in top5.enumerated() {
+            print(String(format: "  top%d: class=%d conf=%.3f bbox=(%.2f,%.2f %.2fx%.2f)",
+                         i + 1, d.classIndex, d.confidence,
+                         d.normalizedBox.x, d.normalizedBox.y,
+                         d.normalizedBox.width, d.normalizedBox.height))
+        }
+        #endif
         let halves = kept.map { d in
             TileObservation(a: d.classIndex, b: 0, bbox: d.normalizedBox)
         }
