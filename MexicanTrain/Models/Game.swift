@@ -19,6 +19,9 @@ final class Game {
     /// nil = auto-scale by active player count; otherwise use this exact value.
     var drawCountOverride: Int? = nil
     var doublesPenaltyPips: Int = 0     // 0, 5, or 10 in v1
+    var doubleBlankPenaltyPips: Int = 0 // 0, 25, or 50 in v1
+    var doublesCountDouble: Bool = false
+    var anyBlankPenaltyPips: Int = 0    // 0 or 5 in v1
 
     @Relationship(deleteRule: .cascade, inverse: \Player.game)
     var players: [Player] = []
@@ -39,7 +42,10 @@ final class Game {
         goingOutBonus: GoingOutBonus = .none,
         blockedRoundCapEnabled: Bool = false,
         drawCountOverride: Int? = nil,
-        doublesPenaltyPips: Int = 0
+        doublesPenaltyPips: Int = 0,
+        doubleBlankPenaltyPips: Int = 0,
+        doublesCountDouble: Bool = false,
+        anyBlankPenaltyPips: Int = 0
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -53,6 +59,9 @@ final class Game {
         self.blockedRoundCapEnabled = blockedRoundCapEnabled
         self.drawCountOverride = drawCountOverride
         self.doublesPenaltyPips = doublesPenaltyPips
+        self.doubleBlankPenaltyPips = doubleBlankPenaltyPips
+        self.doublesCountDouble = doublesCountDouble
+        self.anyBlankPenaltyPips = anyBlankPenaltyPips
     }
 
     var startingEngine: StartingEngine {

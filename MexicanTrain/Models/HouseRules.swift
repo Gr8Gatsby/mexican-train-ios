@@ -83,3 +83,14 @@ enum DrawCount {
 enum DoublesPenalty {
     static let presetOptions: [Int] = [0, 5, 10]
 }
+
+/// "+N if you're caught with the 0|0 at round end." Stored as plain Int.
+enum DoubleBlankPenalty {
+    static let presetOptions: [Int] = [0, 25, 50]
+}
+
+/// "+N for each blank tile (half) left in your hand." Spec calls out 0 or
+/// 5; stored as plain Int so a future fork can pick something else.
+enum AnyBlankPenalty {
+    static let presetOptions: [Int] = [0, 5]
+}
