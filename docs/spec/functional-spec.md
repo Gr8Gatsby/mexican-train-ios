@@ -218,7 +218,7 @@ The broadcast carries enough state for joiners to render the full scoreboard, th
 
 ## 11. Change log
 
-- 2026-05-21 — v0.1 — Initial draft. Scope: standalone single-device, on-device vision, Caboose theme. Authored from design canvas (`docs/design/Mexican Train/`) and the web app README (`/Users/kevin/Documents/code/platform/apps/mextrain`).
+- 2026-05-21 — v0.1 — Initial draft. Scope: standalone single-device, on-device vision, Caboose theme. Authored from the design canvas (`docs/design/Mexican Train/`) and the companion web-app README in the sibling `platform/apps/mextrain` repo.
 - 2026-05-21 — v0.2 — Resolved open questions: default game length confirmed at 13; photos retained with game history and deleted only when the user deletes a game (no time-based purge); starting engine made a per-game house rule (§2.4) with "Traditional" as the default.
 - 2026-05-21 — v0.3 — Added broadcast (§7): host advertises a game via QR code + room code; other phones join as player (with iOS-prefilled name and photo) or spectator. Scoring inputs remain host-only. Adjusted §1 product summary and §8 non-goals to match.
 - 2026-05-21 — v0.4 — Tightened §7.3 to reflect the iOS reality: identity prefill comes from `UIDevice.current.name` (with the device-suffix stripped) rather than a Contacts "Me card," which iOS doesn't expose. The wire format still carries an optional photo for a future Photo Picker flow.
