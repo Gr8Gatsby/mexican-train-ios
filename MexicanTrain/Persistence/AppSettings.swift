@@ -54,6 +54,9 @@ final class AppSettings {
     var activeJoinHostPort: Int {
         didSet { UserDefaults.standard.set(activeJoinHostPort, forKey: Keys.joinHostPort) }
     }
+    var activeJoinGameID: UUID? {
+        didSet { UserDefaults.standard.set(activeJoinGameID?.uuidString, forKey: Keys.joinGameID) }
+    }
 
     func clearActiveJoin() {
         activeJoinRoomCode = nil
@@ -61,6 +64,7 @@ final class AppSettings {
         activeJoinPlayerName = nil
         activeJoinHostIP = nil
         activeJoinHostPort = 5111
+        activeJoinGameID = nil
     }
 
     init() {
@@ -82,6 +86,11 @@ final class AppSettings {
         self.activeJoinPlayerName = d.string(forKey: Keys.joinPlayerName)
         self.activeJoinHostIP = d.string(forKey: Keys.joinHostIP)
         self.activeJoinHostPort = d.object(forKey: Keys.joinHostPort) as? Int ?? 5111
+        if let gidStr = d.string(forKey: Keys.joinGameID) {
+            self.activeJoinGameID = UUID(uuidString: gidStr)
+        } else {
+            self.activeJoinGameID = nil
+        }
     }
 
     private enum Keys {
@@ -96,5 +105,6 @@ final class AppSettings {
         static let joinPlayerName = "settings.activeJoinPlayerName"
         static let joinHostIP = "settings.activeJoinHostIP"
         static let joinHostPort = "settings.activeJoinHostPort"
+        static let joinGameID = "settings.activeJoinGameID"
     }
 }

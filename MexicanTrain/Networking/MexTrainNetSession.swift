@@ -22,6 +22,7 @@ final class MexTrainNetSession: NSObject {
         let playerCount: Int
         let hostName: String
         let nsdEndpoint: NWEndpoint?
+        var discoveredAt: Date = .now
         var isTCP: Bool { nsdEndpoint != nil }
         var id: String { (peerID?.displayName ?? "tcp") + roomCode }
 
@@ -79,6 +80,10 @@ final class MexTrainNetSession: NSObject {
     /// Incremented each time a photo arrives so SwiftUI views can react.
     private(set) var photoCacheVersion: Int = 0
 
+    /// Avatar cache: player profile photos keyed by playerID. On the host
+    /// these come from incoming claims; on joiners from avatarPush messages.
+    private(set) var avatarCache: [UUID: Data] = [:]
+
     /// Host-side: IDs of captures already pushed to ALL peers.
     private var pushedCaptureIDs: Set<UUID> = []
 
@@ -99,6 +104,11 @@ final class MexTrainNetSession: NSObject {
 
     /// All currently cached photos. Used by persistence to store captures.
     var allCachedPhotos: [UUID: Data] { photoCache }
+
+    /// Look up a cached avatar for the given player ID.
+    func cachedAvatar(for playerID: UUID) -> Data? {
+        avatarCache[playerID]
+    }
 
     override init() {
         let trimmed = String(UIDevice.current.name.prefix(63))
@@ -131,11 +141,19 @@ final class MexTrainNetSession: NSObject {
         self.advertiser = advertiser
 
         // Start TCP bridge for Android clients.
-        _ = try? tcpBridge.start(roomCode: initialSnapshot.roomCode)
+        _ = try? tcpBridge.start(
+            roomCode: initialSnapshot.roomCode,
+            hostName: initialSnapshot.hostName,
+            playerCount: initialSnapshot.players.count
+        )
         tcpBridge.onClaimReceived = { [weak self] claim in
             Task { @MainActor in
                 guard let self, self.role == .host else { return }
                 self.playerClaims[claim.playerID] = claim
+                if let photo = claim.photoJPEG, !photo.isEmpty {
+                    self.avatarCache[claim.playerID] = photo
+                    self.pushAvatar(playerID: claim.playerID, photo: photo)
+                }
                 self.onClaimReceived?(claim)
                 if let s = self.latestSnapshot { self.broadcast(snapshot: s) }
             }
@@ -149,8 +167,8 @@ final class MexTrainNetSession: NSObject {
         tcpBridge.onNewClientConnected = { [weak self] connection in
             Task { @MainActor in
                 guard let self, self.role == .host else { return }
-                // Stream all existing photos to the new TCP client.
                 self.pushAllPhotosToTCPClient(connection)
+                self.pushAllAvatarsToTCPClient(connection)
             }
         }
 
@@ -195,6 +213,7 @@ final class MexTrainNetSession: NSObject {
         latestSnapshot = nil
         connectedPeerCount = 0
         pushedCaptureIDs.removeAll()
+        avatarCache.removeAll()
     }
 
     func broadcast(snapshot: GameSnapshot) {
@@ -205,10 +224,15 @@ final class MexTrainNetSession: NSObject {
         copy.claims = Array(playerClaims.values)
         latestSnapshot = copy
 
-        // Snapshots are now metadata-only (no photo bytes), so they're tiny.
+        // MPC has a ~100KB envelope limit. Strip photoJPEG from claims
+        // and send avatars as individual messages instead.
         if !session.connectedPeers.isEmpty {
+            var mpcCopy = copy
+            mpcCopy.claims = copy.claims.map {
+                PlayerClaim(playerID: $0.playerID, displayName: $0.displayName, photoJPEG: nil)
+            }
             do {
-                let data = try JSONEncoder().encode(MultipeerMessage.snapshot(copy))
+                let data = try JSONEncoder().encode(MultipeerMessage.snapshot(mpcCopy))
                 try session.send(data, toPeers: session.connectedPeers, with: .reliable)
             } catch {
                 print("[MexTrainNet] MPC broadcast failed: \(error)")
@@ -350,6 +374,39 @@ final class MexTrainNetSession: NSObject {
         }
     }
 
+    /// Host: push a player's avatar photo to ALL connected peers.
+    private func pushAvatar(playerID: UUID, photo: Data) {
+        guard role == .host else { return }
+        let msg = MultipeerMessage.avatarPush(AvatarPush(playerID: playerID, photoJPEG: photo))
+
+        if let session, !session.connectedPeers.isEmpty {
+            if let data = try? JSONEncoder().encode(msg) {
+                try? session.send(data, toPeers: session.connectedPeers, with: .reliable)
+            }
+        }
+        tcpBridge.sendMessageToAll(msg)
+    }
+
+    /// Host: stream all cached avatars to a specific MPC peer (new joiner).
+    private func pushAllAvatars(to peerID: MCPeerID) {
+        guard role == .host, let session else { return }
+        for (playerID, photo) in avatarCache {
+            let msg = MultipeerMessage.avatarPush(AvatarPush(playerID: playerID, photoJPEG: photo))
+            if let data = try? JSONEncoder().encode(msg) {
+                try? session.send(data, toPeers: [peerID], with: .reliable)
+            }
+        }
+    }
+
+    /// Host: stream all cached avatars to a specific TCP client (new joiner).
+    private func pushAllAvatarsToTCPClient(_ connection: NWConnection) {
+        guard role == .host else { return }
+        for (playerID, photo) in avatarCache {
+            let msg = MultipeerMessage.avatarPush(AvatarPush(playerID: playerID, photoJPEG: photo))
+            tcpBridge.sendMessage(msg, to: connection)
+        }
+    }
+
     /// Connect directly to a host via IP address and port (bypasses discovery).
     func connectDirect(host: String, port: UInt16) {
         guard role == .joiner else { return }
@@ -370,6 +427,7 @@ final class MexTrainNetSession: NSObject {
         myPlayerID = nil
         hostPeerID = nil
         photoCache.removeAll()
+        avatarCache.removeAll()
         photoCacheVersion = 0
     }
 
@@ -389,11 +447,13 @@ final class MexTrainNetSession: NSObject {
         let delegate = NSDServiceBrowserDelegate { [weak self] host in
             Task { @MainActor in
                 guard let self, self.role == .joiner else { return }
+                var fresh = host
+                fresh.discoveredAt = .now
                 if let idx = self.availableHosts.firstIndex(where: { $0.roomCode == host.roomCode }) {
                     // MPC may have found this host first without TCP endpoint — upgrade it
-                    self.availableHosts[idx] = host
+                    self.availableHosts[idx] = fresh
                 } else {
-                    self.availableHosts.append(host)
+                    self.availableHosts.append(fresh)
                 }
             }
         } onLost: { [weak self] roomCode in
@@ -403,6 +463,24 @@ final class MexTrainNetSession: NSObject {
         }
         delegate.start()
         self.nsdBrowserDelegate = delegate
+        startHostPruner()
+    }
+
+    private var hostPrunerTask: Task<Void, Never>?
+
+    private func startHostPruner() {
+        hostPrunerTask?.cancel()
+        hostPrunerTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(nanoseconds: 5_000_000_000)
+                await MainActor.run {
+                    guard let self else { return }
+                    let cutoff = Date().addingTimeInterval(-15)
+                    // Only prune NSD/TCP hosts; MPC hosts are removed by lostPeer.
+                    self.availableHosts.removeAll { $0.isTCP && $0.discoveredAt < cutoff }
+                }
+            }
+        }
     }
 
     private func connectViaTCP(endpoint: NWEndpoint) {
@@ -544,6 +622,9 @@ final class MexTrainNetSession: NSObject {
                 case .photoPush(let push):
                     photoCache[push.captureID] = push.thumbJPEG
                     photoCacheVersion += 1
+                case .avatarPush(let avatar):
+                    avatarCache[avatar.playerID] = avatar.photoJPEG
+                    photoCacheVersion += 1
                 case .heartbeat:
                     lastHeartbeatDate = Date()
                 default:
@@ -577,8 +658,8 @@ extension MexTrainNetSession: @preconcurrency MCSessionDelegate {
             case .connected:
                 if role == .joiner { joinState = .connected }
                 if role == .host {
-                    // New joiner connected — stream all existing photos to them.
                     self.pushAllPhotos(to: peerID)
+                    self.pushAllAvatars(to: peerID)
                 }
             case .notConnected:
                 if role == .joiner, peerID == hostPeerID {
@@ -612,6 +693,10 @@ extension MexTrainNetSession: @preconcurrency MCSessionDelegate {
             case .claim(let claim):
                 if role == .host {
                     playerClaims[claim.playerID] = claim
+                    if let photo = claim.photoJPEG, !photo.isEmpty {
+                        avatarCache[claim.playerID] = photo
+                        pushAvatar(playerID: claim.playerID, photo: photo)
+                    }
                     onClaimReceived?(claim)
                     if let s = latestSnapshot { broadcast(snapshot: s) }
                 }
@@ -626,6 +711,11 @@ extension MexTrainNetSession: @preconcurrency MCSessionDelegate {
             case .photoPush(let push):
                 if role == .joiner {
                     photoCache[push.captureID] = push.thumbJPEG
+                    photoCacheVersion += 1
+                }
+            case .avatarPush(let avatar):
+                if role == .joiner {
+                    avatarCache[avatar.playerID] = avatar.photoJPEG
                     photoCacheVersion += 1
                 }
             }

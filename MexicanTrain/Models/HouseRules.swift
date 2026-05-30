@@ -3,6 +3,7 @@ import Foundation
 enum StartingEngine: String, CaseIterable, Codable, Identifiable {
     case traditional
     case alwaysTwelve
+    case drawToFind
 
     var id: String { rawValue }
 
@@ -10,6 +11,7 @@ enum StartingEngine: String, CaseIterable, Codable, Identifiable {
         switch self {
         case .traditional: "Traditional"
         case .alwaysTwelve: "Always start at double-12"
+        case .drawToFind: "Draw to find"
         }
     }
 
@@ -19,8 +21,12 @@ enum StartingEngine: String, CaseIterable, Codable, Identifiable {
             "Start double matches game length (6 / 9 / 12)."
         case .alwaysTwelve:
             "Always begin at double-12, regardless of length."
+        case .drawToFind:
+            "Players draw until someone finds the starting double."
         }
     }
+
+    var isDrawToFind: Bool { self == .drawToFind }
 }
 
 enum ScoreSource: String, Codable {

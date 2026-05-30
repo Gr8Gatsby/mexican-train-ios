@@ -2,6 +2,7 @@ import SwiftUI
 
 struct ScoreCardTable: View {
     let game: Game
+    var photoStore: PhotoStore? = nil
     /// Tapping a populated cell (any stop) or an unset past-stop cell.
     /// AuditView opens in edit mode for the former, create mode for the latter.
     var onTapScore: (Player, Int) -> Void
@@ -95,6 +96,14 @@ struct ScoreCardTable: View {
             HStack(spacing: 3) {
                 if player.isYou {
                     Text("▸").foregroundStyle(theme.accent).font(.system(size: 10))
+                }
+                if let filename = player.avatarFilename,
+                   let img = photoStore?.thumbnail(filename: filename, gameID: game.id, maxEdge: 40) {
+                    Image(uiImage: img)
+                        .resizable()
+                        .scaledToFill()
+                        .frame(width: 20, height: 20)
+                        .clipShape(Circle())
                 }
                 Text(player.name)
                     .font(theme.monoFont(size: 11))

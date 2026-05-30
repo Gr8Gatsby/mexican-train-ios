@@ -25,16 +25,19 @@ final class TCPBridge: @unchecked Sendable {
     /// Start listening for TCP connections and advertise via Bonjour.
     /// Returns the port number the listener bound to (0 if not yet ready).
     @discardableResult
-    func start(roomCode: String) throws -> UInt16 {
+    func start(roomCode: String, hostName: String = "", playerCount: Int = 0) throws -> UInt16 {
         let params = NWParameters.tcp
         params.includePeerToPeer = true
 
         let listener = try NWListener(using: params)
 
-        // Advertise via Bonjour so Android clients can discover the host.
+        let txtDict = ["host": hostName, "players": String(playerCount)]
+        let txtData = NetService.data(fromTXTRecord: txtDict.mapValues { Data($0.utf8) })
+
         listener.service = NWListener.Service(
             name: "MexTrain-\(roomCode)",
-            type: "_mextrain-game._tcp"
+            type: "_mextrain-game._tcp",
+            txtRecord: txtData
         )
 
         listener.newConnectionHandler = { [weak self] connection in
@@ -197,6 +200,8 @@ final class TCPBridge: @unchecked Sendable {
                     break // Host doesn't process inbound heartbeats.
                 case .photoPush:
                     break // Host doesn't process inbound photo pushes.
+                case .avatarPush:
+                    break // Host doesn't process inbound avatar pushes.
                 }
             } catch {
                 print("TCPBridge: Failed to decode message: \(error)")

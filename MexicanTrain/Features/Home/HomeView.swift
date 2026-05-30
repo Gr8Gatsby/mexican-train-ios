@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import UIKit
 
 struct HomeView: View {
     @Environment(\.theme) private var theme
@@ -9,8 +10,9 @@ struct HomeView: View {
     @Query(sort: \Game.createdAt, order: .reverse) private var games: [Game]
     @Query(sort: \JoinedGameRecord.lastUpdatedAt, order: .reverse) private var joinedGames: [JoinedGameRecord]
     @State private var pendingDelete: Game?
+    @State private var pendingDeleteJoined: JoinedGameRecord?
 
-    private var inProgress: Game? { games.first(where: { !$0.isFinished }) }
+    private var inProgress: [Game] { games.filter { !$0.isFinished } }
     private var finished: [Game] { games.filter { $0.isFinished } }
 
     var body: some View {
@@ -20,6 +22,11 @@ struct HomeView: View {
                 header
                 content
                 cta
+            }
+        }
+        .onAppear {
+            if coordinator.netSession.role == .idle {
+                coordinator.netSession.startBrowsing()
             }
         }
         .alert(
@@ -37,6 +44,23 @@ struct HomeView: View {
             Button("Cancel", role: .cancel) { pendingDelete = nil }
         } message: { _ in
             Text("All scores and photos for this game will be removed.")
+        }
+        .alert(
+            "Delete this joined game?",
+            isPresented: Binding(
+                get: { pendingDeleteJoined != nil },
+                set: { if !$0 { pendingDeleteJoined = nil } }
+            ),
+            presenting: pendingDeleteJoined
+        ) { record in
+            Button("Delete", role: .destructive) {
+                modelContext.delete(record)
+                try? modelContext.save()
+                pendingDeleteJoined = nil
+            }
+            Button("Cancel", role: .cancel) { pendingDeleteJoined = nil }
+        } message: { _ in
+            Text("This removes the local record of this joined game.")
         }
     }
 
@@ -73,10 +97,17 @@ struct HomeView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 12) {
                     rejoinBanner
-                    if let g = inProgress {
+                    if !inProgress.isEmpty {
                         sectionLabel("IN PROGRESS")
-                        InProgressCard(game: g)
-                            .onTapGesture { coordinator.openScoreboard(g) }
+                        ForEach(inProgress) { g in
+                            SwipeToDelete(
+                                onDelete: { pendingDelete = g },
+                                accessibilityLabel: "Delete \(g.displayName)"
+                            ) {
+                                InProgressCard(game: g)
+                                    .onTapGesture { coordinator.openScoreboard(g) }
+                            }
+                        }
                     }
                     if !finished.isEmpty {
                         sectionLabel("HISTORY")
@@ -94,12 +125,19 @@ struct HomeView: View {
                     if !joinedGames.isEmpty {
                         sectionLabel("JOINED")
                         ForEach(joinedGames) { record in
-                            JoinedGameRow(record: record) {
-                                if !record.isFinished, let snap = record.snapshot, !snap.roomCode.isEmpty {
-                                    coordinator.openJoinSheet(code: snap.roomCode)
-                                } else {
-                                    coordinator.openJoinedGameDetail(record.gameID)
-                                }
+                            SwipeToDelete(
+                                onDelete: { pendingDeleteJoined = record },
+                                accessibilityLabel: "Delete \(record.gameName)"
+                            ) {
+                                JoinedGameRow(record: record, onOpen: {
+                                    if !record.isFinished, let snap = record.snapshot, !snap.roomCode.isEmpty {
+                                        coordinator.openJoinSheet(code: snap.roomCode)
+                                    } else {
+                                        coordinator.openJoinedGameDetail(record.gameID)
+                                    }
+                                }, onDelete: {
+                                    pendingDeleteJoined = record
+                                })
                             }
                         }
                     }
@@ -141,7 +179,8 @@ struct HomeView: View {
     @ViewBuilder
     private var rejoinBanner: some View {
         if let playerName = settings.activeJoinPlayerName,
-           let roomCode = settings.activeJoinRoomCode {
+           let roomCode = settings.activeJoinRoomCode,
+           coordinator.netSession.availableHosts.contains(where: { $0.roomCode == roomCode }) {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
@@ -184,34 +223,85 @@ struct HomeView: View {
     }
 
     private var cta: some View {
-        VStack(spacing: 10) {
+        let hosts = coordinator.netSession.availableHosts
+        let nearbyHost = hosts.first
+        return HStack(spacing: 0) {
+            // Left: Join
+            Button {
+                if let host = nearbyHost {
+                    coordinator.openJoinSheet(code: host.roomCode)
+                } else {
+                    coordinator.openJoinSheet()
+                }
+            } label: {
+                VStack(spacing: 8) {
+                    if let host = nearbyHost {
+                        Circle()
+                            .fill(Color.green)
+                            .frame(width: 10, height: 10)
+                        Text(host.hostName.isEmpty || host.hostName == UIDevice.current.name
+                             ? host.roomCode : host.hostName)
+                            .font(theme.displayFont(size: 14))
+                            .foregroundStyle(theme.ink)
+                            .lineLimit(1)
+                        Text("\(host.playerCount) players")
+                            .font(theme.monoFont(size: 10))
+                            .foregroundStyle(theme.muted)
+                        Text("JOIN")
+                            .font(theme.monoFont(size: 11))
+                            .fontWeight(.bold)
+                            .tracking(2)
+                            .foregroundStyle(theme.brand)
+                    } else {
+                        Image(systemName: "qrcode.viewfinder")
+                            .font(.system(size: 24, weight: .semibold))
+                            .foregroundStyle(theme.muted)
+                        Text("JOIN")
+                            .font(theme.monoFont(size: 11))
+                            .fontWeight(.bold)
+                            .tracking(2)
+                            .foregroundStyle(theme.ink)
+                        Text("GAME")
+                            .font(theme.monoFont(size: 11))
+                            .fontWeight(.bold)
+                            .tracking(2)
+                            .foregroundStyle(theme.ink)
+                    }
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(nearbyHost != nil ? theme.cardBg : theme.subBg)
+                .overlay(
+                    Rectangle().fill(theme.border).frame(width: 0.5),
+                    alignment: .trailing
+                )
+            }
+            .buttonStyle(.plain)
+
+            // Right: New Game
             Button {
                 coordinator.openNewGame()
             } label: {
-                HStack(spacing: 10) {
+                VStack(spacing: 8) {
                     Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 18, weight: .bold))
-                        .accessibilityHidden(true)
-                    Text("NEW GAME")
+                        .font(.system(size: 24, weight: .bold))
+                        .foregroundStyle(theme.ctaText)
+                    Text("NEW")
+                        .font(theme.monoFont(size: 11))
+                        .fontWeight(.bold)
+                        .tracking(2)
+                        .foregroundStyle(theme.ctaText)
+                    Text("GAME")
+                        .font(theme.monoFont(size: 11))
+                        .fontWeight(.bold)
+                        .tracking(2)
+                        .foregroundStyle(theme.ctaText)
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background(theme.cta)
             }
-            .appPrimaryStyle()
-            Button {
-                coordinator.openJoinSheet()
-            } label: {
-                HStack(spacing: 8) {
-                    Image(systemName: "qrcode.viewfinder")
-                        .font(.system(size: 14, weight: .semibold))
-                    Text("JOIN NEARBY GAME")
-                }
-            }
-            .appSecondaryStyle()
-            .accessibilityLabel("Join a nearby game")
+            .buttonStyle(.plain)
         }
-        .padding(.horizontal, 16)
-        .padding(.bottom, 14)
-        .padding(.top, 10)
-        .background(theme.subBg)
+        .frame(height: 110)
         .overlay(alignment: .top) {
             Rectangle().fill(theme.border).frame(height: 1)
         }
@@ -269,6 +359,7 @@ private struct InProgressCard: View {
 private struct JoinedGameRow: View {
     let record: JoinedGameRecord
     let onOpen: () -> Void
+    var onDelete: (() -> Void)? = nil
     @Environment(\.theme) private var theme
 
     var body: some View {
@@ -317,10 +408,18 @@ private struct JoinedGameRow: View {
                 }
                 .accessibilityLabel("Share \(record.gameName) report")
             }
+            if let onDelete {
+                Button(action: onDelete) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(theme.muted)
+                        .frame(width: 40, height: 40)
+                        .contentShape(Rectangle())
+                }
+                .accessibilityLabel("Delete \(record.gameName)")
+            }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        // Slightly lighter background so JOINED rows visually sit under
-        // the user's own IN PROGRESS / HISTORY entries.
         .background(theme.subBg, in: RoundedRectangle(cornerRadius: 10))
         .overlay(
             RoundedRectangle(cornerRadius: 10)

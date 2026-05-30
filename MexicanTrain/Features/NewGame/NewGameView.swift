@@ -53,8 +53,11 @@ struct NewGameView: View {
             await setup()
         }
         .onDisappear {
-            // If the user navigated away without starting, clean up.
-            if let g = game, g.currentStopIndex == 0 {
+            // If the user navigated away without starting (back button),
+            // clean up. Guard: only if still in setup (stop 0) AND not
+            // transitioning to scoreboard.
+            if let g = game, g.currentStopIndex == 0, g.finishedAt == nil,
+               coordinator.netSession.role == .host {
                 coordinator.netSession.stopHosting()
                 try? GamePersistence.delete(game: g, in: context, photoStore: coordinator.photoStore)
             }
@@ -98,7 +101,7 @@ struct NewGameView: View {
                     .font(.system(size: 11))
                     .foregroundStyle(theme.muted)
                     .accessibilityHidden(true)
-                Text("\(coordinator.netSession.connectedPeerCount) connected on local network")
+                Text("\(coordinator.netSession.playerClaims.count) joined on local network")
                     .font(theme.monoFont(size: 10))
                     .foregroundStyle(theme.muted)
                 Spacer()
@@ -124,14 +127,25 @@ struct NewGameView: View {
     }
 
     private var playerList: some View {
-        VStack(spacing: 6) {
+        let claims = coordinator.netSession.playerClaims
+        return VStack(spacing: 6) {
             if let g = game {
                 ForEach(g.sortedPlayers) { p in
+                    let inLobby = !p.isYou && claims[p.id] != nil
                     HStack(spacing: 10) {
                         avatar(for: p)
                             .frame(width: 32, height: 32)
                             .clipShape(Circle())
                             .overlay(Circle().stroke(theme.border, lineWidth: 1))
+                            .overlay(alignment: .bottomTrailing) {
+                                if inLobby {
+                                    Circle()
+                                        .fill(Color.green)
+                                        .frame(width: 10, height: 10)
+                                        .overlay(Circle().stroke(theme.cardBg, lineWidth: 2))
+                                        .offset(x: 2, y: 2)
+                                }
+                            }
                         VStack(alignment: .leading, spacing: 0) {
                             HStack(spacing: 4) {
                                 Text(p.name.isEmpty ? "(no name)" : p.name)
@@ -143,13 +157,21 @@ struct NewGameView: View {
                                         .tracking(1.2)
                                         .foregroundStyle(theme.accent)
                                 }
+                                if inLobby {
+                                    Text("IN LOBBY")
+                                        .font(theme.monoFont(size: 8))
+                                        .tracking(1.2)
+                                        .foregroundStyle(.green)
+                                }
                                 if p.isYou {
                                     Image(systemName: "pencil")
                                         .font(.system(size: 10))
                                         .foregroundStyle(theme.muted)
                                 }
                             }
-                            Text(p.isYou ? "You · tap to rename" : (p.avatarFilename != nil ? "Joined from phone" : "Manual entry"))
+                            Text(p.isYou ? "You · tap to rename"
+                                 : (inLobby ? "Waiting for you to depart"
+                                    : (p.avatarFilename != nil ? "Joined · tap to rename" : "Tap to rename")))
                                 .font(theme.monoFont(size: 9))
                                 .foregroundStyle(theme.muted)
                         }
@@ -166,18 +188,18 @@ struct NewGameView: View {
                     .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 10))
                     .overlay(
                         RoundedRectangle(cornerRadius: 10)
-                            .stroke(theme.borderLight, lineWidth: 1)
+                            .stroke(inLobby ? Color.green.opacity(0.5) : theme.borderLight,
+                                    lineWidth: inLobby ? 1.5 : 1)
                     )
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        guard p.isYou else { return }
                         renameDraft = p.name
                         renamingPlayer = p
                     }
                 }
             }
         }
-        .alert("Your name", isPresented: Binding(
+        .alert("Player name", isPresented: Binding(
             get: { renamingPlayer != nil },
             set: { if !$0 { renamingPlayer = nil } }
         )) {
@@ -195,7 +217,7 @@ struct NewGameView: View {
             }
             Button("Cancel", role: .cancel) { renamingPlayer = nil }
         } message: {
-            Text("Other phones at the table will see this name.")
+            Text("This name appears on the scoreboard.")
         }
     }
 
@@ -308,13 +330,26 @@ struct NewGameView: View {
     }
 
     private var footer: some View {
-        VStack(spacing: 8) {
+        let lobbyCount = coordinator.netSession.playerClaims.count
+        return VStack(spacing: 8) {
             if let error {
                 Text(error)
                     .font(theme.monoFont(size: 11))
                     .foregroundStyle(theme.brand)
             }
-            Button(action: start) { Text("START GAME") }
+            if (game?.players.count ?? 0) < 2 {
+                Text("Add at least one more player to start")
+                    .font(theme.monoFont(size: 11))
+                    .foregroundStyle(theme.muted)
+            } else if lobbyCount > 0 {
+                HStack(spacing: 6) {
+                    Circle().fill(Color.green).frame(width: 8, height: 8)
+                    Text("\(lobbyCount) \(lobbyCount == 1 ? "player is" : "players are") waiting in the lobby")
+                        .font(theme.monoFont(size: 11))
+                        .foregroundStyle(theme.ink)
+                }
+            }
+            Button(action: start) { Text("DEPART") }
                 .appPrimaryStyle(enabled: canStart)
                 .disabled(!canStart)
         }
@@ -325,7 +360,7 @@ struct NewGameView: View {
 
     private var canStart: Bool {
         guard let g = game else { return false }
-        if g.players.count < 1 || g.players.count > 8 { return false }
+        if g.players.count < 2 || g.players.count > 8 { return false }
         // Names: non-empty + unique (case-insensitive).
         let names = g.players.map { $0.name.lowercased().trimmingCharacters(in: .whitespaces) }
         if names.contains(where: \.isEmpty) { return false }

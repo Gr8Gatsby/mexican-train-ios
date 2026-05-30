@@ -9,6 +9,7 @@ final class Game {
     var lengthStops: Int
     var startingEngineRaw: String
     var currentStopIndex: Int          // 1-indexed; reaches lengthStops + 1 when finished
+    var scoringOpen: Bool
     var finishedAt: Date?
 
     @Relationship(deleteRule: .cascade, inverse: \Player.game)
@@ -34,6 +35,7 @@ final class Game {
         self.lengthStops = lengthStops
         self.startingEngineRaw = startingEngine.rawValue
         self.currentStopIndex = currentStopIndex
+        self.scoringOpen = false
         self.finishedAt = nil
     }
 
