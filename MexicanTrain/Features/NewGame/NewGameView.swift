@@ -43,9 +43,14 @@ struct NewGameView: View {
                         section("STARTING ENGINE") { enginePicker }
                     }
                     .padding(16)
+                    // Leave room for the sticky footer (DEPART + helper text)
+                    // so the last engine option and the manual-add field can
+                    // always be scrolled fully into view.
+                    .padding(.bottom, 140)
                     .frame(maxWidth: .infinity, alignment: .top)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .scrollDismissesKeyboard(.interactively)
                 footer
             }
         }
@@ -147,7 +152,7 @@ struct NewGameView: View {
                                 }
                             }
                         VStack(alignment: .leading, spacing: 0) {
-                            HStack(spacing: 4) {
+                            HStack(spacing: 6) {
                                 Text(p.name.isEmpty ? "(no name)" : p.name)
                                     .font(theme.displayFont(size: 16))
                                     .foregroundStyle(theme.ink)
@@ -163,13 +168,8 @@ struct NewGameView: View {
                                         .tracking(1.2)
                                         .foregroundStyle(.green)
                                 }
-                                if p.isYou {
-                                    Image(systemName: "pencil")
-                                        .font(.system(size: 10))
-                                        .foregroundStyle(theme.muted)
-                                }
                             }
-                            Text(p.isYou ? "You · tap to rename"
+                            Text(p.isYou ? "Tap to rename"
                                  : (inLobby ? "Waiting for you to depart"
                                     : (p.avatarFilename != nil ? "Joined · tap to rename" : "Tap to rename")))
                                 .font(theme.monoFont(size: 9))
@@ -262,14 +262,28 @@ struct NewGameView: View {
                 .onChange(of: manualName) { _, new in
                     if new.count > 20 { manualName = String(new.prefix(20)) }
                 }
+                .submitLabel(.done)
+                .onSubmit { addManualPlayer() }
             Button {
                 addManualPlayer()
             } label: {
-                Text("ADD")
+                HStack(spacing: 6) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 14, weight: .bold))
+                    Text("ADD")
+                        .font(theme.monoFont(size: 13))
+                        .fontWeight(.bold)
+                        .tracking(1.6)
+                }
+                .foregroundStyle(theme.ctaText)
+                .padding(.horizontal, 16)
+                .frame(minHeight: 48)
+                .background(canAddManual ? theme.cta : theme.muted,
+                            in: RoundedRectangle(cornerRadius: 10))
             }
-            .appPillStyle(prominent: true)
             .disabled(!canAddManual)
-            .opacity(canAddManual ? 1 : 0.55)
+            .opacity(canAddManual ? 1 : 0.65)
+            .accessibilityLabel("Add player")
         }
     }
 

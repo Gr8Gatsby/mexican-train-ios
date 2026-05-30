@@ -67,11 +67,13 @@ struct ManualEntryView: View {
                 .font(theme.monoFont(size: 10))
                 .tracking(1.8)
                 .foregroundStyle(theme.muted)
-            Text(value.isEmpty ? "0" : value)
+            Text(value.isEmpty ? "—" : value)
                 .font(theme.displayFont(size: 80))
-                .foregroundStyle(theme.ink)
+                .foregroundStyle(value.isEmpty ? theme.muted.opacity(0.5) : theme.ink)
                 .frame(minHeight: 92)
-            Text("SUM OF PIPS LEFT IN HAND")
+            Text(value.isEmpty
+                 ? "TYPE A NUMBER · 0 IF THEY WENT OUT"
+                 : "SUM OF PIPS LEFT IN HAND")
                 .font(theme.monoFont(size: 9))
                 .tracking(1.4)
                 .foregroundStyle(theme.muted)

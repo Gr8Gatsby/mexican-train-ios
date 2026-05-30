@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct ScoreCardTable: View {
+    enum Density { case compact, spacious }
+
     let game: Game
     var photoStore: PhotoStore? = nil
     /// Tapping a populated cell (any stop) or an unset past-stop cell.
@@ -14,9 +16,14 @@ struct ScoreCardTable: View {
     /// `ScoreboardView` flips this off the first time the conductor taps
     /// one (tracked in `AppSettings.hasUsedConductorOverride`).
     var pulseOverride: Bool = false
+    /// `.spacious` is used by the read-only past-game view where there's no
+    /// CTA/photo strip eating screen space, so we can afford taller rows.
+    var density: Density = .compact
 
     @Environment(\.theme) private var theme
     @State private var pulse: Bool = false
+
+    private var rowHeight: CGFloat { density == .spacious ? 36 : 28 }
 
     var body: some View {
         let players = game.sortedPlayers
@@ -115,7 +122,7 @@ struct ScoreCardTable: View {
             }
             .frame(width: 64, alignment: .leading)
             .padding(.horizontal, 6)
-            .frame(height: 28)
+            .frame(height: rowHeight)
             .overlay(alignment: .trailing) {
                 Rectangle().fill(theme.border).frame(width: 1)
             }
@@ -153,7 +160,7 @@ struct ScoreCardTable: View {
                                 .foregroundStyle(theme.muted)
                         }
                     }
-                    .frame(maxWidth: .infinity, minHeight: 28)
+                    .frame(maxWidth: .infinity, minHeight: rowHeight, maxHeight: rowHeight)
                     .background(isCurrent ? theme.currentColumn : Color.clear)
                 }
                 .buttonStyle(.plain)
@@ -172,7 +179,7 @@ struct ScoreCardTable: View {
                 .font(theme.monoFont(size: 13))
                 .fontWeight(.bold)
                 .foregroundStyle(isLeader ? theme.brand : theme.ink)
-                .frame(width: 38, height: 28)
+                .frame(width: 38, height: rowHeight)
                 .background(theme.subBg)
                 .overlay(alignment: .leading) {
                     Rectangle().fill(theme.border).frame(width: 2)
