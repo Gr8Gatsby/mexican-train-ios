@@ -37,7 +37,10 @@ enum SnapshotBuilder {
             goingOutBonusRaw: game.goingOutBonusRaw,
             blockedRoundCapEnabled: game.blockedRoundCapEnabled,
             drawCountOverride: game.drawCountOverride,
-            doublesPenaltyPips: game.doublesPenaltyPips
+            doublesPenaltyPips: game.doublesPenaltyPips,
+            doubleBlankPenaltyPips: game.doubleBlankPenaltyPips,
+            doublesCountDouble: game.doublesCountDouble,
+            anyBlankPenaltyPips: game.anyBlankPenaltyPips
         )
     }
 }

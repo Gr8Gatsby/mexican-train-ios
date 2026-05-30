@@ -23,7 +23,7 @@ struct HostBroadcasterModifier: ViewModifier {
         let endFP = game.finishedAt.map { String($0.timeIntervalSince1970) } ?? "-"
         let scoringFP = game.scoringOpen ? "open" : "closed"
         // Include rules so edits made in the lobby / mid-game push to joiners.
-        let rulesFP = "\(game.lengthStops):\(game.startingEngineRaw):\(game.goingOutBonusRaw):\(game.doublesPenaltyPips):\(game.drawCountOverride.map(String.init) ?? "auto"):\(game.blockedRoundCapEnabled)"
+        let rulesFP = "\(game.lengthStops):\(game.startingEngineRaw):\(game.goingOutBonusRaw):\(game.doublesPenaltyPips):\(game.drawCountOverride.map(String.init) ?? "auto"):\(game.blockedRoundCapEnabled):\(game.doubleBlankPenaltyPips):\(game.doublesCountDouble):\(game.anyBlankPenaltyPips)"
         return "\(game.currentStopIndex)#\(playerFP)#\(scoreFP)#\(captureFP)#\(endFP)#\(scoringFP)#\(rulesFP)"
     }
 

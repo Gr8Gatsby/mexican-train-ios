@@ -51,7 +51,10 @@ enum GamePersistence {
             goingOutBonus: snapshot.goingOutBonus,
             blockedRoundCapEnabled: snapshot.blockedRoundCapEnabled,
             drawCountOverride: snapshot.drawCountOverride,
-            doublesPenaltyPips: snapshot.doublesPenaltyPips
+            doublesPenaltyPips: snapshot.doublesPenaltyPips,
+            doubleBlankPenaltyPips: snapshot.doubleBlankPenaltyPips,
+            doublesCountDouble: snapshot.doublesCountDouble,
+            anyBlankPenaltyPips: snapshot.anyBlankPenaltyPips
         )
         game.scoringOpen = snapshot.scoringOpen
         game.finishedAt = snapshot.endedAt
@@ -252,6 +255,34 @@ enum GamePersistence {
         score.excluded = excluded
         score.updatedAt = .now
         try context.save()
+    }
+
+    /// Apply the double-blank penalty to a specific player's score for a
+    /// stop — used by the round-end prompt when the rule is enabled. Logged
+    /// as a ScoreEdit so the audit shows the bump.
+    @discardableResult
+    static func applyDoubleBlankPenalty(
+        _ stop: Int,
+        to playerID: UUID,
+        in game: Game,
+        context: ModelContext
+    ) throws -> Score? {
+        guard let score = game.scores.first(where: {
+            $0.playerID == playerID && $0.stopIndex == stop
+        }) else { return nil }
+        let delta = game.doubleBlankPenaltyPips
+        guard delta > 0 else { return score }
+        let edit = ScoreEdit(
+            fromPips: score.pips, toPips: score.pips + delta,
+            fromExcluded: score.excluded, toExcluded: score.excluded,
+            editedBy: .conductor, note: "double-blank penalty"
+        )
+        edit.score = score
+        context.insert(edit)
+        score.pips += delta
+        score.updatedAt = .now
+        try context.save()
+        return score
     }
 
     /// Whether the just-completed stop ended without anyone going out — i.e.

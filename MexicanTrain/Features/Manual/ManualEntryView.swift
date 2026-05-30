@@ -31,9 +31,8 @@ struct ManualEntryView: View {
                     referenceCard(referencePhoto)
                 }
                 Spacer(minLength: 0)
-                if game.doublesPenaltyPips > 0 {
-                    doublesPenaltyChip
-                        .padding(.horizontal, 16)
+                if hasAnyRuleChip {
+                    rulesChipRow
                         .padding(.bottom, 8)
                 }
                 KeypadView(value: $value)
@@ -105,29 +104,96 @@ struct ManualEntryView: View {
         Int(value) == 0 && game.goingOutBonus != .none
     }
 
-    private var doublesPenaltyChip: some View {
-        Button(action: applyDoublesPenalty) {
+    private var hasAnyRuleChip: Bool {
+        // Note: double-blank penalty is intentionally NOT a per-entry chip —
+        // detection can't reliably identify the 0|0 tile, so it's applied via
+        // a round-end "who had it?" prompt on the scoreboard instead.
+        game.doublesPenaltyPips > 0
+            || game.anyBlankPenaltyPips > 0
+            || game.doublesCountDouble
+    }
+
+    /// Horizontally-scrollable row of one-tap penalty chips. Hidden entirely
+    /// when no chip-driven rule is configured for the game.
+    private var rulesChipRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 8) {
+                if game.doublesPenaltyPips > 0 {
+                    addChip(label: "+\(game.doublesPenaltyPips) DBL",
+                            accessibility: "Add \(game.doublesPenaltyPips) doubles penalty") {
+                        add(game.doublesPenaltyPips)
+                    }
+                }
+                if game.anyBlankPenaltyPips > 0 {
+                    addChip(label: "+\(game.anyBlankPenaltyPips) BLANK",
+                            accessibility: "Add \(game.anyBlankPenaltyPips) per blank tile") {
+                        add(game.anyBlankPenaltyPips)
+                    }
+                }
+                if game.doublesCountDouble {
+                    doublesCountDoubleMenu
+                }
+            }
+            .padding(.horizontal, 16)
+        }
+    }
+
+    /// Generic "+N LABEL" pill that adds a fixed value on tap.
+    private func addChip(label: String, accessibility: String,
+                         action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
                 Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 14, weight: .semibold))
-                Text("ADD +\(game.doublesPenaltyPips) DOUBLES PENALTY")
+                    .font(.system(size: 12, weight: .semibold))
+                Text(label)
                     .font(theme.monoFont(size: 11))
                     .fontWeight(.semibold)
-                    .tracking(1.4)
+                    .tracking(1.2)
             }
             .foregroundStyle(theme.brand)
-            .padding(.horizontal, 14)
-            .frame(maxWidth: .infinity, minHeight: 40)
+            .padding(.horizontal, 12)
+            .frame(minHeight: 36)
             .background(theme.cardBg, in: Capsule())
             .overlay(Capsule().stroke(theme.brand.opacity(0.4), lineWidth: 1))
         }
         .buttonStyle(.plain)
-        .accessibilityLabel("Add \(game.doublesPenaltyPips) doubles penalty")
+        .accessibilityLabel(accessibility)
     }
 
-    private func applyDoublesPenalty() {
+    /// Menu chip for the "doubles count double" rule. Picking a double from
+    /// the menu adds the *extra* pips beyond standard counting (`+2N` for an
+    /// `N|N` tile, since the standard pip sum `2N` is already typed in).
+    private var doublesCountDoubleMenu: some View {
+        Menu {
+            ForEach(0...12, id: \.self) { half in
+                let extra = 2 * half
+                Button("\(half)|\(half)  (+\(extra))") {
+                    add(extra)
+                }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 12, weight: .semibold))
+                Text("DOUBLE 2×")
+                    .font(theme.monoFont(size: 11))
+                    .fontWeight(.semibold)
+                    .tracking(1.2)
+                Image(systemName: "chevron.down")
+                    .font(.system(size: 9, weight: .semibold))
+            }
+            .foregroundStyle(theme.brand)
+            .padding(.horizontal, 12)
+            .frame(minHeight: 36)
+            .background(theme.cardBg, in: Capsule())
+            .overlay(Capsule().stroke(theme.brand.opacity(0.4), lineWidth: 1))
+        }
+        .accessibilityLabel("Add extra pips for a double left in hand")
+    }
+
+    private func add(_ amount: Int) {
         let current = Int(value) ?? 0
-        value = String(current + game.doublesPenaltyPips)
+        value = String(current + amount)
     }
 
     private var footer: some View {
