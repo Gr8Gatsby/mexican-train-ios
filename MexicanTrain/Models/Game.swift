@@ -12,6 +12,14 @@ final class Game {
     var scoringOpen: Bool
     var finishedAt: Date?
 
+    // House rules — defaults match v0.x behavior so existing rows stay valid
+    // without a schema migration.
+    var goingOutBonusRaw: Int = 0       // GoingOutBonus.rawValue: 0, -5, -10
+    var blockedRoundCapEnabled: Bool = false
+    /// nil = auto-scale by active player count; otherwise use this exact value.
+    var drawCountOverride: Int? = nil
+    var doublesPenaltyPips: Int = 0     // 0, 5, or 10 in v1
+
     @Relationship(deleteRule: .cascade, inverse: \Player.game)
     var players: [Player] = []
 
@@ -27,7 +35,11 @@ final class Game {
         name: String? = nil,
         lengthStops: Int = 13,
         startingEngine: StartingEngine = .traditional,
-        currentStopIndex: Int = 1
+        currentStopIndex: Int = 1,
+        goingOutBonus: GoingOutBonus = .none,
+        blockedRoundCapEnabled: Bool = false,
+        drawCountOverride: Int? = nil,
+        doublesPenaltyPips: Int = 0
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -37,10 +49,18 @@ final class Game {
         self.currentStopIndex = currentStopIndex
         self.scoringOpen = false
         self.finishedAt = nil
+        self.goingOutBonusRaw = goingOutBonus.rawValue
+        self.blockedRoundCapEnabled = blockedRoundCapEnabled
+        self.drawCountOverride = drawCountOverride
+        self.doublesPenaltyPips = doublesPenaltyPips
     }
 
     var startingEngine: StartingEngine {
         StartingEngine(rawValue: startingEngineRaw) ?? .traditional
+    }
+
+    var goingOutBonus: GoingOutBonus {
+        GoingOutBonus(rawValue: goingOutBonusRaw) ?? .none
     }
 
     var isFinished: Bool { finishedAt != nil }
@@ -54,5 +74,10 @@ final class Game {
         let formatter = DateFormatter()
         formatter.dateStyle = .medium
         return formatter.string(from: createdAt)
+    }
+
+    /// Active draw count, accounting for the conductor's override.
+    func effectiveDrawCount(activeCount: Int) -> Int {
+        drawCountOverride ?? DrawCount.auto(forActiveCount: activeCount)
     }
 }

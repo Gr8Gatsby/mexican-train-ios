@@ -47,7 +47,11 @@ enum GamePersistence {
             name: snapshot.gameName.isEmpty ? nil : snapshot.gameName,
             lengthStops: snapshot.length,
             startingEngine: snapshot.startingEngine,
-            currentStopIndex: snapshot.currentStop
+            currentStopIndex: snapshot.currentStop,
+            goingOutBonus: snapshot.goingOutBonus,
+            blockedRoundCapEnabled: snapshot.blockedRoundCapEnabled,
+            drawCountOverride: snapshot.drawCountOverride,
+            doublesPenaltyPips: snapshot.doublesPenaltyPips
         )
         game.scoringOpen = snapshot.scoringOpen
         game.finishedAt = snapshot.endedAt
@@ -248,6 +252,40 @@ enum GamePersistence {
         score.excluded = excluded
         score.updatedAt = .now
         try context.save()
+    }
+
+    /// Whether the just-completed stop ended without anyone going out — i.e.
+    /// every active player's recorded pips for this stop is > 0. Used by the
+    /// blocked-round-cap rule to decide whether the conductor should be
+    /// offered the "set lowest to 0" shortcut before advancing.
+    static func wasStopBlocked(_ stop: Int, in game: Game) -> Bool {
+        let activeIDs = Set(game.players.filter(\.isActive).map(\.id))
+        let stopScores = game.scores.filter { activeIDs.contains($0.playerID) && $0.stopIndex == stop }
+        guard !stopScores.isEmpty else { return false }
+        return stopScores.allSatisfy { $0.pips > 0 }
+    }
+
+    /// Apply the blocked-round-cap rule: find the active player with the
+    /// lowest pip total for `stop` and rewrite that score to 0. Other scores
+    /// are left intact. Logged as a ScoreEdit so the audit shows the cap.
+    @discardableResult
+    static func applyBlockedRoundCap(_ stop: Int, in game: Game,
+                                     context: ModelContext) throws -> Score? {
+        let activeIDs = Set(game.players.filter(\.isActive).map(\.id))
+        let candidates = game.scores
+            .filter { activeIDs.contains($0.playerID) && $0.stopIndex == stop && $0.pips > 0 }
+        guard let lowest = candidates.min(by: { $0.pips < $1.pips }) else { return nil }
+        let edit = ScoreEdit(
+            fromPips: lowest.pips, toPips: 0,
+            fromExcluded: lowest.excluded, toExcluded: lowest.excluded,
+            editedBy: .conductor, note: "blocked-round cap"
+        )
+        edit.score = lowest
+        context.insert(edit)
+        lowest.pips = 0
+        lowest.updatedAt = .now
+        try context.save()
+        return lowest
     }
 
     /// Advance the current stop forward if the present one is complete. If
