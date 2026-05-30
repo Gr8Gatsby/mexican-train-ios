@@ -1,5 +1,6 @@
 import Foundation
 import SwiftData
+import UIKit
 
 /// Stateless helpers that mutate game state through a ModelContext. Keeping the
 /// CRUD here means views/viewmodels stay focused on UI; tests can exercise the
@@ -24,6 +25,61 @@ enum GamePersistence {
             p.game = game
             context.insert(p)
         }
+        try context.save()
+        return game
+    }
+
+    /// Rebuild a full local `Game` from a cached `GameSnapshot` so a joiner can
+    /// take over hosting when the original host leaves. `newConductorID` becomes
+    /// the `isYou` player. Photos present in `photoCache` are written to disk so
+    /// the new host can keep serving them; any missing ones are simply skipped.
+    @discardableResult
+    static func reconstructForHostMigration(
+        in context: ModelContext,
+        snapshot: GameSnapshot,
+        newConductorID: UUID,
+        photoCache: [UUID: Data],
+        photoStore: PhotoStore
+    ) throws -> Game {
+        // Reuse the original gameID so joiners' rejoin/gameID checks still match.
+        let game = Game(
+            id: snapshot.gameID,
+            name: snapshot.gameName.isEmpty ? nil : snapshot.gameName,
+            lengthStops: snapshot.length,
+            startingEngine: snapshot.startingEngine,
+            currentStopIndex: snapshot.currentStop
+        )
+        game.scoringOpen = snapshot.scoringOpen
+        game.finishedAt = snapshot.endedAt
+        context.insert(game)
+
+        for ps in snapshot.players.sorted(by: { $0.seat < $1.seat }) {
+            let p = Player(id: ps.id, name: ps.name, seat: ps.seat,
+                           isYou: ps.id == newConductorID, isActive: ps.isActive)
+            p.game = game
+            context.insert(p)
+        }
+
+        for ss in snapshot.scores {
+            let s = Score(playerID: ss.playerID, stopIndex: ss.stop, pips: ss.pips,
+                          source: .manual,
+                          submittedBy: ScoreActor(rawValue: ss.submittedByRaw) ?? .conductor)
+            s.excluded = ss.excluded
+            s.game = game
+            context.insert(s)
+        }
+
+        for entry in snapshot.recentCaptures {
+            guard let data = photoCache[entry.id],
+                  let img = UIImage(data: data),
+                  let filename = try? photoStore.save(image: img, gameID: game.id, captureID: entry.id)
+            else { continue }
+            let cap = Capture(id: entry.id, playerID: entry.playerID,
+                              stopIndex: entry.stop, filename: filename)
+            cap.game = game
+            context.insert(cap)
+        }
+
         try context.save()
         return game
     }
@@ -205,6 +261,7 @@ enum GamePersistence {
             game.currentStopIndex = game.lengthStops + 1
         } else {
             game.currentStopIndex = stop + 1
+            game.scoringOpen = false
         }
         try context.save()
     }

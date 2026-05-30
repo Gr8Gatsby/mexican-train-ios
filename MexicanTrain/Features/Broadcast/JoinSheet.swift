@@ -25,6 +25,8 @@ struct JoinSheet: View {
     @State private var trainIndex: Int?
     @State private var directIP: String = ""
     @State private var directPort: String = "5111"
+    @State private var didPrefillIP = false
+    @State private var wantsToBoard = false
 
     var body: some View {
         ZStack {
@@ -43,15 +45,14 @@ struct JoinSheet: View {
                 }
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
-                        // Identity always visible — joiner can fill name +
-                        // photo while picking a host. Previously this only
-                        // appeared after connection, which felt like a
-                        // surprise extra step.
                         identityBlock
                         if coordinator.netSession.joinState != .connected {
-                            codeEntry
+                            let hasNearby = !coordinator.netSession.availableHosts.isEmpty
                             hostList
-                            connectByIPSection
+                            if !hasNearby {
+                                codeEntry
+                            }
+                            advancedSection
                         } else {
                             slotPicker
                         }
@@ -67,8 +68,10 @@ struct JoinSheet: View {
                 coordinator.netSession.startBrowsing()
             }
             if let initialCode { code = initialCode }
-            // Kick off prefill immediately so the name field has a default
-            // by the time the user starts editing.
+            if !didPrefillIP, let savedIP = settings.activeJoinHostIP, !savedIP.isEmpty {
+                directIP = savedIP
+                didPrefillIP = true
+            }
             Task { await loadPrefill() }
         }
         .sheet(isPresented: $showScanner) {
@@ -82,16 +85,18 @@ struct JoinSheet: View {
                 onCode: { raw in
                     if let url = URL(string: raw), let parsed = JoinURL.decode(url) {
                         code = parsed
-                        scannerHint = "Scanned code \(parsed). Connecting…"
+                        scannerHint = "Scanned code \(parsed). Boarding…"
                         showScanner = false
                         if let host = coordinator.netSession.availableHosts.first(where: { $0.roomCode == parsed }) {
+                            wantsToBoard = true
                             coordinator.netSession.connect(to: host)
                         }
                     } else if RoomCode.isValid(raw) {
                         code = raw
-                        scannerHint = "Scanned code \(raw). Connecting…"
+                        scannerHint = "Scanned code \(raw). Boarding…"
                         showScanner = false
                         if let host = coordinator.netSession.availableHosts.first(where: { $0.roomCode == raw }) {
+                            wantsToBoard = true
                             coordinator.netSession.connect(to: host)
                         }
                     } else {
@@ -166,23 +171,29 @@ struct JoinSheet: View {
                 ForEach(coordinator.netSession.availableHosts) { host in
                     Button {
                         code = host.roomCode
+                        wantsToBoard = true
                         coordinator.netSession.connect(to: host)
                     } label: {
                         HStack {
-                            VStack(alignment: .leading) {
+                            VStack(alignment: .leading, spacing: 4) {
                                 Text(host.hostName)
-                                    .font(theme.displayFont(size: 14))
+                                    .font(theme.displayFont(size: 18))
                                     .foregroundStyle(theme.ink)
-                                Text("\(host.gameName) · \(host.playerCount) players · code \(host.roomCode)")
+                                Text("\(host.playerCount) players · code \(host.roomCode)")
                                     .font(theme.monoFont(size: 12))
                                     .foregroundStyle(theme.muted)
                             }
                             Spacer()
                             Image(systemName: "chevron.right")
-                                .foregroundStyle(theme.muted)
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(Color.green.opacity(0.7))
                         }
-                        .padding(10)
-                        .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 8))
+                        .padding(14)
+                        .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 12))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.green.opacity(0.6), lineWidth: 1.5)
+                        )
                     }
                     .buttonStyle(.plain)
                 }
@@ -199,60 +210,89 @@ struct JoinSheet: View {
         }
     }
 
-    private var connectByIPSection: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("CONNECT BY IP")
-                .font(theme.monoFont(size: 12))
-                .tracking(2)
-                .foregroundStyle(theme.muted)
-            HStack(spacing: 8) {
-                TextField("", text: $directIP, prompt: Text("IP Address").foregroundColor(theme.muted.opacity(0.4)))
-                    .keyboardType(.numbersAndPunctuation)
-                    .font(theme.monoFont(size: 14))
-                    .padding(.horizontal, 12)
-                    .frame(minHeight: 48)
-                    .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 8))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(theme.border, lineWidth: 1)
-                    )
-                TextField("", text: $directPort, prompt: Text("5111").foregroundColor(theme.muted.opacity(0.4)))
-                    .keyboardType(.numberPad)
-                    .font(theme.monoFont(size: 14))
-                    .padding(.horizontal, 12)
-                    .frame(minHeight: 48)
-                    .frame(width: 80)
-                    .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 8))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(theme.border, lineWidth: 1)
-                    )
-            }
+    @State private var showAdvanced = false
+
+    private var advancedSection: some View {
+        let hasNearby = !coordinator.netSession.availableHosts.isEmpty
+        return VStack(alignment: .leading, spacing: 6) {
             Button {
-                let host = directIP.trimmingCharacters(in: .whitespacesAndNewlines)
-                let port = UInt16(directPort.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 5111
-                guard !host.isEmpty else { return }
-                if coordinator.netSession.role != .joiner {
-                    coordinator.netSession.startBrowsing()
-                }
-                coordinator.netSession.connectDirect(host: host, port: port)
+                withAnimation { showAdvanced.toggle() }
             } label: {
-                Text("Connect")
-                    .font(theme.monoFont(size: 12))
-                    .fontWeight(.semibold)
-                    .tracking(1.4)
-                    .foregroundStyle(theme.ink)
-                    .padding(.horizontal, 14)
-                    .frame(minHeight: 40)
-                    .background(theme.cardBg, in: Capsule())
-                    .overlay(
-                        Capsule()
-                            .stroke(theme.border, lineWidth: 1)
-                    )
+                HStack(spacing: 6) {
+                    Text("ADVANCED")
+                        .font(theme.monoFont(size: 12))
+                        .tracking(2)
+                        .foregroundStyle(theme.muted)
+                    Image(systemName: showAdvanced ? "chevron.up" : "chevron.down")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(theme.muted)
+                }
             }
             .buttonStyle(.plain)
+
+            if showAdvanced {
+                if hasNearby {
+                    codeEntry
+                }
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("CONNECT BY IP")
+                        .font(theme.monoFont(size: 12))
+                        .tracking(2)
+                        .foregroundStyle(theme.muted)
+                    HStack(spacing: 8) {
+                        TextField("", text: $directIP, prompt: Text("IP Address").foregroundColor(theme.muted.opacity(0.4)))
+                            .keyboardType(.numbersAndPunctuation)
+                            .font(theme.monoFont(size: 14))
+                            .padding(.horizontal, 12)
+                            .frame(minHeight: 48)
+                            .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 8))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(theme.border, lineWidth: 1)
+                            )
+                        TextField("", text: $directPort, prompt: Text("5111").foregroundColor(theme.muted.opacity(0.4)))
+                            .keyboardType(.numberPad)
+                            .font(theme.monoFont(size: 14))
+                            .padding(.horizontal, 12)
+                            .frame(minHeight: 48)
+                            .frame(width: 80)
+                            .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 8))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(theme.border, lineWidth: 1)
+                            )
+                    }
+                    Button {
+                        let host = directIP.trimmingCharacters(in: .whitespacesAndNewlines)
+                        let port = UInt16(directPort.trimmingCharacters(in: .whitespacesAndNewlines)) ?? 5111
+                        guard !host.isEmpty else { return }
+                        if coordinator.netSession.role != .joiner {
+                            coordinator.netSession.startBrowsing()
+                        }
+                        wantsToBoard = true
+                        coordinator.netSession.connectDirect(host: host, port: port)
+                    } label: {
+                        Text("Connect")
+                            .font(theme.monoFont(size: 12))
+                            .fontWeight(.semibold)
+                            .tracking(1.4)
+                            .foregroundStyle(theme.ink)
+                            .padding(.horizontal, 14)
+                            .frame(minHeight: 40)
+                            .background(theme.cardBg, in: Capsule())
+                            .overlay(
+                                Capsule()
+                                    .stroke(theme.border, lineWidth: 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
         }
     }
+
+    @State private var showTrainPicker = false
 
     @ViewBuilder
     private var identityBlock: some View {
@@ -265,29 +305,51 @@ struct JoinSheet: View {
             HStack(spacing: 12) {
                 photoAvatar
                 VStack(alignment: .leading, spacing: 6) {
-                    PhotosPicker(
-                        selection: $pickerItem,
-                        matching: .images,
-                        photoLibrary: .shared()
-                    ) {
-                        HStack(spacing: 6) {
-                            Image(systemName: "photo")
-                                .font(.system(size: 13, weight: .semibold))
-                            Text(currentPhotoData == nil ? "PICK PHOTO" : "CHANGE PHOTO")
+                    HStack(spacing: 8) {
+                        PhotosPicker(
+                            selection: $pickerItem,
+                            matching: .images,
+                            photoLibrary: .shared()
+                        ) {
+                            HStack(spacing: 6) {
+                                Image(systemName: "photo")
+                                    .font(.system(size: 13, weight: .semibold))
+                                Text("PHOTO")
+                            }
+                            .font(theme.monoFont(size: 11))
+                            .fontWeight(.semibold)
+                            .tracking(1.2)
+                            .foregroundStyle(theme.ink)
+                            .padding(.horizontal, 12)
+                            .frame(minHeight: 38)
+                            .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 10))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(theme.border, lineWidth: 1)
+                            )
                         }
-                        .font(theme.monoFont(size: 12))
-                        .fontWeight(.semibold)
-                        .tracking(1.4)
-                        .foregroundStyle(theme.ink)
-                        .padding(.horizontal, 14)
-                        .frame(minHeight: 44)
-                        .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 10))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 10)
-                                .stroke(theme.border, lineWidth: 1)
-                        )
+                        .accessibilityLabel("Pick a photo")
+                        Button {
+                            showTrainPicker.toggle()
+                        } label: {
+                            HStack(spacing: 6) {
+                                Image(systemName: "tram.fill")
+                                    .font(.system(size: 13, weight: .semibold))
+                                Text("TRAIN")
+                            }
+                            .font(theme.monoFont(size: 11))
+                            .fontWeight(.semibold)
+                            .tracking(1.2)
+                            .foregroundStyle(theme.ink)
+                            .padding(.horizontal, 12)
+                            .frame(minHeight: 38)
+                            .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 10))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 10)
+                                    .stroke(theme.border, lineWidth: 1)
+                            )
+                        }
                     }
-                    .accessibilityLabel(currentPhotoData == nil ? "Pick a photo" : "Change photo")
                     if currentPhotoData != nil {
                         Button {
                             pickedPhotoData = nil
@@ -303,6 +365,15 @@ struct JoinSheet: View {
                 Spacer()
             }
 
+            if showTrainPicker {
+                TrainColorPicker(selection: trainIndex) { idx, data in
+                    trainIndex = idx
+                    pickedPhotoData = data
+                    pickerItem = nil
+                    showTrainPicker = false
+                }
+            }
+
             TextField("Name", text: $editedName)
                 .font(theme.monoFont(size: 14))
                 .padding(.horizontal, 12)
@@ -315,17 +386,6 @@ struct JoinSheet: View {
                 .onChange(of: editedName) { _, new in
                     if new.count > 20 { editedName = String(new.prefix(20)) }
                 }
-
-            Text("Name is prefilled from this device — edit before joining if you like. Photo is optional; tap PICK PHOTO to choose one (iCloud Photo Library is surfaced automatically), or pick a train below.")
-                .font(theme.monoFont(size: 12))
-                .foregroundStyle(theme.muted)
-
-            TrainColorPicker(selection: trainIndex) { idx, data in
-                trainIndex = idx
-                pickedPhotoData = data
-                pickerItem = nil
-            }
-            .padding(.top, 2)
         }
         .onChange(of: pickerItem) { _, newItem in
             Task { await loadPickedPhoto(newItem) }
@@ -376,13 +436,84 @@ struct JoinSheet: View {
         }
     }
 
+    @State private var hasSentClaim = false
+
     @ViewBuilder
     private var slotPicker: some View {
-        if coordinator.netSession.latestSnapshot != nil {
-            VStack(alignment: .leading, spacing: 6) {
-                Text("You'll join as a player with the name above.")
-                    .font(theme.monoFont(size: 12))
-                    .foregroundStyle(theme.muted)
+        if let snap = coordinator.netSession.latestSnapshot {
+            if hasSentClaim {
+                // Claim sent — show lobby-style waiting state
+                VStack(spacing: 16) {
+                    Spacer().frame(height: 8)
+                    VStack(spacing: 4) {
+                        Text("ROOM CODE")
+                            .font(theme.monoFont(size: 10))
+                            .tracking(2)
+                            .foregroundStyle(theme.muted)
+                        Text(snap.roomCode)
+                            .font(theme.displayFont(size: 28))
+                            .foregroundStyle(theme.brand)
+                    }
+
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text("PLAYERS")
+                            .font(theme.monoFont(size: 10))
+                            .tracking(2)
+                            .foregroundStyle(theme.muted)
+                        ForEach(snap.players.sorted(by: { $0.seat < $1.seat }), id: \.id) { p in
+                            let isMe = p.id == coordinator.netSession.myPlayerID
+                            HStack(spacing: 8) {
+                                Circle()
+                                    .fill(Color.green)
+                                    .frame(width: 8, height: 8)
+                                Text(p.name)
+                                    .font(theme.monoFont(size: 13))
+                                    .foregroundStyle(theme.ink)
+                                if isMe {
+                                    Text("YOU")
+                                        .font(theme.monoFont(size: 8))
+                                        .tracking(1.2)
+                                        .foregroundStyle(theme.accent)
+                                }
+                                Spacer()
+                            }
+                            .padding(8)
+                            .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 8))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(isMe ? theme.brand.opacity(0.5) : theme.borderLight, lineWidth: 1)
+                            )
+                        }
+                    }
+
+                    VStack(spacing: 8) {
+                        ProgressView()
+                            .tint(theme.brand)
+                        Text("Waiting for the conductor to depart...")
+                            .font(theme.monoFont(size: 12))
+                            .tracking(1.4)
+                            .foregroundStyle(theme.muted)
+                    }
+                    .padding(.top, 8)
+                }
+                .onChange(of: coordinator.netSession.latestSnapshot?.scores.count) { _, count in
+                    if let count, count > 0 {
+                        coordinator.dismissSheet()
+                        coordinator.openSpectator()
+                    }
+                }
+                .onChange(of: coordinator.netSession.latestSnapshot?.currentStop) { _, stop in
+                    if let stop, stop >= 1 {
+                        coordinator.dismissSheet()
+                        coordinator.openSpectator()
+                    }
+                }
+            } else {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("You'll join as a player with the name above.")
+                        .font(theme.monoFont(size: 12))
+                        .foregroundStyle(theme.muted)
+                }
             }
         }
     }
@@ -394,25 +525,40 @@ struct JoinSheet: View {
             switch state {
             case .browsing, .disconnected:
                 Button {
+                    wantsToBoard = true
                     if let host = coordinator.netSession.availableHosts.first(where: { $0.roomCode == code }) {
                         coordinator.netSession.connect(to: host)
                     }
                 } label: {
-                    joinButtonLabel(text: "CONNECT", enabled: connectEnabled)
+                    joinButtonLabel(text: "BOARD", enabled: connectEnabled && canConfirm)
                 }
-                .disabled(!connectEnabled)
+                .disabled(!(connectEnabled && canConfirm))
             case .connecting, .reconnecting:
-                joinButtonLabel(text: "CONNECTING…", enabled: false)
+                joinButtonLabel(text: "BOARDING…", enabled: false)
             case .connected:
-                Button(action: confirm) {
-                    joinButtonLabel(text: "JOIN AS PLAYER", enabled: canConfirm)
+                if hasSentClaim {
+                    joinButtonLabel(text: "ABOARD ✓", enabled: false)
+                } else {
+                    // Fallback (e.g. no name was prefilled): let them board
+                    // once a name is entered.
+                    Button(action: confirm) {
+                        joinButtonLabel(text: "BOARD", enabled: canConfirm)
+                    }
+                    .disabled(!canConfirm)
                 }
-                .disabled(!canConfirm)
             case .hostEnded:
                 joinButtonLabel(text: "HOST LEFT", enabled: false)
             }
         }
         .padding(.horizontal, 16)
+        .onChange(of: coordinator.netSession.joinState) { _, newState in
+            // Once connected after tapping BOARD, auto-send the claim so the
+            // player lands directly in the lobby — no second tap.
+            if newState == .connected, wantsToBoard, !hasSentClaim {
+                wantsToBoard = false
+                confirm()
+            }
+        }
     }
 
     private func joinButtonLabel(text: String, enabled: Bool) -> some View {
@@ -456,26 +602,33 @@ struct JoinSheet: View {
     }
 
     private func confirm() {
-        // Prefer the user-picked photo (already compressed by
-        // loadPickedPhoto). Fall back to the silent Contacts photo,
-        // which still goes through compressPhoto so the wire-size
-        // contract holds. Nil → slot shows initials only.
+        guard !hasSentClaim, canConfirm else { return }
         let photo = pickedPhotoData ?? DeviceIdentity.compressPhoto(prefill?.imageData)
-        let rejoinID = coordinator.settings.activeJoinPlayerID
+
+        let snapshotGameID = coordinator.netSession.latestSnapshot?.gameID
+        let savedGameID = coordinator.settings.activeJoinGameID
+        let rejoinID: UUID? = (snapshotGameID != nil && snapshotGameID == savedGameID)
+            ? coordinator.settings.activeJoinPlayerID
+            : nil
+
         let claim = PlayerClaim(playerID: rejoinID ?? UUID(),
                                 displayName: editedName.trimmingCharacters(in: .whitespacesAndNewlines),
                                 photoJPEG: photo)
         coordinator.netSession.sendClaim(claim)
 
-        // Persist join info so the user can rejoin after a crash or leave.
         coordinator.settings.activeJoinPlayerID = claim.playerID
         coordinator.settings.activeJoinPlayerName = claim.displayName
         coordinator.settings.activeJoinRoomCode = code.isEmpty ? coordinator.netSession.latestSnapshot?.roomCode ?? "" : code
+        coordinator.settings.activeJoinGameID = snapshotGameID
 
-        // Dismiss the sheet first, then navigate. Using dismissSheet()
-        // rather than the environment dismiss() to avoid a SwiftUI timing
-        // race where the sheet animation could reset the route change.
-        coordinator.dismissSheet()
-        coordinator.openSpectator()
+        let snap = coordinator.netSession.latestSnapshot
+        let gameStarted = snap != nil && !snap!.scores.isEmpty
+
+        if gameStarted {
+            coordinator.dismissSheet()
+            coordinator.openSpectator()
+        } else {
+            hasSentClaim = true
+        }
     }
 }

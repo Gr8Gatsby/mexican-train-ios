@@ -11,6 +11,7 @@ struct GameSnapshot: Codable, Equatable {
     var length: Int                         // total stops
     var startingEngineRaw: String
     var currentStop: Int
+    var scoringOpen: Bool
     var players: [PlayerSnapshot]
     var scores: [ScoreSnapshot]
     var recentCaptures: [CaptureManifestEntry]   // metadata-only; photos fetched on demand
@@ -25,12 +26,14 @@ struct GameSnapshot: Codable, Equatable {
 
     init(seq: Int, roomCode: String, hostName: String, gameID: UUID,
          gameName: String, length: Int, startingEngineRaw: String,
-         currentStop: Int, players: [PlayerSnapshot], scores: [ScoreSnapshot],
+         currentStop: Int, scoringOpen: Bool = false,
+         players: [PlayerSnapshot], scores: [ScoreSnapshot],
          recentCaptures: [CaptureManifestEntry], endedAt: Date? = nil,
          winnerPlayerID: UUID? = nil, claims: [PlayerClaim] = []) {
         self.seq = seq; self.roomCode = roomCode; self.hostName = hostName
         self.gameID = gameID; self.gameName = gameName; self.length = length
         self.startingEngineRaw = startingEngineRaw; self.currentStop = currentStop
+        self.scoringOpen = scoringOpen
         self.players = players; self.scores = scores
         self.recentCaptures = recentCaptures; self.endedAt = endedAt
         self.winnerPlayerID = winnerPlayerID; self.claims = claims
@@ -52,6 +55,7 @@ struct GameSnapshot: Codable, Equatable {
         self.length = try c.decode(Int.self, forKey: .length)
         self.startingEngineRaw = try c.decode(String.self, forKey: .startingEngineRaw)
         self.currentStop = try c.decode(Int.self, forKey: .currentStop)
+        self.scoringOpen = (try? c.decode(Bool.self, forKey: .scoringOpen)) ?? false
         self.players = try c.decode([PlayerSnapshot].self, forKey: .players)
         self.scores = (try? c.decode([ScoreSnapshot].self, forKey: .scores)) ?? []
         // Prefer manifest entries; fall back to decoding legacy CaptureSnapshot (back-compat).
@@ -293,15 +297,23 @@ struct PhotoPush: Codable, Equatable {
     var thumbJPEG: Data
 }
 
+/// Avatar push payload (host → all joiners). Sent separately from the
+/// snapshot so that player profile photos don't bloat the MPC envelope.
+struct AvatarPush: Codable, Equatable {
+    var playerID: UUID
+    var photoJPEG: Data
+}
+
 enum MultipeerMessage: Codable {
     case snapshot(GameSnapshot)
     case claim(PlayerClaim)
     case scoreSubmission(ScoreSubmission)
     case heartbeat(timestamp: TimeInterval)
     case photoPush(PhotoPush)
+    case avatarPush(AvatarPush)
 
     private enum CodingKeys: String, CodingKey {
-        case snapshot, claim, scoreSubmission, heartbeat, photoPush
+        case snapshot, claim, scoreSubmission, heartbeat, photoPush, avatarPush
     }
 
     func encode(to encoder: Encoder) throws {
@@ -312,6 +324,7 @@ enum MultipeerMessage: Codable {
         case .scoreSubmission(let v): try container.encode(v, forKey: .scoreSubmission)
         case .heartbeat(let ts): try container.encode(ts, forKey: .heartbeat)
         case .photoPush(let v): try container.encode(v, forKey: .photoPush)
+        case .avatarPush(let v): try container.encode(v, forKey: .avatarPush)
         }
     }
 
@@ -327,6 +340,8 @@ enum MultipeerMessage: Codable {
             self = .heartbeat(timestamp: v)
         } else if let v = try container.decodeIfPresent(PhotoPush.self, forKey: .photoPush) {
             self = .photoPush(v)
+        } else if let v = try container.decodeIfPresent(AvatarPush.self, forKey: .avatarPush) {
+            self = .avatarPush(v)
         } else {
             throw DecodingError.dataCorrupted(
                 DecodingError.Context(codingPath: decoder.codingPath,

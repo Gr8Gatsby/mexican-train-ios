@@ -9,6 +9,10 @@ final class NSDServiceBrowserDelegate: NSObject, NetServiceBrowserDelegate, NetS
     private let onLost: (String) -> Void
     private var browser: NetServiceBrowser?
     private var resolving: [NetService] = []
+    /// All services discovered via `didFind`, kept so we can periodically
+    /// re-resolve them to confirm liveness (mDNS `didRemove` is unreliable).
+    private var knownServices: [String: NetService] = [:]
+    private var reResolveTimer: Timer?
 
     init(onFound: @escaping (MexTrainNetSession.DiscoveredHost) -> Void,
          onLost: @escaping (_ roomCode: String) -> Void) {
@@ -22,11 +26,24 @@ final class NSDServiceBrowserDelegate: NSObject, NetServiceBrowserDelegate, NetS
         b.delegate = self
         b.searchForServices(ofType: "_mextrain-game._tcp.", inDomain: "local.")
         browser = b
+        // Periodically re-resolve known services. A live host re-resolves
+        // (refreshing its timestamp via onFound); a dead one fails to resolve
+        // and is pruned by the session's TTL.
+        reResolveTimer = Timer.scheduledTimer(withTimeInterval: 6, repeats: true) { [weak self] _ in
+            guard let self else { return }
+            for (_, service) in self.knownServices {
+                service.delegate = self
+                service.resolve(withTimeout: 5)
+            }
+        }
     }
 
     func stop() {
         browser?.stop()
         browser = nil
+        reResolveTimer?.invalidate()
+        reResolveTimer = nil
+        knownServices.removeAll()
         resolving.removeAll()
     }
 
@@ -35,12 +52,14 @@ final class NSDServiceBrowserDelegate: NSObject, NetServiceBrowserDelegate, NetS
     func netServiceBrowser(_ browser: NetServiceBrowser, didFind service: NetService, moreComing: Bool) {
         guard service.name.hasPrefix("MexTrain-") else { return }
         service.delegate = self
+        knownServices[service.name] = service
         resolving.append(service)
         service.resolve(withTimeout: 10)
     }
 
     func netServiceBrowser(_ browser: NetServiceBrowser, didRemove service: NetService, moreComing: Bool) {
         resolving.removeAll { $0 == service }
+        knownServices.removeValue(forKey: service.name)
         if service.name.hasPrefix("MexTrain-") {
             let code = String(service.name.dropFirst("MexTrain-".count))
             onLost(code)
@@ -80,12 +99,15 @@ final class NSDServiceBrowserDelegate: NSObject, NetServiceBrowserDelegate, NetS
 
         print("NSD resolved \(sender.name) → \(resolvedHost):\(sender.port)")
 
+        let txtHostName = extractTXTAttribute("host", from: sender) ?? ""
+        let txtPlayers = Int(extractTXTAttribute("players", from: sender) ?? "") ?? 0
+
         let host = MexTrainNetSession.DiscoveredHost(
             peerID: nil,
             roomCode: code,
             gameName: "\(resolvedHost):\(sender.port)",
-            playerCount: 0,
-            hostName: sender.name,
+            playerCount: txtPlayers,
+            hostName: txtHostName.isEmpty ? sender.name : txtHostName,
             nsdEndpoint: endpoint
         )
         onFound(host)

@@ -19,6 +19,9 @@ struct ScoreboardView: View {
     @State private var showAssignDialog = false
     @State private var showRemovePlayerDialog = false
     @State private var undoableScore: Score?
+    @State private var showEditRules = false
+    @State private var selectedPlayer: Player?
+    @State private var showInstructions = false
 
     struct OverrideTarget: Identifiable, Equatable {
         let player: Player
@@ -31,8 +34,6 @@ struct ScoreboardView: View {
             theme.bg.ignoresSafeArea()
             VStack(spacing: 0) {
                 header
-                engineStrip
-                if let _ = game.players.first(where: { $0.isYou }) { youStrip }
                 tableArea
                 cta
             }
@@ -54,6 +55,12 @@ struct ScoreboardView: View {
             Button("Cancel", role: .cancel) {}
         } message: {
             Text("All scores and photos for this game will be removed.")
+        }
+        .sheet(isPresented: $showEditRules) {
+            EditRulesSheet(game: game)
+        }
+        .sheet(item: $selectedPlayer) { player in
+            PlayerDetailSheet(game: game, player: player)
         }
         .overlay(alignment: .bottom) {
             if let t = toast {
@@ -313,38 +320,69 @@ struct ScoreboardView: View {
     }
 
     private var header: some View {
-        AppHeaderBar(
-            style: .push,
-            title: game.displayName,
-            onLeading: { coordinator.goHome() }
-        ) {
-            Menu {
-                Button("Share with table") {
-                    coordinator.openShareSheet(for: game)
+        let stop = min(game.currentStopIndex, game.lengthStops)
+        let engineN = Scoring.engineTile(stop: stop, rules: game.startingEngine, length: game.lengthStops)
+        let code = coordinator.netSession.roomCode
+
+        return VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                Button { coordinator.goHome() } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(theme.ink)
+                        .frame(width: 44, height: 44)
                 }
-                Button("Rename game") {
-                    renamingTo = game.displayName
-                    renaming = true
-                }
-                if game.players.filter({ $0.isActive && !$0.isYou }).count > 0 {
-                    Button("Remove player") {
-                        showRemovePlayerDialog = true
+                Spacer()
+                HStack(spacing: 8) {
+                    Text("STOP \(game.currentStopIndex)/\(game.lengthStops)")
+                        .font(theme.monoFont(size: 11))
+                        .tracking(1.4)
+                        .foregroundStyle(theme.ink)
+                    DominoGlyph(value: engineN, width: 32, color: theme.ink)
+                    if !code.isEmpty {
+                        Text(code)
+                            .font(theme.monoFont(size: 11))
+                            .tracking(1.4)
+                            .foregroundStyle(theme.accent)
                     }
                 }
-                Button("End game early") {
-                    try? GamePersistence.endGameEarly(game, in: context)
+                Spacer()
+                Menu {
+                    if game.currentStopIndex == 1 {
+                        Button("Edit rules") {
+                            showEditRules = true
+                        }
+                    }
+                    Button("Share with table") {
+                        coordinator.openShareSheet(for: game)
+                    }
+                    Button("Rename game") {
+                        renamingTo = game.displayName
+                        renaming = true
+                    }
+                    if game.players.filter({ $0.isActive && !$0.isYou }).count > 0 {
+                        Button("Remove player") {
+                            showRemovePlayerDialog = true
+                        }
+                    }
+                    Button("End game early") {
+                        try? GamePersistence.endGameEarly(game, in: context)
+                    }
+                    Button("Delete game", role: .destructive) {
+                        confirmDelete = true
+                    }
+                } label: {
+                    Image(systemName: "ellipsis")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundStyle(theme.muted)
+                        .frame(width: 44, height: 44)
+                        .contentShape(Rectangle())
                 }
-                Button("Delete game", role: .destructive) {
-                    confirmDelete = true
-                }
-            } label: {
-                Image(systemName: "ellipsis")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(theme.muted)
-                    .frame(width: 44, height: 44)
-                    .contentShape(Rectangle())
+                .accessibilityLabel("Game menu")
             }
-            .accessibilityLabel("Game menu")
+            .padding(.horizontal, 6)
+            .background(theme.headerBg)
+            .overlay(alignment: .bottom) { Rectangle().fill(theme.border).frame(height: 1) }
         }
     }
 
@@ -416,48 +454,171 @@ struct ScoreboardView: View {
     }
 
     private var tableArea: some View {
-        ScrollView {
-            VStack(spacing: 8) {
-                ScoreCardTable(
-                    game: game,
-                    onTapScore: { player, stop in
-                        coordinator.openAudit(game: game, player: player, stop: stop)
-                    },
-                    onTapAddOverride: { player, stop in
-                        // First override teaches the affordance — flip the
-                        // pulse off so it doesn't keep grabbing attention.
-                        if !settings.hasUsedConductorOverride {
-                            settings.hasUsedConductorOverride = true
+        let stop = game.currentStopIndex
+        let allDone = Scoring.nextUnenteredPlayer(stop: stop, in: game) == nil
+        let standings = Scoring.standings(for: game)
+        let activeCount = game.players.filter(\.isActive).count
+        let drawCount = activeCount <= 4 ? 15 : (activeCount <= 6 ? 12 : 10)
+        let engineN = Scoring.engineTile(stop: min(stop, game.lengthStops),
+                                         rules: game.startingEngine,
+                                         length: game.lengthStops)
+
+        return ScrollView {
+            VStack(spacing: 12) {
+                // Collapsible round instructions
+                if !game.scoringOpen && !allDone && !game.isFinished {
+                    Button {
+                        withAnimation { showInstructions.toggle() }
+                    } label: {
+                        HStack(spacing: 8) {
+                            Image(systemName: "info.circle")
+                                .font(.system(size: 13))
+                                .foregroundStyle(theme.muted)
+                            Text("Round setup · Draw \(drawCount) · \(engineN)|\(engineN)")
+                                .font(theme.monoFont(size: 11))
+                                .foregroundStyle(theme.ink)
+                            Spacer()
+                            Image(systemName: showInstructions ? "chevron.up" : "chevron.down")
+                                .font(.system(size: 10, weight: .semibold))
+                                .foregroundStyle(theme.muted)
                         }
-                        overrideConfirm = OverrideTarget(player: player, stop: stop)
-                    },
-                    pulseOverride: !settings.hasUsedConductorOverride
-                )
-                legend
-                if game.currentStopIndex > 1 {
-                    PhotoGalleryStrip(game: game, stop: game.currentStopIndex - 1)
+                        .padding(.horizontal, 12).padding(.vertical, 8)
+                        .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 8))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(theme.border, lineWidth: 1)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.horizontal, 6)
+
+                    if showInstructions {
+                        VStack(alignment: .leading, spacing: 6) {
+                            if game.startingEngine.isDrawToFind {
+                                instructionRow(num: "1", text: "Shuffle all dominoes face down")
+                                instructionRow(num: "2", text: "Each player draws \(drawCount) dominoes")
+                                instructionRow(num: "3", text: "If no one has the \(engineN)|\(engineN), draw from the boneyard until it's found")
+                                instructionRow(num: "4", text: "Play the round")
+                                instructionRow(num: "5", text: "Tap TILES DOWN when done")
+                            } else {
+                                instructionRow(num: "1", text: "Remove the \(engineN)|\(engineN) from the boneyard")
+                                instructionRow(num: "2", text: "Shuffle and deal \(drawCount) dominoes each")
+                                instructionRow(num: "3", text: "Play the round")
+                                instructionRow(num: "4", text: "Tap TILES DOWN when done")
+                            }
+                        }
+                        .padding(12)
+                        .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 8))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(theme.border, lineWidth: 1)
+                        )
+                        .padding(.horizontal, 6)
+                    }
+                }
+
+                // Standings list
+                VStack(alignment: .leading, spacing: 0) {
+                    VStack(spacing: 0) {
+                        ForEach(Array(standings.enumerated()), id: \.element.playerID) { index, standing in
+                            let player = game.players.first(where: { $0.id == standing.playerID })
+                            let currentStopScore = game.scores.first(where: {
+                                $0.playerID == standing.playerID && $0.stopIndex == stop
+                            })
+                            let hasSubmitted = currentStopScore != nil
+
+                            Button {
+                                if let player { selectedPlayer = player }
+                            } label: {
+                                HStack(spacing: 12) {
+                                    Text(rankLabel(standing.place))
+                                        .font(theme.displayFont(size: 22))
+                                        .foregroundStyle(standing.place == 1 ? theme.brand : theme.ink)
+                                        .frame(width: 40, alignment: .center)
+
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        HStack(spacing: 6) {
+                                            Text(standing.name)
+                                                .font(theme.displayFont(size: 18))
+                                                .foregroundStyle(theme.ink)
+                                            if standing.isYou {
+                                                Text("YOU")
+                                                    .font(theme.monoFont(size: 9))
+                                                    .tracking(1.2)
+                                                    .foregroundStyle(theme.accent)
+                                            }
+                                        }
+                                        HStack(spacing: 4) {
+                                            if let pips = currentStopScore?.pips {
+                                                Text("Stop \(stop): \(pips)")
+                                            } else {
+                                                Text("Stop \(stop): \u{2014}")
+                                            }
+                                            if hasSubmitted {
+                                                Image(systemName: "checkmark.circle.fill")
+                                                    .foregroundStyle(.green)
+                                            }
+                                        }
+                                        .font(theme.monoFont(size: 11))
+                                        .foregroundStyle(theme.muted)
+                                    }
+
+                                    Spacer()
+
+                                    Text("\(standing.total)")
+                                        .font(theme.displayFont(size: 24))
+                                        .foregroundStyle(standing.place == 1 ? theme.brand : theme.ink)
+
+                                    Image(systemName: "chevron.right")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundStyle(theme.muted.opacity(0.5))
+                                }
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 14)
+                                .contentShape(Rectangle())
+                                .opacity(player?.isActive == false ? 0.4 : 1.0)
+                            }
+                            .buttonStyle(.plain)
+
+                            if index < standings.count - 1 {
+                                Rectangle().fill(theme.borderLight).frame(height: 1)
+                                    .padding(.leading, 54)
+                            }
+                        }
+                    }
+                    .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(theme.border, lineWidth: 1)
+                    )
+                }
+                .padding(.horizontal, 6)
+
+                // Photo galleries
+                ForEach(1...max(1, game.currentStopIndex), id: \.self) { galleryStop in
+                    if game.captures.contains(where: { $0.stopIndex == galleryStop }) {
+                        PhotoGalleryStrip(game: game, stop: galleryStop)
+                    }
                 }
             }
             .padding(8)
         }
     }
 
-    private var legend: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            HStack {
-                Text("♔ LEADER  ▸ YOU")
-                Spacer()
-                Text("+ SUBMIT FOR PLAYER")
-            }
-            HStack {
-                Spacer()
-                Text("TAP A SCORE TO AUDIT")
-            }
+    private func instructionRow(num: String, text: String) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Text("\(num).")
+                .font(theme.monoFont(size: 12))
+                .foregroundStyle(theme.muted)
+                .frame(width: 18, alignment: .trailing)
+            Text(text)
+                .font(theme.monoFont(size: 12))
+                .foregroundStyle(theme.ink)
         }
-        .font(theme.monoFont(size: 9))
-        .tracking(1.2)
-        .foregroundStyle(theme.muted)
-        .padding(.horizontal, 6)
+    }
+
+    private func rankLabel(_ place: Int) -> String {
+        ordinal(place)
     }
 
     private var cta: some View {
@@ -465,27 +626,17 @@ struct ScoreboardView: View {
         let nextPlayer = Scoring.nextUnenteredPlayer(stop: stop, in: game)
         let allDone = nextPlayer == nil
         return VStack(spacing: 6) {
-            Button {
-                if allDone {
-                    try? GamePersistence.maybeAdvanceStop(in: context, game: game)
-                    withAnimation(.easeOut(duration: 0.25)) {
-                        toast = (game.currentStopIndex > stop) ? "Stop \(stop) closed" : "Game complete"
-                    }
-                    scheduleToastClear()
-                } else if let p = nextPlayer {
-                    coordinator.openCamera(game: game, player: p, stop: stop)
-                }
-            } label: {
-                HStack(spacing: 10) {
-                    Image(systemName: allDone ? "arrow.right.circle.fill" : "plus.circle.fill")
-                        .font(.system(size: 18, weight: .bold))
-                        .accessibilityHidden(true)
-                    Text(allDone
-                         ? (stop >= game.lengthStops ? "FINISH GAME" : "ADVANCE TO STOP \(stop+1)")
-                         : "ADD SCORE")
-                        .font(theme.displayFont(size: 14))
-                        .tracking(2.5)
-                    if !allDone {
+            if !game.scoringOpen && !allDone && !game.isFinished {
+                Button {
+                    game.scoringOpen = true
+                    try? context.save()
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: "lock.open.fill")
+                            .font(.system(size: 16, weight: .bold))
+                        Text("TILES DOWN")
+                            .font(theme.displayFont(size: 14))
+                            .tracking(2.5)
                         Text("STOP \(stop)")
                             .font(theme.monoFont(size: 10))
                             .tracking(1.2)
@@ -493,25 +644,59 @@ struct ScoreboardView: View {
                             .padding(.horizontal, 8).padding(.vertical, 3)
                             .background(theme.ctaText.opacity(0.12), in: Capsule())
                     }
+                    .frame(maxWidth: .infinity, minHeight: 50)
+                    .foregroundStyle(theme.ctaText)
+                    .background(Color.green.opacity(0.8), in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
                 }
-                .frame(maxWidth: .infinity, minHeight: 56)
-                .foregroundStyle(theme.ctaText)
-                .background(theme.cta, in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
             }
-            .accessibilityLabel(
-                allDone
-                ? (stop >= game.lengthStops ? "Finish game" : "Advance to stop \(stop + 1)")
-                : "Add score for \(nextPlayer?.name ?? "next player"), stop \(stop)"
-            )
-            if let p = nextPlayer {
-                Text("Next: \(p.name)")
-                    .font(theme.monoFont(size: 9))
-                    .tracking(1.4)
-                    .foregroundStyle(theme.muted)
+            if game.scoringOpen || allDone {
+                Button {
+                    if allDone {
+                        try? GamePersistence.maybeAdvanceStop(in: context, game: game)
+                        withAnimation(.easeOut(duration: 0.25)) {
+                            toast = (game.currentStopIndex > stop) ? "Stop \(stop) closed" : "Game complete"
+                        }
+                        scheduleToastClear()
+                    } else if let p = nextPlayer {
+                        coordinator.openCamera(game: game, player: p, stop: stop)
+                    }
+                } label: {
+                    HStack(spacing: 10) {
+                        Image(systemName: allDone ? "arrow.right.circle.fill" : "plus.circle.fill")
+                            .font(.system(size: 18, weight: .bold))
+                            .accessibilityHidden(true)
+                        Text(allDone
+                             ? (stop >= game.lengthStops ? "FINISH GAME" : "ADVANCE TO STOP \(stop+1)")
+                             : "ADD SCORE")
+                            .font(theme.displayFont(size: 14))
+                            .tracking(2.5)
+                        if !allDone {
+                            Text("STOP \(stop)")
+                                .font(theme.monoFont(size: 10))
+                                .tracking(1.2)
+                                .foregroundStyle(theme.ctaText.opacity(0.7))
+                                .padding(.horizontal, 8).padding(.vertical, 3)
+                                .background(theme.ctaText.opacity(0.12), in: Capsule())
+                        }
+                    }
+                    .frame(maxWidth: .infinity, minHeight: 56)
+                    .foregroundStyle(theme.ctaText)
+                    .background(theme.cta, in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
+                }
+                .accessibilityLabel(
+                    allDone
+                    ? (stop >= game.lengthStops ? "Finish game" : "Advance to stop \(stop + 1)")
+                    : "Add score for \(nextPlayer?.name ?? "next player"), stop \(stop)"
+                )
+                if let p = nextPlayer, game.scoringOpen {
+                    Text("Next: \(p.name)")
+                        .font(theme.monoFont(size: 9))
+                        .tracking(1.4)
+                        .foregroundStyle(theme.muted)
+                }
             }
-            broadcastStrip
         }
-        .padding(.horizontal, 14).padding(.bottom, 14).padding(.top, 8)
+        .padding(.horizontal, 14).padding(.bottom, 6).padding(.top, 6)
         .background(theme.subBg)
         .overlay(alignment: .top) { Rectangle().fill(theme.border).frame(height: 1) }
     }
@@ -575,6 +760,231 @@ struct ScoreboardView: View {
         case 2: "2nd"
         case 3: "3rd"
         default: "\(n)th"
+        }
+    }
+}
+
+private struct EditRulesSheet: View {
+    let game: Game
+    @Environment(\.theme) private var theme
+    @Environment(\.modelContext) private var context
+    @Environment(\.dismiss) private var dismiss
+    @State private var length: Int
+    @State private var engine: StartingEngine
+
+    init(game: Game) {
+        self.game = game
+        _length = State(initialValue: game.lengthStops)
+        _engine = State(initialValue: game.startingEngine)
+    }
+
+    var body: some View {
+        ZStack {
+            theme.bg.ignoresSafeArea()
+            VStack(spacing: 0) {
+                AppHeaderBar(style: .modal, title: "Edit rules", onLeading: nil) {
+                    Button("Done") { save(); dismiss() }
+                        .appLinkStyle()
+                }
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        section("GAME LENGTH") {
+                            HStack(spacing: 8) {
+                                ForEach([7, 10, 13], id: \.self) { n in
+                                    Button { length = n } label: {
+                                        Text("\(n)")
+                                            .font(theme.displayFont(size: 22))
+                                            .foregroundStyle(length == n ? theme.ctaText : theme.ink)
+                                            .frame(maxWidth: .infinity, minHeight: 52)
+                                            .background(length == n ? theme.cta : theme.cardBg,
+                                                        in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: theme.buttonCornerRadius)
+                                                    .stroke(length == n ? theme.brand : theme.borderLight, lineWidth: 1)
+                                            )
+                                    }
+                                    .buttonStyle(.plain)
+                                }
+                            }
+                        }
+                        section("STARTING ENGINE") {
+                            ForEach(StartingEngine.allCases) { option in
+                                Button { engine = option } label: {
+                                    HStack(spacing: 10) {
+                                        Image(systemName: engine == option ? "largecircle.fill.circle" : "circle")
+                                            .foregroundStyle(engine == option ? theme.brand : theme.muted)
+                                        VStack(alignment: .leading, spacing: 2) {
+                                            Text(option.displayName)
+                                                .font(theme.monoFont(size: 13))
+                                                .foregroundStyle(theme.ink)
+                                            Text(option.description)
+                                                .font(theme.monoFont(size: 10))
+                                                .foregroundStyle(theme.muted)
+                                        }
+                                    }
+                                    .padding(10)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 10))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .stroke(engine == option ? theme.brand : theme.borderLight,
+                                                    lineWidth: engine == option ? 1.5 : 1)
+                                    )
+                                }
+                                .buttonStyle(.plain)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 14)
+                }
+            }
+            .padding(.vertical, 12)
+        }
+    }
+
+    private func section<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(theme.monoFont(size: 11))
+                .tracking(2)
+                .foregroundStyle(theme.muted)
+            content()
+        }
+    }
+
+    private func save() {
+        game.lengthStops = length
+        game.startingEngineRaw = engine.rawValue
+        try? context.save()
+    }
+}
+
+private struct PlayerDetailSheet: View {
+    let game: Game
+    let player: Player
+    @Environment(\.theme) private var theme
+    @Environment(\.dismiss) private var dismiss
+    @Environment(AppCoordinator.self) private var coordinator
+
+    var body: some View {
+        let total = Scoring.total(for: player.id, in: game)
+        ZStack {
+            theme.bg.ignoresSafeArea()
+            VStack(spacing: 0) {
+                // Header
+                HStack {
+                    Button {
+                        dismiss()
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 14, weight: .semibold))
+                            Text("Back")
+                                .font(theme.monoFont(size: 13))
+                        }
+                        .foregroundStyle(theme.accent)
+                    }
+                    Spacer()
+                    Text("\(player.name)")
+                        .font(theme.displayFont(size: 16))
+                        .foregroundStyle(theme.ink)
+                    Text("\u{00B7} \(total) total")
+                        .font(theme.monoFont(size: 13))
+                        .foregroundStyle(theme.muted)
+                    Spacer()
+                    // Invisible balance element
+                    Text("Back")
+                        .font(theme.monoFont(size: 13))
+                        .hidden()
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 12)
+                .background(theme.subBg)
+                .overlay(alignment: .bottom) {
+                    Rectangle().fill(theme.border).frame(height: 1)
+                }
+
+                // Stop list
+                ScrollView {
+                    VStack(spacing: 0) {
+                        ForEach(1...game.lengthStops, id: \.self) { stopNum in
+                            let engineN = Scoring.engineTile(
+                                stop: stopNum,
+                                rules: game.startingEngine,
+                                length: game.lengthStops
+                            )
+                            let score = Scoring.score(for: player.id, stop: stopNum, in: game)
+                            let isCurrent = stopNum == game.currentStopIndex
+
+                            Button {
+                                coordinator.openAudit(game: game, player: player, stop: stopNum)
+                                dismiss()
+                            } label: {
+                                HStack(spacing: 0) {
+                                    Text("Stop \(stopNum)")
+                                        .font(theme.monoFont(size: 12))
+                                        .fontWeight(isCurrent ? .bold : .regular)
+                                        .foregroundStyle(isCurrent ? theme.accent : theme.ink)
+                                        .frame(width: 56, alignment: .leading)
+
+                                    Text("(\(engineN)|\(engineN))")
+                                        .font(theme.monoFont(size: 11))
+                                        .foregroundStyle(theme.muted)
+                                        .frame(width: 52, alignment: .leading)
+
+                                    // Dotted filler
+                                    GeometryReader { geo in
+                                        let dotCount = max(1, Int(geo.size.width / 5))
+                                        Text(String(repeating: ".", count: dotCount))
+                                            .font(theme.monoFont(size: 11))
+                                            .foregroundStyle(theme.borderLight)
+                                            .lineLimit(1)
+                                    }
+                                    .frame(height: 16)
+
+                                    if let score {
+                                        Text("\(score.effectivePips)")
+                                            .font(theme.monoFont(size: 13))
+                                            .fontWeight(.semibold)
+                                            .foregroundStyle(isCurrent ? theme.accent : theme.ink)
+                                            .frame(width: 40, alignment: .trailing)
+                                    } else {
+                                        Text("\u{2014}")
+                                            .font(theme.monoFont(size: 13))
+                                            .foregroundStyle(theme.muted)
+                                            .frame(width: 40, alignment: .trailing)
+                                    }
+
+                                    if isCurrent {
+                                        Text("\u{2190}")
+                                            .font(theme.monoFont(size: 12))
+                                            .foregroundStyle(theme.accent)
+                                            .frame(width: 20, alignment: .center)
+                                    } else {
+                                        Spacer().frame(width: 20)
+                                    }
+                                }
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(isCurrent ? theme.accent.opacity(0.08) : Color.clear)
+                            }
+                            .buttonStyle(.plain)
+
+                            if stopNum < game.lengthStops {
+                                Rectangle().fill(theme.borderLight).frame(height: 1)
+                                    .padding(.leading, 14)
+                            }
+                        }
+                    }
+                    .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 10))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(theme.border, lineWidth: 1)
+                    )
+                    .padding(14)
+                }
+            }
         }
     }
 }

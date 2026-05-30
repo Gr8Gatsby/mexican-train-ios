@@ -72,7 +72,7 @@ enum Scoring {
     static func engineTile(stop: Int, rules: StartingEngine, length: Int) -> Int {
         let start: Int
         switch rules {
-        case .traditional:
+        case .traditional, .drawToFind:
             start = length - 1          // 13→12, 10→9, 7→6
         case .alwaysTwelve:
             start = 12

@@ -11,12 +11,13 @@ enum SnapshotBuilder {
         return GameSnapshot(
             seq: 0, // session overwrites
             roomCode: roomCode,
-            hostName: UIDevice.current.name,
+            hostName: game.players.first(where: { $0.isYou })?.name ?? UIDevice.current.name,
             gameID: game.id,
             gameName: game.displayName,
             length: game.lengthStops,
             startingEngineRaw: game.startingEngineRaw,
             currentStop: game.currentStopIndex,
+            scoringOpen: game.scoringOpen,
             players: game.sortedPlayers.map {
                 PlayerSnapshot(id: $0.id, name: $0.name, seat: $0.seat, isYou: $0.isYou, isActive: $0.isActive)
             },

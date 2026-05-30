@@ -21,7 +21,8 @@ struct HostBroadcasterModifier: ViewModifier {
             .joined(separator: ",")
         let captureFP = "\(game.captures.count)"
         let endFP = game.finishedAt.map { String($0.timeIntervalSince1970) } ?? "-"
-        return "\(game.currentStopIndex)#\(playerFP)#\(scoreFP)#\(captureFP)#\(endFP)"
+        let scoringFP = game.scoringOpen ? "open" : "closed"
+        return "\(game.currentStopIndex)#\(playerFP)#\(scoreFP)#\(captureFP)#\(endFP)#\(scoringFP)"
     }
 
     private func broadcastIfHosting() {
