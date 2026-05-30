@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!--
+    LAYER 1 — BACKGROUND
+    Oxblood field with a soft radial gradient (lighter upper-center,
+    deeper toward the corners). Sits at the bottom of the Icon Composer stack.
+    Colors lifted from THEME_CABOOSE: brand #8c2a1a (oxblood).
+  -->
+  <defs>
+    <radialGradient id="bgGrad" cx="50%" cy="34%" r="78%">
+      <stop offset="0%" stop-color="#A8341F"/>
+      <stop offset="55%" stop-color="#8C2A1A"/>
+      <stop offset="100%" stop-color="#5E1A0F"/>
+    </radialGradient>
+    <!-- subtle inner vignette for ledger-leather depth -->
+    <radialGradient id="vignette" cx="50%" cy="50%" r="70%">
+      <stop offset="60%" stop-color="#000000" stop-opacity="0"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.28"/>
+    </radialGradient>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bgGrad)"/>
+  <rect width="1024" height="1024" fill="url(#vignette)"/>
+</svg>

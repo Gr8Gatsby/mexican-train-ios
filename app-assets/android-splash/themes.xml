@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  SplashScreen API config.
+  File path in your project: app/src/main/res/values/themes.xml
+  (merge these entries into your existing themes.xml — don't replace it).
+
+  Then in your AndroidManifest.xml, set the application/activity theme:
+    <activity android:theme="@style/Theme.MexicanTrain.Splash" ...>
+
+  After the splash dismisses, you can swap to your main theme programmatically
+  via SplashScreen.setKeepOnScreenCondition or installSplashScreen() then
+  setting setContentView() to use the regular Theme.MexicanTrain.
+-->
+<resources xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- Splash theme using the Android 12+ SplashScreen API -->
+    <style name="Theme.MexicanTrain.Splash" parent="Theme.SplashScreen">
+        <!-- Background color of the splash screen window -->
+        <item name="windowSplashScreenBackground">@color/caboose_oxblood</item>
+
+        <!-- Centered icon (the domino train, 1024x1024 source).
+             Android will scale it to ~192dp full / 96dp inner safe zone -->
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
+
+        <!-- Optional: icon background ring (set to transparent) -->
+        <item name="windowSplashScreenIconBackgroundColor">@android:color/transparent</item>
+
+        <!-- Hand-off to the regular app theme once splash dismisses -->
+        <item name="postSplashScreenTheme">@style/Theme.MexicanTrain</item>
+
+        <!-- Optional duration override (default 0 = system-determined) -->
+        <item name="windowSplashScreenAnimationDuration">300</item>
+    </style>
+
+</resources>

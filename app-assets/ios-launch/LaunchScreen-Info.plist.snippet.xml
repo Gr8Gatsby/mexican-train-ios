@@ -1,0 +1,30 @@
+<!--
+  Merge into MexicanTrain/Info.plist (or set via target ▸ Info tab).
+  This is the modern (iOS 14+) way to declare a launch screen — no storyboard
+  required. iOS centers the launch image on the background color.
+-->
+<key>UILaunchScreen</key>
+<dict>
+    <!-- Asset catalog color named "LaunchBackground" — see colors below -->
+    <key>UIColorName</key>
+    <string>LaunchBackground</string>
+
+    <!-- Asset catalog image named "LaunchIcon" (the centered train) -->
+    <key>UIImageName</key>
+    <string>LaunchIcon</string>
+
+    <!-- Respect notch / home-indicator safe area when centering image -->
+    <key>UIImageRespectsSafeAreaInsets</key>
+    <true/>
+</dict>
+
+<!--
+  In Assets.xcassets, create:
+    1. A Color Set named "LaunchBackground"
+       - Any (universal) appearance: #8C2A1A
+       - Optional Dark appearance:    #5E1A0F
+    2. An Image Set named "LaunchIcon"
+       - 1x:  launch-icon@1x.png  (240 × 240)
+       - 2x:  launch-icon@2x.png  (480 × 480)
+       - 3x:  launch-icon@3x.png  (720 × 720)
+-->

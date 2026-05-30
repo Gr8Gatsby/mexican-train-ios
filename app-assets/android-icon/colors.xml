@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Add these entries to your existing app/src/main/res/values/colors.xml
+  (don't replace the file; merge the entries).
+-->
+<resources>
+    <!-- Brand: oxblood, from THEME_CABOOSE -->
+    <color name="ic_launcher_background">#8C2A1A</color>
+
+    <!-- Other brand colors you may want to reference elsewhere -->
+    <color name="caboose_oxblood">#8C2A1A</color>
+    <color name="caboose_oxblood_deep">#5E1A0F</color>
+    <color name="caboose_ink">#2A1D10</color>
+    <color name="caboose_cream">#FBF4E2</color>
+    <color name="caboose_brass">#C2A778</color>
+    <color name="caboose_accent">#C8541D</color>
+</resources>

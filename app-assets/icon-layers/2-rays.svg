@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!--
+    LAYER 2 — BRASS SUNBURST RAYS
+    16 alternating long/short rays radiating from behind the domino, low-opacity
+    brass (#D9C294). Saloon-poster motif, adds subtle radial energy.
+    Transparent background.
+  -->
+  <defs>
+    <linearGradient id="rayFade" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#D9C294" stop-opacity="0.42"/>
+      <stop offset="100%" stop-color="#D9C294" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="rayFadeShort" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#EAD5A8" stop-opacity="0.32"/>
+      <stop offset="100%" stop-color="#EAD5A8" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(512 540)">
+    <!-- 16 rays, every 22.5°, alternating long/short -->
+    <g>
+      <!-- Long rays (8) - every 45° starting at 0° -->
+      <polygon points="-26,0 26,0 0,-820" fill="url(#rayFade)" transform="rotate(0)"/>
+      <polygon points="-26,0 26,0 0,-820" fill="url(#rayFade)" transform="rotate(45)"/>
+      <polygon points="-26,0 26,0 0,-820" fill="url(#rayFade)" transform="rotate(90)"/>
+      <polygon points="-26,0 26,0 0,-820" fill="url(#rayFade)" transform="rotate(135)"/>
+      <polygon points="-26,0 26,0 0,-820" fill="url(#rayFade)" transform="rotate(180)"/>
+      <polygon points="-26,0 26,0 0,-820" fill="url(#rayFade)" transform="rotate(225)"/>
+      <polygon points="-26,0 26,0 0,-820" fill="url(#rayFade)" transform="rotate(270)"/>
+      <polygon points="-26,0 26,0 0,-820" fill="url(#rayFade)" transform="rotate(315)"/>
+
+      <!-- Short rays (8) - offset by 22.5° -->
+      <polygon points="-18,0 18,0 0,-560" fill="url(#rayFadeShort)" transform="rotate(22.5)"/>
+      <polygon points="-18,0 18,0 0,-560" fill="url(#rayFadeShort)" transform="rotate(67.5)"/>
+      <polygon points="-18,0 18,0 0,-560" fill="url(#rayFadeShort)" transform="rotate(112.5)"/>
+      <polygon points="-18,0 18,0 0,-560" fill="url(#rayFadeShort)" transform="rotate(157.5)"/>
+      <polygon points="-18,0 18,0 0,-560" fill="url(#rayFadeShort)" transform="rotate(202.5)"/>
+      <polygon points="-18,0 18,0 0,-560" fill="url(#rayFadeShort)" transform="rotate(247.5)"/>
+      <polygon points="-18,0 18,0 0,-560" fill="url(#rayFadeShort)" transform="rotate(292.5)"/>
+      <polygon points="-18,0 18,0 0,-560" fill="url(#rayFadeShort)" transform="rotate(337.5)"/>
+    </g>
+    <!-- Soft brass halo behind the domino -->
+    <circle cx="0" cy="0" r="280" fill="#D9C294" opacity="0.10"/>
+    <circle cx="0" cy="0" r="180" fill="#EAD5A8" opacity="0.14"/>
+  </g>
+</svg>

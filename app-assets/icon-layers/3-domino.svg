@@ -1,0 +1,97 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!--
+    LAYER 3 — DOMINO TILE (the hero)
+    Double-12 tile tilted -8°, ivory face with brass border, deep-ink pips.
+    Engine tile for a 13-stop game per the functional spec / dev design.
+    Transparent background.
+  -->
+  <defs>
+    <!-- ivory tile face gradient -->
+    <linearGradient id="tileFace" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FDFAEE"/>
+      <stop offset="55%" stop-color="#F6EBCE"/>
+      <stop offset="100%" stop-color="#E8D6A6"/>
+    </linearGradient>
+    <!-- brass border gradient -->
+    <linearGradient id="brassBorder" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#EFDBA6"/>
+      <stop offset="50%" stop-color="#C2A778"/>
+      <stop offset="100%" stop-color="#7B6035"/>
+    </linearGradient>
+    <!-- cast shadow under the tile -->
+    <filter id="tileShadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="14"/>
+      <feOffset dx="0" dy="22"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.55"/></feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+    <!-- pip — slightly inset for depth -->
+    <radialGradient id="pip" cx="40%" cy="38%" r="65%">
+      <stop offset="0%" stop-color="#4A3320"/>
+      <stop offset="55%" stop-color="#2A1D10"/>
+      <stop offset="100%" stop-color="#15100A"/>
+    </radialGradient>
+  </defs>
+
+  <!-- Tilted domino group, centered at (512, 540), rotated -8° -->
+  <g transform="translate(512 540) rotate(-8)" filter="url(#tileShadow)">
+    <!-- Brass outer edge -->
+    <rect x="-360" y="-170" width="720" height="340" rx="38" ry="38"
+          fill="url(#brassBorder)"/>
+    <!-- Ivory face inset slightly -->
+    <rect x="-348" y="-158" width="696" height="316" rx="30" ry="30"
+          fill="url(#tileFace)"/>
+    <!-- Inner pinstripe -->
+    <rect x="-338" y="-148" width="676" height="296" rx="24" ry="24"
+          fill="none" stroke="#C2A778" stroke-width="2.5" opacity="0.55"/>
+
+    <!-- Double dividing line -->
+    <line x1="-6" y1="-148" x2="-6" y2="148" stroke="#9F8048" stroke-width="3.5"/>
+    <line x1="6"  y1="-148" x2="6"  y2="148" stroke="#9F8048" stroke-width="3.5"/>
+    <!-- Brass center bosses (at the tile join) -->
+    <circle cx="0" cy="-148" r="6" fill="url(#brassBorder)"/>
+    <circle cx="0" cy="148"  r="6" fill="url(#brassBorder)"/>
+
+    <!-- LEFT HALF — 12 pips in 4 rows × 3 cols -->
+    <!-- columns x = -260, -180, -100   rows y = -120, -40, 40, 120 -->
+    <g>
+      <circle cx="-260" cy="-120" r="22" fill="url(#pip)"/>
+      <circle cx="-180" cy="-120" r="22" fill="url(#pip)"/>
+      <circle cx="-100" cy="-120" r="22" fill="url(#pip)"/>
+
+      <circle cx="-260" cy="-40" r="22" fill="url(#pip)"/>
+      <circle cx="-180" cy="-40" r="22" fill="url(#pip)"/>
+      <circle cx="-100" cy="-40" r="22" fill="url(#pip)"/>
+
+      <circle cx="-260" cy="40" r="22" fill="url(#pip)"/>
+      <circle cx="-180" cy="40" r="22" fill="url(#pip)"/>
+      <circle cx="-100" cy="40" r="22" fill="url(#pip)"/>
+
+      <circle cx="-260" cy="120" r="22" fill="url(#pip)"/>
+      <circle cx="-180" cy="120" r="22" fill="url(#pip)"/>
+      <circle cx="-100" cy="120" r="22" fill="url(#pip)"/>
+    </g>
+
+    <!-- RIGHT HALF — 12 pips -->
+    <g>
+      <circle cx="100" cy="-120" r="22" fill="url(#pip)"/>
+      <circle cx="180" cy="-120" r="22" fill="url(#pip)"/>
+      <circle cx="260" cy="-120" r="22" fill="url(#pip)"/>
+
+      <circle cx="100" cy="-40" r="22" fill="url(#pip)"/>
+      <circle cx="180" cy="-40" r="22" fill="url(#pip)"/>
+      <circle cx="260" cy="-40" r="22" fill="url(#pip)"/>
+
+      <circle cx="100" cy="40" r="22" fill="url(#pip)"/>
+      <circle cx="180" cy="40" r="22" fill="url(#pip)"/>
+      <circle cx="260" cy="40" r="22" fill="url(#pip)"/>
+
+      <circle cx="100" cy="120" r="22" fill="url(#pip)"/>
+      <circle cx="180" cy="120" r="22" fill="url(#pip)"/>
+      <circle cx="260" cy="120" r="22" fill="url(#pip)"/>
+    </g>
+  </g>
+</svg>
