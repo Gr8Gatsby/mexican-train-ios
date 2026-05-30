@@ -155,6 +155,8 @@ struct GameHistoryView: View {
                 ScrollView {
                     VStack(spacing: 12) {
                         EndGameView.WinnerHero(game: game)
+                        RulesInPlayCard(game: game)
+                            .padding(.horizontal, 12)
                         ScoreCardTable(game: game,
                                        onTapScore: { _, _ in },
                                        density: .spacious)
@@ -193,6 +195,81 @@ struct GameHistoryView: View {
         .padding(.horizontal, 16).padding(.bottom, 14).padding(.top, 10)
         .background(theme.subBg)
         .overlay(alignment: .top) { Rectangle().fill(theme.border).frame(height: 1) }
+    }
+}
+
+/// Compact summary of every non-default rule that was active when the game
+/// was played. Rendered on the past-game view so totals can be interpreted
+/// in context (e.g. "12 went out with −5 bonus" or "round 4 capped at 0").
+struct RulesInPlayCard: View {
+    let game: Game
+    @Environment(\.theme) private var theme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("RULES IN PLAY")
+                .font(theme.monoFont(size: 10))
+                .tracking(1.8)
+                .foregroundStyle(theme.muted)
+            VStack(alignment: .leading, spacing: 3) {
+                ruleLine("Game length", value: "\(game.lengthStops) stops")
+                ruleLine("Starting engine", value: game.startingEngine.displayName)
+                ForEach(houseRulesSummary, id: \.self) { line in
+                    ruleLine(line.label, value: line.value, highlight: true)
+                }
+                if houseRulesSummary.isEmpty {
+                    ruleLine("House rules", value: "Defaults")
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(12)
+        .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 12))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12)
+                .stroke(theme.border, lineWidth: 1)
+        )
+    }
+
+    private func ruleLine(_ label: String, value: String, highlight: Bool = false) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(label)
+                .font(theme.monoFont(size: 11))
+                .foregroundStyle(theme.muted)
+            Spacer()
+            Text(value)
+                .font(theme.monoFont(size: 11))
+                .fontWeight(highlight ? .semibold : .regular)
+                .foregroundStyle(highlight ? theme.brand : theme.ink)
+        }
+    }
+
+    private struct SummaryLine: Hashable { let label: String; let value: String }
+
+    private var houseRulesSummary: [SummaryLine] {
+        var lines: [SummaryLine] = []
+        if game.goingOutBonus != .none {
+            lines.append(.init(label: "Going-out bonus", value: game.goingOutBonus.displayName))
+        }
+        if game.doublesPenaltyPips > 0 {
+            lines.append(.init(label: "Doubles penalty", value: "+\(game.doublesPenaltyPips)"))
+        }
+        if game.doubleBlankPenaltyPips > 0 {
+            lines.append(.init(label: "Double-blank penalty", value: "+\(game.doubleBlankPenaltyPips)"))
+        }
+        if game.doublesCountDouble {
+            lines.append(.init(label: "Doubles count double", value: "On"))
+        }
+        if game.anyBlankPenaltyPips > 0 {
+            lines.append(.init(label: "Any-blank penalty", value: "+\(game.anyBlankPenaltyPips) each"))
+        }
+        if let d = game.drawCountOverride {
+            lines.append(.init(label: "Draw count", value: "\(d)"))
+        }
+        if game.blockedRoundCapEnabled {
+            lines.append(.init(label: "Blocked-round cap", value: "On"))
+        }
+        return lines
     }
 }
 
