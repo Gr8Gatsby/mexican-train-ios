@@ -648,6 +648,11 @@ struct ScoreboardView: View {
                     .foregroundStyle(theme.ctaText)
                     .background(Color.green.opacity(0.8), in: RoundedRectangle(cornerRadius: theme.buttonCornerRadius))
                 }
+                Text("Tap when someone has emptied their hand. Opens scoring for stop \(stop).")
+                    .font(theme.monoFont(size: 10))
+                    .foregroundStyle(theme.muted)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
             }
             if game.scoringOpen || allDone {
                 Button {

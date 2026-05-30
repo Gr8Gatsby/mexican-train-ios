@@ -352,6 +352,13 @@ struct NewGameView: View {
             Button(action: start) { Text("DEPART") }
                 .appPrimaryStyle(enabled: canStart)
                 .disabled(!canStart)
+            if canStart {
+                Text("Locks the lineup. You'll score each stop on the next screen.")
+                    .font(theme.monoFont(size: 10))
+                    .foregroundStyle(theme.muted)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+            }
         }
         .padding(.horizontal, 16).padding(.bottom, 14).padding(.top, 10)
         .background(theme.subBg)
