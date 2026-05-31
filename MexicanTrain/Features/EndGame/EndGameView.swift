@@ -56,14 +56,15 @@ struct EndGameView: View {
         VStack(spacing: 0) {
             ForEach(standings.indices, id: \.self) { i in
                 let s = standings[i]
-                HStack {
+                HStack(spacing: 6) {
                     Text("\(s.place).")
-                        .font(theme.displayFont(size: 18))
-                        .foregroundStyle(theme.ink)
-                        .frame(width: 36, alignment: .leading)
+                        .font(theme.displayFont(size: 15))
+                        .foregroundStyle(s.place == 1 ? theme.brand : theme.muted)
+                        .frame(width: 28, alignment: .leading)
                     Text(s.name)
-                        .font(theme.displayFont(size: 18))
+                        .font(theme.displayFont(size: 16))
                         .foregroundStyle(theme.ink)
+                        .lineLimit(1)
                     if s.isYou {
                         Text("YOU")
                             .font(theme.monoFont(size: 9))
@@ -72,10 +73,10 @@ struct EndGameView: View {
                     }
                     Spacer()
                     Text("\(s.total)")
-                        .font(theme.displayFont(size: 22))
-                        .foregroundStyle(theme.ink)
+                        .font(theme.displayFont(size: 18))
+                        .foregroundStyle(s.place == 1 ? theme.brand : theme.ink)
                 }
-                .padding(.horizontal, 14).padding(.vertical, 10)
+                .padding(.horizontal, 14).padding(.vertical, 6)
                 .background(s.isYou ? theme.youBg : Color.clear)
                 if i < standings.count - 1 {
                     Rectangle().fill(theme.borderLight).frame(height: 1)
@@ -154,7 +155,9 @@ struct GameHistoryView: View {
                 ScrollView {
                     VStack(spacing: 12) {
                         EndGameView.WinnerHero(game: game)
-                        ScoreCardTable(game: game) { _, _ in }
+                        ScoreCardTable(game: game,
+                                       onTapScore: { _, _ in },
+                                       density: .spacious)
                             .padding(.horizontal, 8)
                     }
                     .padding(.vertical, 12)
