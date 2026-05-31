@@ -28,6 +28,10 @@ struct ScoreboardView: View {
     /// Set to the just-completed stop when the conductor taps ADVANCE and
     /// the blocked-round-cap rule applies. Drives the confirmation dialog.
     @State private var blockedCapPrompt: Int?
+    /// Set to the just-completed stop when the conductor taps ADVANCE and
+    /// the double-blank penalty rule is active. Drives the "Who had the 0|0?"
+    /// dialog, which the user resolves before any blocked-cap check.
+    @State private var doubleBlankPrompt: Int?
 
     struct OverrideTarget: Identifiable, Equatable {
         let player: Player
@@ -213,6 +217,17 @@ struct ScoreboardView: View {
             coordinator.netSession.onScoreSubmissionReceived = nil
             coordinator.netSession.onClaimReceived = nil
         }
+        .modifier(DoubleBlankPromptModifier(
+            game: game,
+            prompt: $doubleBlankPrompt,
+            onResolved: { stop in continueAfterDoubleBlank(stop: stop) },
+            onPenaltyApplied: { name, delta in
+                withAnimation(.easeOut(duration: 0.25)) {
+                    toast = "0|0 → \(name) +\(delta)"
+                }
+                scheduleToastClear()
+            }
+        ))
         .modifier(BlockedCapPromptModifier(
             game: game,
             prompt: $blockedCapPrompt,
@@ -758,14 +773,9 @@ struct ScoreboardView: View {
             if game.scoringOpen || allDone {
                 Button {
                     if allDone {
-                        // Offer the blocked-round cap when the rule is on AND
-                        // no one went out this stop. Otherwise advance directly.
-                        if game.blockedRoundCapEnabled,
-                           GamePersistence.wasStopBlocked(stop, in: game) {
-                            blockedCapPrompt = stop
-                        } else {
-                            advanceStop(closed: stop)
-                        }
+                        // Wrap-up chain: double-blank prompt (if rule on) →
+                        // blocked-cap prompt (if applicable) → advance.
+                        beginRoundWrapUp(stop: stop)
                     } else if let p = nextPlayer {
                         coordinator.openCamera(game: game, player: p, stop: stop)
                     }
@@ -854,6 +864,29 @@ struct ScoreboardView: View {
         .accessibilityLabel(isHosting
                             ? "Room code \(session.roomCode). \(peers) joined. Tap to share."
                             : "Share game")
+    }
+
+    /// Kick off the end-of-stop wrap-up chain. Stages, in order:
+    ///   1. Double-blank "Who had the 0|0?" prompt (if rule on)
+    ///   2. Blocked-round-cap "set lowest to 0?" prompt (if rule on and
+    ///      nobody went out this round)
+    ///   3. Actual stop-advance.
+    /// Each prompt's "skip"/"apply" action calls back here to continue.
+    private func beginRoundWrapUp(stop: Int) {
+        if game.doubleBlankPenaltyPips > 0 {
+            doubleBlankPrompt = stop
+            return
+        }
+        continueAfterDoubleBlank(stop: stop)
+    }
+
+    private func continueAfterDoubleBlank(stop: Int) {
+        if game.blockedRoundCapEnabled,
+           GamePersistence.wasStopBlocked(stop, in: game) {
+            blockedCapPrompt = stop
+            return
+        }
+        advanceStop(closed: stop)
     }
 
     /// Common close-stop path used by ADVANCE and by both branches of the
@@ -1099,6 +1132,50 @@ private struct PlayerDetailSheet: View {
                     .padding(14)
                 }
             }
+        }
+    }
+}
+
+/// "Who had the 0|0?" prompt fired after the last hand of a stop is entered
+/// when the double-blank penalty rule is enabled. Conductor picks a player
+/// (we apply the penalty) or "Nobody had it" (no-op). Either choice
+/// continues the wrap-up chain via `onResolved`.
+private struct DoubleBlankPromptModifier: ViewModifier {
+    let game: Game
+    @Binding var prompt: Int?
+    var onResolved: (Int) -> Void
+    var onPenaltyApplied: (String, Int) -> Void
+
+    @Environment(\.modelContext) private var context
+
+    func body(content: Content) -> some View {
+        content.confirmationDialog(
+            "Who had the 0|0 this round?",
+            isPresented: Binding(
+                get: { prompt != nil },
+                set: { if !$0 { prompt = nil } }
+            ),
+            presenting: prompt
+        ) { stop in
+            ForEach(game.players.filter(\.isActive)) { player in
+                Button("\(player.name) (+\(game.doubleBlankPenaltyPips))") {
+                    let updated = try? GamePersistence.applyDoubleBlankPenalty(
+                        stop, to: player.id, in: game, context: context
+                    )
+                    if updated != nil {
+                        onPenaltyApplied(player.name, game.doubleBlankPenaltyPips)
+                    }
+                    prompt = nil
+                    onResolved(stop)
+                }
+            }
+            Button("Nobody had it") {
+                prompt = nil
+                onResolved(stop)
+            }
+            Button("Cancel", role: .cancel) { prompt = nil }
+        } message: { _ in
+            Text("The double-blank penalty (+\(game.doubleBlankPenaltyPips)) is added to whoever was caught with the 0|0 tile.")
         }
     }
 }

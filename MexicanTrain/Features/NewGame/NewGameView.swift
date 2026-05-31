@@ -712,6 +712,40 @@ struct HouseRulesSection: View {
                 drawCountPicker
             }
             divider
+            rule(title: "Double-blank penalty",
+                 description: "Add to your round score if you're caught with the 0|0 tile.") {
+                segmented(
+                    options: DoubleBlankPenalty.presetOptions.map { ($0, $0 == 0 ? "None" : "+\($0)") },
+                    selection: Binding(
+                        get: { game.doubleBlankPenaltyPips },
+                        set: { game.doubleBlankPenaltyPips = $0; onChange() }
+                    )
+                )
+            }
+            divider
+            rule(title: "Doubles count double",
+                 description: "Doubles left in hand count 2× their pip value (a 6|6 counts as 24, not 12).") {
+                Toggle(isOn: Binding(
+                    get: { game.doublesCountDouble },
+                    set: { game.doublesCountDouble = $0; onChange() }
+                )) {
+                    EmptyView()
+                }
+                .labelsHidden()
+                .tint(theme.accent)
+            }
+            divider
+            rule(title: "Any-blank penalty",
+                 description: "Each blank tile half left in hand counts as the chosen value instead of 0.") {
+                segmented(
+                    options: AnyBlankPenalty.presetOptions.map { ($0, $0 == 0 ? "None" : "+\($0)") },
+                    selection: Binding(
+                        get: { game.anyBlankPenaltyPips },
+                        set: { game.anyBlankPenaltyPips = $0; onChange() }
+                    )
+                )
+            }
+            divider
             rule(title: "Blocked-round cap",
                  description: "When nobody goes out, set the lowest hand to 0 instead.") {
                 Toggle(isOn: Binding(

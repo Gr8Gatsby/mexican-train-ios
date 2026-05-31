@@ -24,6 +24,10 @@ struct GameSnapshot: Codable, Equatable {
     var blockedRoundCapEnabled: Bool
     var drawCountOverride: Int?
     var doublesPenaltyPips: Int
+    // v0.10: blank-related house rules.
+    var doubleBlankPenaltyPips: Int
+    var doublesCountDouble: Bool
+    var anyBlankPenaltyPips: Int
 
     var startingEngine: StartingEngine {
         StartingEngine(rawValue: startingEngineRaw) ?? .traditional
@@ -42,7 +46,10 @@ struct GameSnapshot: Codable, Equatable {
          goingOutBonusRaw: Int = 0,
          blockedRoundCapEnabled: Bool = false,
          drawCountOverride: Int? = nil,
-         doublesPenaltyPips: Int = 0) {
+         doublesPenaltyPips: Int = 0,
+         doubleBlankPenaltyPips: Int = 0,
+         doublesCountDouble: Bool = false,
+         anyBlankPenaltyPips: Int = 0) {
         self.seq = seq; self.roomCode = roomCode; self.hostName = hostName
         self.gameID = gameID; self.gameName = gameName; self.length = length
         self.startingEngineRaw = startingEngineRaw; self.currentStop = currentStop
@@ -54,6 +61,9 @@ struct GameSnapshot: Codable, Equatable {
         self.blockedRoundCapEnabled = blockedRoundCapEnabled
         self.drawCountOverride = drawCountOverride
         self.doublesPenaltyPips = doublesPenaltyPips
+        self.doubleBlankPenaltyPips = doubleBlankPenaltyPips
+        self.doublesCountDouble = doublesCountDouble
+        self.anyBlankPenaltyPips = anyBlankPenaltyPips
     }
 
     init(from decoder: Decoder) throws {
@@ -102,6 +112,9 @@ struct GameSnapshot: Codable, Equatable {
         self.blockedRoundCapEnabled = (try? c.decodeIfPresent(Bool.self, forKey: .blockedRoundCapEnabled)) ?? false
         self.drawCountOverride = try? c.decodeIfPresent(Int.self, forKey: .drawCountOverride)
         self.doublesPenaltyPips = (try? c.decodeIfPresent(Int.self, forKey: .doublesPenaltyPips)) ?? 0
+        self.doubleBlankPenaltyPips = (try? c.decodeIfPresent(Int.self, forKey: .doubleBlankPenaltyPips)) ?? 0
+        self.doublesCountDouble = (try? c.decodeIfPresent(Bool.self, forKey: .doublesCountDouble)) ?? false
+        self.anyBlankPenaltyPips = (try? c.decodeIfPresent(Int.self, forKey: .anyBlankPenaltyPips)) ?? 0
     }
 }
 
