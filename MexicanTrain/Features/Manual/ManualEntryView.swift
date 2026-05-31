@@ -31,6 +31,11 @@ struct ManualEntryView: View {
                     referenceCard(referencePhoto)
                 }
                 Spacer(minLength: 0)
+                if game.doublesPenaltyPips > 0 {
+                    doublesPenaltyChip
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 8)
+                }
                 KeypadView(value: $value)
                     .padding(.horizontal, 16)
                 footer
@@ -71,15 +76,58 @@ struct ManualEntryView: View {
                 .font(theme.displayFont(size: 80))
                 .foregroundStyle(value.isEmpty ? theme.muted.opacity(0.5) : theme.ink)
                 .frame(minHeight: 92)
-            Text(value.isEmpty
-                 ? "TYPE A NUMBER · 0 IF THEY WENT OUT"
-                 : "SUM OF PIPS LEFT IN HAND")
+            Text(readoutHelper)
                 .font(theme.monoFont(size: 9))
                 .tracking(1.4)
-                .foregroundStyle(theme.muted)
+                .foregroundStyle(willApplyGoingOutBonus ? theme.brand : theme.muted)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 8)
         }
         .padding(.vertical, 16)
         .frame(maxWidth: .infinity)
+    }
+
+    /// Help text under the big readout. Reflects whether the player will get
+    /// the going-out bonus when they submit at the current value.
+    private var readoutHelper: String {
+        if value.isEmpty {
+            return game.goingOutBonus == .none
+                ? "TYPE A NUMBER · 0 IF THEY WENT OUT"
+                : "TYPE A NUMBER · 0 IF THEY WENT OUT (BONUS \(game.goingOutBonus.displayName))"
+        }
+        if willApplyGoingOutBonus {
+            return "GOING-OUT BONUS \(game.goingOutBonus.displayName) WILL APPLY"
+        }
+        return "SUM OF PIPS LEFT IN HAND"
+    }
+
+    private var willApplyGoingOutBonus: Bool {
+        Int(value) == 0 && game.goingOutBonus != .none
+    }
+
+    private var doublesPenaltyChip: some View {
+        Button(action: applyDoublesPenalty) {
+            HStack(spacing: 8) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 14, weight: .semibold))
+                Text("ADD +\(game.doublesPenaltyPips) DOUBLES PENALTY")
+                    .font(theme.monoFont(size: 11))
+                    .fontWeight(.semibold)
+                    .tracking(1.4)
+            }
+            .foregroundStyle(theme.brand)
+            .padding(.horizontal, 14)
+            .frame(maxWidth: .infinity, minHeight: 40)
+            .background(theme.cardBg, in: Capsule())
+            .overlay(Capsule().stroke(theme.brand.opacity(0.4), lineWidth: 1))
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Add \(game.doublesPenaltyPips) doubles penalty")
+    }
+
+    private func applyDoublesPenalty() {
+        let current = Int(value) ?? 0
+        value = String(current + game.doublesPenaltyPips)
     }
 
     private var footer: some View {
@@ -94,10 +142,19 @@ struct ManualEntryView: View {
     private var canSubmit: Bool { Int(value) != nil }
 
     private func submit() {
-        guard let n = Int(value) else { return }
+        guard let entered = Int(value) else { return }
+        // Going-out bonus: if the conductor entered 0 (player went out) and a
+        // bonus is configured, store the bonus value instead. Audit history
+        // captures the negative pips directly.
+        let pips: Int
+        if entered == 0, game.goingOutBonus != .none {
+            pips = game.goingOutBonus.rawValue
+        } else {
+            pips = entered
+        }
         do {
             try GamePersistence.recordScore(in: context, game: game, player: player,
-                                            stop: stop, pips: n, source: .manual)
+                                            stop: stop, pips: pips, source: .manual)
             coordinator.openScoreboard(game)
         } catch {
             // Surface persistence errors silently for v1; reroute home as a fallback.
