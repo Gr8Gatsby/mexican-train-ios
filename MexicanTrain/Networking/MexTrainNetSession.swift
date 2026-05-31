@@ -26,6 +26,20 @@ final class MexTrainNetSession: NSObject {
         var isTCP: Bool { nsdEndpoint != nil }
         var id: String { (peerID?.displayName ?? "tcp") + roomCode }
 
+        /// Label shown in the JOIN list and on the Home rejoin tile. Falls
+        /// back to "Room {code}" when the host hasn't picked an identifying
+        /// name — otherwise multiple hosts can all read "Conductor" and the
+        /// only differentiator is the small room-code suffix.
+        @MainActor var displayLabel: String {
+            let trimmed = hostName.trimmingCharacters(in: .whitespacesAndNewlines)
+            if trimmed.isEmpty
+                || trimmed == "Conductor"
+                || trimmed == UIDevice.current.name {
+                return "Room \(roomCode)"
+            }
+            return trimmed
+        }
+
         static func == (lhs: DiscoveredHost, rhs: DiscoveredHost) -> Bool {
             lhs.id == rhs.id
         }
@@ -119,6 +133,19 @@ final class MexTrainNetSession: NSObject {
     // MARK: - Host
 
     func startHosting(initialSnapshot: GameSnapshot) {
+        // Defense in depth for the "restart while already hosting" path:
+        // tear down any prior advertiser/session/bridge so we never leak a
+        // ghost Bonjour record. Callers (NewGameView) already guard this
+        // explicitly, but other paths (e.g. host migration) might not.
+        if role == .host {
+            advertiser?.stopAdvertisingPeer()
+            advertiser = nil
+            session?.disconnect()
+            session = nil
+            tcpBridge.stop()
+            heartbeatTask?.cancel()
+            heartbeatTask = nil
+        }
         role = .host
         roomCode = initialSnapshot.roomCode
         lastSentSeq = 0
