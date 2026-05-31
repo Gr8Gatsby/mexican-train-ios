@@ -44,13 +44,14 @@ struct AuditView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 0) {
                         hero
+                        // Scored-photo editor leads when we have a capture
+                        // — it's the most important affordance for audit on
+                        // a scanned hand, since correcting labels is the
+                        // fastest path to a right answer.
+                        scoredImageEditor
                         pipEditor
                         excludeToggle
                         infoBlock
-                        referenceArea
-                        if settings.trainingDataExportEnabled, matchingCapture != nil {
-                            labelingEditorSection
-                        }
                         auditHistorySection
                     }
                     .frame(maxWidth: .infinity, alignment: .top)
@@ -198,12 +199,22 @@ struct AuditView: View {
         return game.captures.first(where: { $0.playerID == player.id && $0.stopIndex == stop })
     }
 
+    /// Sum of pips across the working label set. Used to surface a
+    /// "USE LABEL SUM" affordance when the conductor's relabelling has
+    /// produced a different total than what's typed in `pipEditor`.
+    private var labelSum: Int { labelDraft.reduce(0) { $0 + $1.pips } }
+
+    /// Replaces the old cropped "reference photo" card. Shows the actual
+    /// scored image full-width with the editable detection overlays on
+    /// top — taps go straight to the pip-value picker, so the conductor
+    /// can correct mis-detections without first opening a separate
+    /// "label tiles" section.
     @ViewBuilder
-    private var referenceArea: some View {
+    private var scoredImageEditor: some View {
         let capture = matchingCapture
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(capture == nil ? "NO CAPTURE" : "REFERENCE PHOTO")
+                Text(capture == nil ? "NO PHOTO YET" : "SCORED PHOTO")
                     .font(theme.monoFont(size: 11))
                     .tracking(1.8)
                     .foregroundStyle(theme.muted)
@@ -220,24 +231,56 @@ struct AuditView: View {
                 .appPillStyle()
             }
             if let capture, let img = coordinator.photoStore.load(filename: capture.filename, gameID: game.id) {
-                Image(uiImage: img)
-                    .resizable()
-                    .scaledToFill()
-                    .frame(height: 160)
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 10)
-                            .stroke(theme.ink, lineWidth: 2)
-                    )
-                if !capture.tiles.isEmpty {
-                    Text("DETECTED \(capture.tiles.count) TILES · \(capture.pipsDetected ?? 0) PIPS")
+                Text("Tap a half to relabel. Tap empty space to add a missed one.")
+                    .font(theme.monoFont(size: 11))
+                    .foregroundStyle(theme.muted)
+                EditableDetectionOverlay(
+                    image: img,
+                    tiles: Binding(
+                        get: { labelDraft },
+                        set: { new in
+                            labelDraft = new
+                            labelDraftDirty = true
+                        }
+                    ),
+                    color: theme.accent
+                )
+                .frame(height: 360)
+                .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 10))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 10)
+                        .stroke(theme.border, lineWidth: 1)
+                )
+                HStack(spacing: 8) {
+                    Text("\(labelDraft.count) halves · \(labelSum) pips")
                         .font(theme.monoFont(size: 11))
-                        .tracking(1.2)
                         .foregroundStyle(theme.muted)
+                    Spacer()
+                    // Only surface the sync button when relabelling has
+                    // produced a different total than what's currently in
+                    // the pip editor. One tap pulls the label sum into the
+                    // text field — explicit so a conductor who entered a
+                    // hand sum manually isn't surprised by an overwrite.
+                    if labelDraftDirty, labelSum != numeric {
+                        Button {
+                            value = String(labelSum)
+                        } label: {
+                            Text("USE LABEL SUM (\(labelSum))")
+                                .font(theme.monoFont(size: 11))
+                                .fontWeight(.semibold)
+                                .tracking(1.2)
+                        }
+                        .appPillStyle(prominent: true)
+                    }
                 }
+            } else {
+                Text("Tap SCAN NOW to capture the hand and auto-count pips.")
+                    .font(theme.monoFont(size: 12))
+                    .foregroundStyle(theme.muted)
+                    .padding(.vertical, 4)
             }
         }
-        .padding(.horizontal, 14).padding(.vertical, 8)
+        .padding(.horizontal, 14).padding(.vertical, 10)
     }
 
     @ViewBuilder
@@ -260,54 +303,6 @@ struct AuditView: View {
                 .foregroundStyle(theme.muted)
         }
         .padding(.horizontal, 14).padding(.vertical, 10)
-    }
-
-    @ViewBuilder
-    private var labelingEditorSection: some View {
-        if let capture = matchingCapture,
-           let img = coordinator.photoStore.load(filename: capture.filename, gameID: game.id) {
-            VStack(alignment: .leading, spacing: 6) {
-                HStack {
-                    Text("LABEL TILES")
-                        .font(theme.monoFont(size: 11))
-                        .tracking(1.8)
-                        .foregroundStyle(theme.muted)
-                    Spacer()
-                    if capture.isLabeled || labelDraftDirty {
-                        Text("LABELED")
-                            .font(theme.monoFont(size: 11))
-                            .tracking(1.4)
-                            .foregroundStyle(theme.accent)
-                    }
-                }
-                Text("Tap a chip to correct its pip value. Tap empty space on the photo to add a missed half. Saved labels are used by Export in Settings.")
-                    .font(theme.monoFont(size: 12))
-                    .foregroundStyle(theme.muted)
-                EditableDetectionOverlay(
-                    image: img,
-                    tiles: Binding(
-                        get: { labelDraft },
-                        set: { new in
-                            labelDraft = new
-                            labelDraftDirty = true
-                        }
-                    ),
-                    color: theme.accent
-                )
-                .frame(height: 220)
-                .background(theme.cardBg, in: RoundedRectangle(cornerRadius: 10))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 10)
-                        .stroke(theme.border, lineWidth: 1)
-                )
-                if labelDraftDirty {
-                    Text("Sum of corrected halves: \(labelDraft.reduce(0) { $0 + $1.pips })")
-                        .font(theme.monoFont(size: 12))
-                        .foregroundStyle(theme.muted)
-                }
-            }
-            .padding(.horizontal, 14).padding(.vertical, 10)
-        }
     }
 
     @ViewBuilder
